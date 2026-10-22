@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>API Clients &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="../picasso-base.css?v=6">
+    <link rel="stylesheet" href="/picasso-select.css?v=5">
+    <link rel="stylesheet" href="/solutions/solutions.css?v=45">
+</head>
+<body>
+<div class="sl-shell" data-testid="api-clients-page">
+
+    <div class="ct-header" data-testid="api-clients-header">
+        <h1 data-testid="page-title">API Clients</h1>
+        <button type="button" id="btnPrint" data-testid="api-clients-print">Print</button>
+    </div>
+
+    <div class="sl-tabs" id="tabBar" data-testid="api-clients-tabs">
+        <button type="button" class="sl-tab active" data-tab="clients" data-testid="api-clients-tab-clients">Clients</button>
+        <button type="button" class="sl-tab"        data-tab="access"  data-testid="api-clients-tab-access">Access log <span class="badge" id="badgeRefused"></span></button>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-clients" data-testid="api-clients-toolbar">
+        <button type="button" class="sl-btn primary" id="btnAdd" data-testid="api-clients-add-btn">+ Client</button>
+    </div>
+    <div class="sl-toolbar" id="toolbar-access" hidden data-testid="api-clients-access-toolbar">
+        <div class="fld"><label for="fClient">Client</label><select id="fClient" data-ps-placeholder="Every client" data-testid="api-clients-access-client"></select></div>
+        <label class="check"><input type="checkbox" id="fRefused" data-testid="api-clients-access-refused"> Refusals only</label>
+    </div>
+
+    <div class="sl-body" id="slBody" data-testid="api-clients-body">
+        <div class="sl-wrap">
+            <div id="pane-clients" data-testid="api-clients-list"><div class="sl-empty">Loading&hellip;</div></div>
+            <div id="pane-access" hidden data-testid="api-clients-access"></div>
+        </div>
+    </div>
+    <div class="sl-status" id="statusBar" data-testid="api-clients-status">Echo | API Clients</div>
+</div>
+
+<!-- Add / edit a client -->
+<div class="sl-overlay" id="clientOverlay" data-testid="api-clients-edit-overlay">
+    <div class="sl-modal">
+        <h2 id="clientTitle">New client</h2>
+        <div class="warn" id="clientWarn" data-testid="api-clients-edit-warn"></div>
+        <div class="fld"><label for="cName">Name</label><input type="text" id="cName" data-testid="api-clients-name" placeholder="Who this is, e.g. Rex (work agent)" autocomplete="off"></div>
+        <div class="fld"><label for="cCode">Code</label><input type="text" id="cCode" data-testid="api-clients-code" placeholder="rex" autocomplete="off" autocapitalize="none" spellcheck="false">
+            <div class="hint">Lower-case letters, digits and hyphens. It is the name the client signs its work with.</div></div>
+        <div class="fld"><label for="cPrefixes">Paths it may reach</label><input type="text" id="cPrefixes" data-testid="api-clients-prefixes" autocomplete="off" autocapitalize="none" spellcheck="false">
+            <div class="hint">Each one like /api/solutions/ -- separate several with a semicolon. Anything not listed is refused. Sign-in, service control and this page can never be granted.</div></div>
+        <div class="fld"><label for="cNotes">Notes</label><textarea id="cNotes" data-testid="api-clients-notes" style="min-height:70px"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="clientCancel" data-testid="api-clients-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="clientSave" data-testid="api-clients-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- The one time a key is shown -->
+<div class="sl-overlay" id="keyOverlay" data-testid="api-clients-key-overlay">
+    <div class="sl-modal">
+        <h2 id="keyTitle">New key</h2>
+        <p style="font-size:13px;line-height:1.5;margin:0 0 10px">Copy this now. It is shown once and cannot be recovered; only a fingerprint of it is kept.
+            Put it in the agent's secrets, never in a file that gets committed.</p>
+        <div class="sl-keybox" id="keyValue" data-testid="api-clients-key-value"></div>
+        <div class="foot" style="margin-top:12px">
+            <button type="button" class="sl-btn" id="keyCopy" data-testid="api-clients-key-copy">Copy key</button>
+            <button type="button" class="sl-btn" id="keyCopyBrief" data-testid="api-clients-key-copy-brief" title="The whole brief for this agent, with this key already in it">Copy instructions with this key</button>
+            <button type="button" class="sl-btn primary" id="keyClose" data-testid="api-clients-key-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Which solutions a client may see -->
+<div class="sl-overlay" id="linksOverlay" data-testid="api-clients-links-overlay">
+    <div class="sl-modal">
+        <h2 id="linksTitle">Solutions</h2>
+        <ul class="sl-list-plain" id="linksList" data-testid="api-clients-links-list"></ul>
+        <div class="foot" style="margin-top:12px"><button type="button" class="sl-btn primary" id="linksClose" data-testid="api-clients-links-close">Close</button></div>
+    </div>
+</div>
+
+<!-- The hand-off text for the agent -->
+<div class="sl-overlay" id="briefOverlay" data-testid="api-clients-brief-overlay">
+    <div class="sl-modal" style="width:min(820px,100%)">
+        <h2 id="briefTitle">Brief</h2>
+        <p style="font-size:13px;line-height:1.5;margin:0 0 10px">Paste this into the agent's standing instructions. It holds no key -- there is a marked place for it -- and it says how the key must be kept and how to use conversations.
+            To copy it with the key already in it: open a shared solution, Overview, Brief.</p>
+        <pre class="sl-mono" id="briefText" data-testid="api-clients-brief-text" style="white-space:pre-wrap;max-height:50vh;overflow:auto;margin:0"></pre>
+        <div class="foot" style="margin-top:12px">
+            <button type="button" class="sl-btn" id="briefCopy" data-testid="api-clients-brief-copy">Copy</button>
+            <button type="button" class="sl-btn primary" id="briefClose" data-testid="api-clients-brief-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="../picasso-utils.js?v=63"></script>
+<script src="../auth.js?v=36"></script>
+<script src="/picasso-select.js?v=5"></script>
+<script src="/stepup-gate.js?v=5"></script>
+<script src="/solutions/solutions-common.js?v=13"></script>
+<script src="api-clients.js?v=4"></script>
+</body>
+</html>

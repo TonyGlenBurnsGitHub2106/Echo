@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>Settings &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/picasso-base.css?v=6">
+    <link rel="stylesheet" href="/solutions/solutions.css?v=46">
+    <style>
+        .st-card { background: #FFFFFF; border: 1px solid #E0E0E2; border-radius: 6px; margin: 0 0 14px; }
+        .st-card > h2 { margin: 0; padding: 10px 14px; font-size: 12pt; cursor: pointer; user-select: none;
+                        display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #ECECEE; }
+        .st-card > h2 .chev { margin-left: auto; color: #A0A0A4; font-size: 10pt; transition: transform 150ms ease; }
+        .st-card.folded > h2 { border-bottom: none; }
+        .st-card.folded > h2 .chev { transform: rotate(-90deg); }
+        .st-card.folded > .st-body { display: none; }
+        .st-body { padding: 12px 14px 14px; font-size: 11pt; line-height: 1.5; }
+        .st-body .fld { margin-bottom: 10px; }
+        .st-body .fld label { display: block; font-size: 10pt; color: #555; margin-bottom: 3px; }
+        .st-body .fld input { width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 11pt; }
+        .st-about { border-collapse: collapse; }
+        .st-about td { padding: 3px 14px 3px 0; vertical-align: top; }
+        .st-about td:first-child { color: #666; white-space: nowrap; }
+        .st-fold-all { margin: 0 0 10px; }
+    </style>
+</head>
+<body>
+<div class="sl-shell" data-testid="settings-page">
+
+    <div class="ct-header" data-testid="settings-header">
+        <h1 data-testid="page-title">Settings</h1>
+        <button type="button" id="btnPrint" data-testid="settings-print">Print</button>
+    </div>
+
+    <div class="sl-body">
+        <div class="sl-wrap">
+            <div class="st-fold-all"><button type="button" class="sl-btn" id="btnFoldAll" data-testid="settings-fold-all">Fold all</button></div>
+
+            <div class="st-card" data-card="password" data-testid="settings-password-card">
+                <h2>Change your password <span class="chev">&#9662;</span></h2>
+                <div class="st-body">
+                    <div class="warn" id="pwWarn" data-testid="settings-password-warn"></div>
+                    <div class="fld"><label for="pwCurrent">Current password</label>
+                        <input type="password" id="pwCurrent" data-testid="settings-password-current" autocomplete="current-password"></div>
+                    <div class="fld"><label for="pwNew">New password (at least 8 characters)</label>
+                        <input type="password" id="pwNew" data-testid="settings-password-new" autocomplete="new-password"></div>
+                    <div class="fld"><label for="pwAgain">New password again</label>
+                        <input type="password" id="pwAgain" data-testid="settings-password-again" autocomplete="new-password"></div>
+                    <button type="button" class="sl-btn primary" id="btnPassword" data-testid="settings-password-save">Save</button>
+                    <p style="color:#666;font-size:10pt;margin:10px 0 0">Changing it signs you out of every other browser. This one stays signed in.</p>
+                </div>
+            </div>
+
+            <div class="st-card" data-card="sessions" data-testid="settings-sessions-card">
+                <h2>Sign out everywhere <span class="chev">&#9662;</span></h2>
+                <div class="st-body">
+                    <p style="margin:0 0 10px">Ends every Echo session you have open, in every browser on every computer, this one included.</p>
+                    <button type="button" class="sl-btn" id="btnEverywhere" data-testid="settings-signout-everywhere">Sign out everywhere</button>
+                </div>
+            </div>
+
+            <div class="st-card" data-card="about" data-testid="settings-about-card">
+                <h2>About Echo <span class="chev">&#9662;</span></h2>
+                <div class="st-body">
+                    <table class="st-about" id="aboutTable" data-testid="settings-about"><tr><td>Loading&hellip;</td></tr></table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="sl-status" id="statusBar" data-testid="settings-status">Echo | Settings</div>
+</div>
+
+<script src="/picasso-utils.js?v=63"></script>
+<script src="/auth.js?v=36"></script>
+<script src="/picasso-view-state.js?v=3"></script>
+<script>
+(function () {
+    'use strict';
+    var VS = window.PicassoViewState;
+    var PREFIX = 'echo.settings.fold.';
+    function $(id) { return document.getElementById(id); }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function cards() { return Array.prototype.slice.call(document.querySelectorAll('.st-card')); }
+
+    // ---- folds: every card folds and is remembered in the database; Fold all works them all -----
+    function paintFoldAll() {
+        var anyOpen = cards().some(function (c) { return !c.classList.contains('folded'); });
+        $('btnFoldAll').textContent = anyOpen ? 'Fold all' : 'Open all';
+    }
+    function setFold(card, folded) {
+        card.classList.toggle('folded', folded);
+        if (VS) VS.set(PREFIX + card.getAttribute('data-card'), folded ? '1' : '0');
+    }
+    function applyFolds() {
+        cards().forEach(function (c) { c.classList.toggle('folded', !!VS && VS.get(PREFIX + c.getAttribute('data-card')) === '1'); });
+        paintFoldAll();
+    }
+    cards().forEach(function (c) {
+        c.querySelector('h2').addEventListener('click', function () { setFold(c, !c.classList.contains('folded')); paintFoldAll(); });
+    });
+    $('btnFoldAll').addEventListener('click', function () {
+        var fold = this.textContent === 'Fold all';
+        cards().forEach(function (c) { setFold(c, fold); });
+        paintFoldAll();
+    });
+
+    // ---- password -----------------------------------------------------------------------------
+    $('btnPassword').addEventListener('click', async function () {
+        var warn = $('pwWarn');
+        warn.textContent = '';
+        if (!$('pwCurrent').value) { warn.textContent = 'Type your current password.'; return; }
+        if ($('pwNew').value.length < 8) { warn.textContent = 'A new password needs at least 8 characters.'; return; }
+        if ($('pwNew').value !== $('pwAgain').value) { warn.textContent = 'The two new passwords are not the same.'; return; }
+        var yes = await window.Picasso.yesNo('Change your Echo password? Every other browser you are signed in to will be signed out.', { title: 'Change password' });
+        if (!yes) return;
+        this.disabled = true;
+        var r = await window.LWAuth.apiPost('/api/auth/change-password',
+            { currentPassword: $('pwCurrent').value, newPassword: $('pwNew').value }, 'POST');
+        this.disabled = false;
+        if (r && r.ok) {
+            if (r.data && r.data.accessToken) window.LWAuth.setToken(r.data.accessToken);
+            $('pwCurrent').value = $('pwNew').value = $('pwAgain').value = '';
+            await window.Picasso.message('Your Echo password is changed. Other browsers have been signed out.', { title: 'Password changed' });
+        } else {
+            warn.textContent = window.LWAuth.errorText(r, 'Change password failed');
+        }
+    });
+
+    // ---- sign out everywhere ------------------------------------------------------------------
+    $('btnEverywhere').addEventListener('click', async function () {
+        var yes = await window.Picasso.yesNo('Sign out of Echo everywhere? Every Echo session -- in every browser, on every computer, this one too -- ends now.',
+            { title: 'Sign out everywhere' });
+        if (!yes) return;
+        await window.LWAuth.apiPost('/api/auth/logout-everywhere', null, 'POST');
+        window.location.href = '/';
+    });
+
+    // ---- about --------------------------------------------------------------------------------
+    async function loadAbout() {
+        var r = await window.LWAuth.apiGet('/api/system/about');
+        if (!r || !r.ok || !r.data) { $('aboutTable').innerHTML = '<tr><td>' + esc(window.LWAuth.errorText(r, 'About Echo failed')) + '</td></tr>'; return; }
+        var d = r.data;
+        var rows = [['Version', d.version], ['Running for', d.uptime], ['Database', d.database + (d.databaseUp ? '' : ' (not answering)')],
+                    ['Files are kept in', d.filesFolder], ['Java', d.java]];
+        $('aboutTable').innerHTML = rows.map(function (x) { return '<tr><td>' + esc(x[0]) + '</td><td>' + esc(x[1]) + '</td></tr>'; }).join('');
+    }
+
+    $('btnPrint').addEventListener('click', function (e) {
+        e.preventDefault();
+        window.Picasso.printThisPage({ selector: '.sl-wrap', title: 'Echo Settings', stripSelector: 'button, input, .st-fold-all, script, style' });
+    });
+
+    (async function () {
+        var t = await window.LWAuth.ensureAuth();
+        if (!t) return;
+        applyFolds();
+        if (VS) { try { await VS.sync(PREFIX); } catch (e) { /* the cache holds */ } applyFolds(); }
+        loadAbout();
+    })();
+})();
+</script>
+</body>
+</html>

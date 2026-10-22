@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Quick Launch &#8212; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3C3C3C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/picasso-base.css?v=6">
+    <link rel="stylesheet" href="/quick-launch/quick-launch.css?v=17">
+    <script src="/picasso-voice.js?v=14" defer></script>
+    <style>
+        /* Story 2293: pin the menu band; only .ql-manage-wrap scrolls. */
+        html, body { height: 100%; }
+        body { margin: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .lw-nav { flex: 0 0 auto; }
+        .ql-manage-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+        /* Arrange (Leonardo Terms "Arrange"): grips show, and rows drag, only while arranging. */
+        .ql-list .ql-grip { display: none; }
+        .ql-list.arranging .ql-grip { display: flex; }
+        .ql-list.arranging .ql-row { cursor: grab; }
+        .ql-arrange-bar { display: flex; gap: 8px; align-items: center; margin: 6px 0 10px; }
+        .ql-arrange-bar button { padding: 6px 12px; }
+        .ql-arrange-bar button.is-on { background: #1F4E8C; color: #FFFFFF; border-color: #1F4E8C; }
+    </style>
+</head>
+<body class="ql-no-pin">
+
+    <nav class="lw-nav">
+        <a href="/" data-testid="nav-home" style="color:#B6D4FF; text-decoration:none">&#8592; Home</a>
+    </nav>
+
+    <div class="ql-manage-wrap" data-testid="quick-launch-manage-page">
+        <h1 data-testid="page-title" style="font-size:18pt; font-weight:700; margin:8px 0 4px">Quick Launch</h1>
+        <p class="ql-manage-hint">
+            Tap <strong>Arrange</strong>, then drag a row by its grip (or press and hold it on a phone) to
+            put the pins in order. Tap <strong>Done</strong> when they are where you want them.
+            Tap <strong>Edit</strong> to rename or change the icon. Tap <strong>Delete</strong> to remove a pin.
+        </p>
+        <div class="ql-arrange-bar">
+            <button type="button" id="qlArrange" data-testid="ql-arrange-btn" title="Put the pins in order">&#8645; Arrange</button>
+        </div>
+
+        <div class="ql-list" id="qlList" data-testid="ql-list"></div>
+
+        <div class="ql-manage-empty" id="qlEmpty" data-testid="ql-empty" style="display:none">
+            No pins yet. Open any page in Echo and tap the <strong>&#128204; Pin</strong> button in the
+            top nav to add it here, or use the button below to add a custom one.
+        </div>
+
+        <div class="ql-manage-add">
+            <button type="button" id="qlAddCustom" data-testid="ql-add-custom-btn">+ Add custom pin</button>
+        </div>
+    </div>
+
+    <script src="/picasso-utils.js?v=63"></script>
+    <script src="/auth.js?v=36"></script>
+    <script src="/quick-launch/quick-launch.js?v=46"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        var listEl  = document.getElementById('qlList');
+        var emptyEl = document.getElementById('qlEmpty');
+
+        function rowEl(pin) {
+            var row = document.createElement('div');
+            row.className = 'ql-row draggable';
+            row.setAttribute('data-id', pin.quickLaunchId);
+            row.setAttribute('data-testid', 'ql-row');
+            row.draggable = arranging;
+
+            var grip = document.createElement('div');
+            grip.className = 'ql-grip';
+            grip.innerHTML = '&#8942;&#8942;';
+
+            var ico = document.createElement('div');
+            ico.className = 'ql-row-ico';
+            ico.textContent = pin.iconKey || '';
+
+            var text = document.createElement('div');
+            text.className = 'ql-row-text';
+            var lbl = document.createElement('div'); lbl.className = 'ql-row-label'; lbl.textContent = pin.label || '';
+            var url = document.createElement('div'); url.className = 'ql-row-url';   url.textContent = pin.url || '';
+            text.appendChild(lbl); text.appendChild(url);
+
+            var actions = document.createElement('div');
+            actions.className = 'ql-row-actions';
+            var editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.textContent = 'Edit';
+            var delBtn  = document.createElement('button'); delBtn.type  = 'button'; delBtn.textContent  = 'Delete';
+            delBtn.className  = 'danger';
+            actions.appendChild(editBtn); actions.appendChild(delBtn);
+
+            row.appendChild(grip); row.appendChild(ico); row.appendChild(text); row.appendChild(actions);
+
+
+            editBtn.addEventListener('click', function () {
+                window.QuickLaunch.openPinModal({
+                    mode: 'edit',
+                    id: pin.quickLaunchId,
+                    label: pin.label,
+                    url: pin.url,
+                    iconKey: pin.iconKey,
+                    onSaved: function () { load(); }
+                });
+            });
+            delBtn.addEventListener('click', async function () {
+                var ok = await window.QuickLaunch.confirmAction({
+                    title: 'Remove this pin?',
+                    subtitle: '"' + (pin.label || '(no label)') + '" will be removed from Quick Launch.',
+                    confirmLabel: 'Yes, remove',
+                    cancelLabel: 'Cancel'
+                });
+                if (!ok) return;
+                var res = await window.LWAuth.apiPost('/api/quick-launch/' + pin.quickLaunchId, null, 'DELETE');
+                if (res && res.ok) {
+                    window.QuickLaunch.toast('Removed.');
+                    load();
+                } else {
+                    window.QuickLaunch.toast('Remove failed.');
+                }
+            });
+            return row;
+        }
+
+        async function load() {
+            var res = await window.LWAuth.apiGet('/api/quick-launch');
+            var pins = (res && res.ok && Array.isArray(res.data)) ? res.data : [];
+            listEl.innerHTML = '';
+            if (pins.length === 0) {
+                emptyEl.style.display = '';
+                return;
+            }
+            emptyEl.style.display = 'none';
+            for (var i = 0; i < pins.length; i++) listEl.appendChild(rowEl(pins[i]));
+            window.QuickLaunch.makeReorderable(listEl, {
+                canDrag: function () { return arranging; },
+                onReorder: function (orderedIds) {
+                    persistOrder(orderedIds);
+                }
+            });
+        }
+
+        function persistOrder(orderedIds) {
+            if (!orderedIds) {
+                orderedIds = Array.prototype.slice.call(listEl.querySelectorAll('.draggable'))
+                    .map(function (r) { return parseInt(r.getAttribute('data-id'), 10); })
+                    .filter(function (n) { return !isNaN(n) && n > 0; });
+            }
+            window.LWAuth.apiPost('/api/quick-launch/reorder',
+                { orderedIds: orderedIds }, 'PUT');
+        }
+
+        // ---- Arrange -------------------------------------------------------
+        // Never arrows (Leonardo Terms "Arrange"): Arrange switches the grips on, a drag (mouse or
+        // a held finger) moves a row, and Arrange / Done / Escape ends it. Not remembered: a mode.
+        var arranging = false;
+        var arrangeBtn = document.getElementById('qlArrange');
+        function setArranging(on) {
+            arranging = !!on;
+            listEl.classList.toggle('arranging', arranging);
+            arrangeBtn.classList.toggle('is-on', arranging);
+            arrangeBtn.innerHTML = arranging ? 'Done' : '&#8645; Arrange';
+            listEl.querySelectorAll('.ql-row').forEach(function (r) { r.draggable = arranging; });
+        }
+        arrangeBtn.addEventListener('click', function () { setArranging(!arranging); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && arranging) setArranging(false); });
+
+        document.getElementById('qlAddCustom').addEventListener('click', function () {
+            window.QuickLaunch.openPinModal({
+                mode: 'add-custom',
+                label: '',
+                url: '',
+                iconKey: '',
+                onSaved: function () { load(); }
+            });
+        });
+
+        window.LWAuth.ensureAuth().then(function () { load(); });
+    })();
+    </script>
+</body>
+</html>

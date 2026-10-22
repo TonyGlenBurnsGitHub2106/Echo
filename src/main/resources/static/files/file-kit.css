@@ -1,0 +1,139 @@
+/* FileKit -- shared styles for organized Files (Story 3520): category chips, file-type
+   badges, and the File to / Categories sheets. Used by the record Files tab and by the
+   Leonardo Files page. */
+
+/* ---- Category chip ---- */
+.fk-chip {
+    --fk-c: #64748B;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: color-mix(in srgb, var(--fk-c) 12%, #fff);
+    color: color-mix(in srgb, var(--fk-c) 80%, #000);
+    border: 1px solid color-mix(in srgb, var(--fk-c) 35%, #fff);
+    border-radius: 999px;
+    padding: 2px 10px 2px 8px;
+    font: 600 11px "Segoe UI", system-ui, sans-serif;
+    line-height: 18px; white-space: nowrap;
+}
+button.fk-chip { cursor: pointer; }
+button.fk-chip:hover { background: color-mix(in srgb, var(--fk-c) 22%, #fff); }
+.fk-chip .fk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fk-c); flex: 0 0 auto; }
+.fk-chip .fk-chip-n { font-weight: 400; opacity: 0.75; }
+.fk-chip.fk-chip-lg { padding: 7px 14px 7px 11px; font-size: 13px; }
+.fk-chip.current { box-shadow: 0 0 0 2px var(--fk-c); }
+.fk-chip.fk-staging {
+    --fk-c: #B45309;
+    background: #FEF3C7; color: #92400E; border-color: #FCD34D;
+}
+
+/* ---- File-type badge ---- */
+.fk-type {
+    display: inline-block; min-width: 34px; text-align: center;
+    font: 700 10px "Segoe UI", system-ui, sans-serif; letter-spacing: 0.3px;
+    padding: 2px 6px; border-radius: 4px; color: #fff; background: #64748B;
+    flex: 0 0 auto;
+}
+.fk-type-pdf   { background: #C2410C; }
+.fk-type-img   { background: #0E7490; }
+.fk-type-doc   { background: #1D4ED8; }
+.fk-type-sheet { background: #15803D; }
+.fk-type-web   { background: #7C3AED; }
+.fk-type-media { background: #BE185D; }
+.fk-type-other { background: #64748B; }
+
+/* ---- Buttons used inside the sheets ---- */
+.fk-btn {
+    background: #fff; color: #0A66C2;
+    border: 1px solid #C9D7E8; border-radius: 4px;
+    padding: 8px 14px; font: 13px "Segoe UI", system-ui, sans-serif;
+    cursor: pointer;
+}
+.fk-btn:hover { background: #ECF4FD; }
+.fk-btn.primary { background: #0A66C2; color: #fff; border-color: #0A66C2; }
+.fk-btn.primary:hover { background: #084FA1; }
+.fk-icon-btn {
+    background: #fff; border: 1px solid #D5DBE3; border-radius: 4px;
+    width: 32px; height: 32px; cursor: pointer; color: #475569; font-size: 12px;
+    flex: 0 0 auto;
+}
+.fk-icon-btn:disabled { opacity: 0.35; cursor: default; }
+.fk-icon-btn.danger { color: #C00000; border-color: #E2B0B0; }
+
+/* ---- Sheet ---- */
+.fk-sheet-bg {
+    position: fixed; inset: 0; z-index: 2100;
+    background: rgba(15, 23, 42, 0); display: flex; align-items: center; justify-content: center;
+    transition: background 0.16s ease;
+}
+.fk-sheet-bg.open { background: rgba(15, 23, 42, 0.45); }
+.fk-sheet {
+    background: #fff; border-radius: 10px; width: min(560px, calc(100vw - 32px));
+    max-height: min(80vh, 720px); display: flex; flex-direction: column;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+    transform: translateY(12px); opacity: 0; transition: transform 0.16s ease, opacity 0.16s ease;
+    font-family: "Segoe UI", system-ui, sans-serif;
+}
+.fk-sheet-bg.open .fk-sheet { transform: none; opacity: 1; }
+.fk-sheet-head { padding: 14px 18px 6px; }
+.fk-sheet-head h2 { margin: 0; font-size: 16px; font-weight: 600; color: #111; }
+.fk-sheet-body { padding: 6px 18px 10px; overflow-y: auto; flex: 1 1 auto; }
+.fk-sheet-extra { padding: 0 18px 10px; }
+.fk-sheet-extra:empty { display: none; }
+.fk-sheet-err { color: #C00000; font-size: 12px; padding: 0 18px; }
+.fk-sheet-err:empty { display: none; }
+.fk-sheet-foot {
+    display: flex; gap: 8px; justify-content: flex-end; padding: 10px 18px 14px;
+    border-top: 1px solid #EEF0F3;
+}
+.fk-sub { color: #555; font-size: 13px; margin-bottom: 10px; word-break: break-word; }
+.fk-chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.fk-label { display: block; font-size: 12px; color: #666; margin: 4px 0 4px; }
+.fk-new-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.fk-new-row .fk-new-wrap { flex: 1 1 auto; position: relative; }
+/* The typed-category box sits at the bottom of a scrolling sheet, so its list opens
+   upward -- downward it would be clipped by the sheet body. */
+.fk-sheet .fk-new-wrap .picker-dropdown { top: auto; bottom: 100%; border-radius: 4px 4px 0 0; max-height: 200px; }
+/* The File to / Change type sheet (Story 5592): no chips, just the typeahead, and its list
+   sits in the sheet under the box -- always showing, filtering as you type. */
+.fk-sheet .fk-new-row:has(.fk-pick-wrap) { align-items: flex-start; }
+.fk-sheet .fk-new-wrap .picker-dropdown.fk-pick-list {
+    display: block; position: static; margin-top: 6px;
+    max-height: min(50vh, 360px); border-radius: 4px; box-shadow: none;
+}
+.fk-sheet .fk-pick-list .picker-option { font-size: 14px; padding: 11px 12px; }
+/* The voice-dictation script wraps the box in an inline .voice-mic-wrap; stretch it so the
+   box is as wide as its list. */
+.fk-sheet .fk-pick-wrap > .voice-mic-wrap { display: block; width: 100%; }
+.fk-sheet .fk-pick-wrap > .voice-mic-wrap > .picker-input { width: 100%; box-sizing: border-box; }
+.fk-new-row input[type="text"] {
+    width: 100%; box-sizing: border-box; padding: 8px 10px;
+    border: 1px solid #C9D0D8; border-radius: 4px; font: 14px "Segoe UI", system-ui, sans-serif;
+}
+
+/* Categories manager rows */
+.fk-cat-list { display: flex; flex-direction: column; gap: 6px; }
+.fk-cat-row { display: flex; align-items: center; gap: 6px; }
+.fk-cat-row .fk-cat-name {
+    /* basis 0: the name shrinks to fit, so the delete button stays on the row on a phone */
+    flex: 1 1 0; min-width: 0; padding: 7px 9px;
+    border: 1px solid #D5DBE3; border-radius: 4px; font: 14px "Segoe UI", system-ui, sans-serif;
+}
+.fk-cat-row { flex-wrap: wrap; }
+/* The voice-dictation script wraps each text box in .voice-mic-wrap; the wrapper is the flex item then. */
+.fk-cat-row > .voice-mic-wrap { flex: 1 1 0; min-width: 0; }
+.fk-cat-row > .voice-mic-wrap .fk-cat-name { width: 100%; box-sizing: border-box; }
+.fk-swatch {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #CBD5E1; cursor: pointer; flex: 0 0 auto; padding: 0;
+}
+.fk-swatch.on { box-shadow: 0 0 0 2px #111; }
+.fk-palette { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 0 8px 2px; }
+.fk-cat-uses {
+    min-width: 28px; text-align: center; font-size: 12px; color: #64748B;
+    background: #F1F5F9; border-radius: 999px; padding: 2px 6px; flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+    .fk-sheet-bg { align-items: flex-end; }
+    .fk-sheet { width: 100vw; max-height: 88vh; border-radius: 14px 14px 0 0; }
+    .fk-sheet-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}

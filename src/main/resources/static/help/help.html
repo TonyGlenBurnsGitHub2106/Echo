@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/picasso-base.css?v=6">
+    <link rel="stylesheet" href="/solutions/solutions.css?v=46">
+    <style>
+        .hp-doc { background: #FFFFFF; border: 1px solid #E0E0E2; border-radius: 6px; padding: 8px 22px 22px;
+                  max-width: 900px; font-size: 11pt; line-height: 1.55; color: #1A1A1A; }
+        .hp-doc h1 { font-size: 18pt; margin: 14px 0 8px; }
+        .hp-doc h2 { font-size: 13pt; margin: 22px 0 6px; }
+        .hp-doc table { border-collapse: collapse; margin: 8px 0; }
+        .hp-doc th, .hp-doc td { border: 1px solid #DDD; padding: 5px 10px; text-align: left; vertical-align: top; }
+        .hp-doc th { background: #F5F5F7; }
+        .hp-doc code { background: #F0F0F4; padding: 1px 5px; border-radius: 3px; font: 9.5pt Consolas, monospace; }
+        .hp-doc blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid #C9CDD6; color: #555; }
+    </style>
+</head>
+<body>
+<div class="sl-shell" data-testid="help-page">
+    <div class="ct-header" data-testid="help-header">
+        <h1 data-testid="page-title">Help</h1>
+        <button type="button" id="btnPrint" data-testid="help-print">Print</button>
+    </div>
+    <div class="sl-body">
+        <div class="sl-wrap">
+            <div class="hp-doc" id="doc" data-testid="help-doc">Loading&hellip;</div>
+        </div>
+    </div>
+    <div class="sl-status" data-testid="help-status">Echo | Help</div>
+</div>
+<script src="/marked.min.js?v=1"></script>
+<script src="/picasso-utils.js?v=63"></script>
+<script src="/auth.js?v=36"></script>
+<script>
+(function () {
+    'use strict';
+    // The help text is Echo's own file (help/Echo.md, written with the app), drawn with marked.
+    async function load() {
+        var doc = document.getElementById('doc');
+        try {
+            var r = await fetch('/help/Echo.md?v=4', { cache: 'no-store' });
+            var text = await r.text();
+            doc.innerHTML = window.marked ? window.marked.parse(text, { gfm: true }) : '<pre></pre>';
+            if (!window.marked) doc.firstChild.textContent = text;
+        } catch (e) {
+            doc.textContent = 'The help could not be loaded.';
+        }
+    }
+    document.getElementById('btnPrint').addEventListener('click', function (e) {
+        e.preventDefault();
+        window.Picasso.printThisPage({ selector: '#doc', title: 'Echo Help' });
+    });
+    window.LWAuth.ensureAuth().then(function (t) { if (t) load(); });
+})();
+</script>
+</body>
+</html>

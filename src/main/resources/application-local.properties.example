@@ -1,0 +1,19 @@
+# Echo -- this machine's settings. Copy to application-local.properties (or let
+# scripts\Install-Echo.ps1 write it). NEVER commit the real file: it holds the keys.
+
+# The database. SQL login:
+spring.datasource.url=jdbc:sqlserver://localhost;databaseName=Echo;encrypt=true;trustServerCertificate=true
+spring.datasource.username=echo_app
+spring.datasource.password=CHANGE-ME
+# ...or Windows sign-in (no user / password; needs lib\mssql-jdbc_auth-*.dll, see the README):
+# spring.datasource.url=jdbc:sqlserver://localhost;databaseName=Echo;integratedSecurity=true;encrypt=true;trustServerCertificate=true
+
+# At least 32 random characters. Changing it signs everyone out.
+echo.jwt.secret=CHANGE-ME-TO-32-OR-MORE-RANDOM-CHARACTERS
+
+# The service key: scripts and smoke tests on this machine send it as X-Echo-Key.
+echo.service.key=CHANGE-ME
+
+# echo.port=8770
+# echo.bind=127.0.0.1
+# echo.files.path=C:/Echo/EchoFiles

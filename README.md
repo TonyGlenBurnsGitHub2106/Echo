@@ -1,0 +1,79 @@
+# Echo
+
+Echo is a small app of its own that echoes parts of Leonardo -- its own sign-in, its own database,
+its own address -- so it can run on a computer that has no Leonardo on it. The first part it echoes
+is **Solutions**, whole, in the same LeonardoWeb look: the icon band, Quick Launch, the main menu
+and the Print menu. Built for Story 5653.
+
+What you can do in it is in Echo's Help (main menu -> Echo -> Help, or `src\main\resources\static\help\Echo.md`).
+
+## Putting Echo on a computer
+
+You need: **Java 21 or newer**, a **SQL Server** you can create a database on (Express is fine),
+and **git**. Nothing else is installed by hand.
+
+1. Get Echo:
+
+   ```
+   git clone https://github.com/TonyGlenBurnsGitHub2106/Echo.git C:\Echo
+   ```
+
+2. Install it. In `C:\Echo`, run `install.cmd`, naming your SQL Server:
+
+   ```
+   install.cmd -SqlServer .\SQLEXPRESS
+   ```
+
+   It finds Java, creates the Echo database, makes a SQL login for Echo with a random password,
+   writes Echo's settings (with fresh random keys), builds Echo, asks you for the password you want
+   to sign in with, and starts it. It is safe to run again.
+
+3. Open `http://localhost:8770` and sign in as `tony` with that password.
+
+Choices you may want on the `install.cmd` line:
+
+| Add | When |
+|---|---|
+| `-Auth Windows` | The SQL Server takes Windows sign-ins only (the installer notices and switches by itself). |
+| `-AutoStart` | Start Echo every time you sign in to Windows. |
+| `-JavaHome C:\path\to\jdk-21` | Use this Java. Without it the installer picks the newest Java 21+ it finds (JAVA_HOME, the PATH, the registry, Program Files, `C:\Java`, `C:\JDK`, unzipped JDK folders), and if none qualifies it lists the versions it did find. |
+| `-AdminSqlUser sa -AdminSqlPassword ...` | You do not administer the SQL Server; use an account that may create a database. |
+| `-Port 8771` | Something else already uses 8770. |
+| `-Bind 0.0.0.0` | Other computers should reach Echo too (it answers only this computer by default). |
+
+## Day to day
+
+| File | What it does |
+|---|---|
+| `start-echo.cmd` / `stop-echo.cmd` | Start or stop Echo. |
+| `update-echo.cmd` | git pull, back up the database, update it, rebuild, restart. |
+| `backup-echo.cmd` | Back up the Echo database to a dated `.bak`. |
+| `set-password.cmd` | A new password, or another sign-in (`-Username someone`). Also resets a forgotten one. |
+| `export-solution.cmd` / `import-solution.cmd` | Copy a whole solution from Leonardo (or another Echo) into this Echo. See Echo's Help, "Bringing a solution over from Leonardo". |
+
+Every `.cmd` starts its PowerShell script with `-ExecutionPolicy Bypass`, so the scripts run even
+where PowerShell asks for signed scripts.
+
+---
+
+## Technical details
+
+> For developers and troubleshooting.
+
+- Java 21 / Spring Boot 4, package `com.echo`. Port 8770, bound to 127.0.0.1 by default.
+- Database scripts in `db\` (tables, Echo's own tables, functions, views, procs, triggers, seed),
+  every one idempotent; `scripts\Install-EchoDatabase.ps1` runs them in order.
+- `config\application-local.properties` and `config\echo-install.json` are this computer's settings,
+  written by the installer and git-ignored. So are `EchoFiles\` (solution files), `logs\`,
+  `backups\` and `lib\`. Never commit them.
+- Echo depends on nothing of Leonardo's at run time. Its Solutions code, pages and procedures were
+  copied from LeonardoWeb with their names unchanged, so a change can be echoed across by comparing
+  files of the same name. The full technical notes are at the end of `help\Echo.md`.
+- `tools\Compare-WithLeonardo.ps1` (at home, where both databases live) reports every procedure,
+  view, trigger or table column that differs between Leonardo and Echo -- the way to carry a later
+  Leonardo change across.
+- Building by hand: `mvnw package -DskipTests` with `JAVA_HOME` pointing at a Java 21 JDK; the jar is
+  `target\echo.jar`.
+
+Third-party code shipped in `src\main\resources\static`: marked (MIT), pdf.js (`reader\`, Apache 2.0),
+both copied from LeonardoWeb.

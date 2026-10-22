@@ -1,0 +1,620 @@
+/* Solutions (Story 3493) -- shared by solutions.html (the list) and solution.html (one solution).
+   Pinned chrome: the shell is a full-height flex column that never scrolls; exactly one child
+   (.sl-body) scrolls. Write BOTH heights -- 100vh alone lets the tool bar strip slide off on a phone. */
+
+body { background: #EEF0F4; margin: 0; }
+/* The toolbars and panes are display:flex / block by class, which outranks the browser's own [hidden] rule. */
+[hidden] { display: none !important; }
+.sl-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+
+.ct-header { background: #1F2937; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.ct-header h1 { margin: 0; font-size: 15pt; font-weight: 650; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-header .sub { font-size: 10pt; color: #9CA3AF; font-weight: 400; margin-left: 8px; }
+.ct-header.is-empty { display: none; }
+.sl-heroname { font-size: 15px; color: #111827; }
+.ct-header button { color: #fff; background: transparent; border: 1px solid #4B5563; border-radius: 4px; padding: 4px 12px; font: inherit; cursor: pointer; }
+
+#lwIconBand, .ct-header, .sl-tabs, .sl-toolbar, .sl-status { flex: 0 0 auto; }
+
+.sl-tabs { background: #111827; display: flex; flex-wrap: nowrap; overflow-x: auto; }
+.sl-tab { color: #9CA3AF; background: transparent; border: none; border-bottom: 3px solid transparent; padding: 10px 16px;
+          font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.sl-tab.active { color: #fff; border-bottom-color: #60A5FA; background: #1F2937; }
+.sl-tab .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: #DC2626; color: #fff;
+                 font-size: 11px; line-height: 18px; text-align: center; }
+.sl-tab .badge:empty { display: none; }
+
+.sl-toolbar { background: #fff; border-bottom: 1px solid #D9DCE3; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; overflow: visible; }
+.sl-toolbar .grow { flex: 1 1 160px; min-width: 0; }
+.sl-toolbar label { display: block; font-size: 11px; color: #6B7280; margin-bottom: 2px; }
+.sl-toolbar .fld { flex: 0 1 170px; min-width: 120px; }
+.sl-toolbar .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; padding-bottom: 6px; }
+.sl-toolbar .spacer { flex: 1 1 auto; }
+.sl-toolbar input[type="search"], .sl-toolbar input[type="text"] { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #C9CDD6; border-radius: 4px; font: inherit; font-size: 13px; }
+/* A tab's search box on a row of its own, edge to edge, above its other tools (Configuration and
+   Configuration II, 2026-10-12). picasso-voice wraps the input in an inline-block span that would
+   shrink it to its natural width, so the wrapper is made a block too. */
+.sl-toolbar .sl-searchrow { flex: 1 1 100%; min-width: 0; }
+.sl-toolbar .sl-searchrow .voice-mic-wrap { display: block; }
+.sl-toolbar .sl-searchrow input[type="search"] { font-size: 14px; padding: 8px 10px; }
+/* Roll Up Tools on a tab's toolbar ("Roller Blind", Picasso.rollup): one head row that folds the
+   search and every tool below it away, remembered. The fold itself is .ef-pane.ef-tools-collapsed
+   .ef-tools in contacts/entity-files.css. */
+.sl-toolbar.sl-rolltools { display: block; padding-top: 2px; }
+.sl-rolltools .ef-tools-toggle { margin: 0; padding: 5px 0; border-bottom: none; font-size: 12px; color: #374151; }
+.sl-rolltools .ef-tools-toggle .ef-caret { color: #6B7280; }
+.sl-rolltools .sl-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; padding: 2px 0 2px; }
+
+.sl-body { flex: 1; overflow: auto; padding: 6px 6px; -webkit-overflow-scrolling: touch; }
+/* Full width: no centred column. Tony wants the screen used edge to edge (2026-09-17). */
+.sl-wrap { max-width: none; margin: 0; }
+.sl-status { background: #111827; color: #9CA3AF; padding: 4px 12px; font-size: 11px; }
+.sl-empty { text-align: center; color: #6B7280; padding: 36px 12px; font-size: 13px; }
+
+/* buttons */
+.sl-btn { background: #E5E7EB; color: #111827; border: none; border-radius: 5px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.sl-btn.primary { background: #2563EB; color: #fff; }
+.sl-btn.danger { background: #FEE2E2; color: #991B1B; }
+.sl-btn.small { padding: 4px 9px; font-size: 12px; font-weight: 600; }
+.sl-btn:disabled { opacity: .5; cursor: default; }
+.sl-iconbtn { background: transparent; border: 1px solid #D1D5DB; border-radius: 4px; color: #374151; min-width: 30px; height: 28px; padding: 0 7px;
+              font-size: 13px; line-height: 26px; cursor: pointer; }
+.sl-iconbtn:disabled { opacity: .35; cursor: default; }
+
+/* pills + chips */
+.sl-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; background: #6B7280; white-space: nowrap; }
+button.sl-pill { border: none; cursor: pointer; font-family: inherit; }
+.sl-chip { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 600; background: #E5E7EB; color: #374151; white-space: nowrap; }
+.sl-chip.agent { background: #EDE9FE; color: #5B21B6; }
+.sl-chip.warn { background: #FEE2E2; color: #991B1B; }
+.sl-chip.wait { background: #FEF3C7; color: #92400E; }
+.sl-chip.resolved { background: #DCFCE7; color: #166534; }
+.sl-muted { color: #6B7280; font-size: 12px; }
+
+/* cards */
+.sl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.sl-card { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 8px 8px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.sl-card.link { cursor: pointer; }
+.sl-card.link:hover { border-color: #93C5FD; box-shadow: 0 2px 8px rgba(37,99,235,.12); }
+.sl-card.archived { opacity: .6; }
+.sl-card h2 { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: #111827; line-height: 1.25; }
+.sl-card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: #111827; }
+.sl-card .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.sl-card .summary { font-size: 13px; color: #374151; line-height: 1.45; margin: 6px 0 10px; white-space: pre-wrap; }
+.sl-card .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+.sl-progress { height: 8px; border-radius: 4px; background: #E5E7EB; overflow: hidden; margin: 8px 0 4px; }
+.sl-progress > span { display: block; height: 100%; background: #16A34A; border-radius: 4px; }
+.sl-progress-label { font-size: 11px; color: #6B7280; }
+
+.sl-hero { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.sl-hero .desc { font-size: 13px; color: #374151; line-height: 1.5; white-space: pre-wrap; margin-top: 8px; }
+.sl-section-title { display: flex; align-items: center; gap: 10px; margin: 10px 2px 5px; font-size: 12px; font-weight: 700; letter-spacing: .5px; color: #4B5563; text-transform: uppercase; }
+.sl-section-title .spacer { flex: 1; }
+.sl-kind-head { cursor: pointer; user-select: none; }
+.sl-kind-count { font-weight: 600; color: #6B7280; background: #E5E7EB; border-radius: 9px; padding: 1px 7px; font-size: 11px; letter-spacing: 0; }
+.sl-kind.dragging { opacity: .6; }
+/* Arrange: grips and up / down arrows show only while Arrange is on (solution.js Page.setArranging). */
+body.sl-arrangeable:not(.sl-arranging) .sl-grip,
+body.sl-arrangeable:not(.sl-arranging) .sl-arrange-only { display: none !important; }
+.sl-btn.sl-arrange { padding-left: 12px; padding-right: 12px; }
+/* On a phone the tool rows are tight: slimmer buttons keep a row to one line (Notes: + Note, Cards,
+   Fold kinds, Open notes, Fold notes, Arrange). */
+@media (max-width: 480px) {
+    .sl-toolbar { gap: 6px; padding-left: 10px; padding-right: 10px; }
+    .sl-toolbar .sl-btn { padding-left: 10px; padding-right: 10px; }
+}
+.sl-btn.sl-arrange.on { background: #0A66C2; color: #fff; border-color: #0A66C2; }
+
+/* the item tree */
+.sl-band { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; margin-bottom: 6px; overflow: hidden; }
+.sl-band-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #F3F4F6; cursor: pointer; user-select: none; }
+.sl-band-head .name { font-weight: 700; font-size: 14px; color: #111827; flex: 1; min-width: 0; }
+.sl-band-head .chev { color: #6B7280; font-size: 11px; transition: transform .15s; }
+.sl-band.collapsed .chev { transform: rotate(-90deg); }
+.sl-band.collapsed .sl-band-body { display: none; }
+.sl-item { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px 4px 6px; border-top: 1px solid #EEF0F3; }
+.sl-tick { flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px; padding: 0; border: 2px solid #9CA3AF; border-radius: 50%; background: #fff;
+    color: #fff; font-size: 14px; font-weight: 700; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.sl-tick:hover { border-color: #16A34A; background: #DCFCE7; }
+.sl-tick.on { background: #16A34A; border-color: #16A34A; }
+.sl-tick.on:hover { background: #15803D; }
+/* A SKIPPED cell on the Testing tab (Story 3534): grayed out -- neither a pass nor a fail. */
+.sl-tick.skip { background: #E5E7EB; border-color: #9CA3AF; color: #6B7280; }
+.sl-tick.skip:hover { background: #D1D5DB; border-color: #6B7280; }
+.sl-tp-row.skipped .sl-tp-words { color: #6B7280; }
+.sl-item .main { flex: 1; min-width: 0; cursor: pointer; }
+.sl-item .title { font-size: 13.5px; color: #111827; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+/* A closed item is shown by COLOR, never a strike-through (Tony, 2026-09-17): the green tick,
+   a green edge, a green wash, and a quieter title that is still easy to read. */
+.sl-item.closed { background: #F0FDF4; box-shadow: inset 3px 0 0 #4ADE80; }
+.sl-item.closed .title { color: #4B5563; font-weight: 500; }
+/* A SKIPPED item (status Skipped -- not now, maybe later; 2026-10-09): gray, never struck through. */
+.sl-item.closed.skipped { background: #F3F4F6; box-shadow: inset 3px 0 0 #9CA3AF; }
+.sl-item.closed.skipped .title { color: #6B7280; }
+.sl-item.dragging { opacity: .55; }
+.sl-item.sl-drop-before { box-shadow: inset 0 3px 0 #2563EB; }
+.sl-item.sl-drop-after { box-shadow: inset 0 -3px 0 #2563EB; }
+.sl-grip.small { min-width: 22px; padding: 5px 5px 5px 3px; font-size: 13px; margin-top: 1px; }
+.sl-msgtools { margin-left: auto; display: inline-flex; gap: 3px; }
+.sl-msgtools .sl-iconbtn { min-width: 22px; width: 22px; height: 22px; padding: 0; font-size: 11px; }
+.sl-msg .body { white-space: pre-wrap; }
+.sl-item .meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 3px; }
+.sl-item .preview { font-size: 12px; color: #6B7280; margin-top: 3px; overflow-wrap: anywhere; }
+/* Five small icons on ONE row: up, down, add, edit, delete. 5 x 24 + 4 x 3 = 132px. */
+.sl-item .tools { display: flex; gap: 3px; flex: 0 0 auto; flex-wrap: nowrap; justify-content: flex-end; }
+.sl-item .tools .sl-iconbtn { min-width: 24px; width: 24px; height: 24px; padding: 0; font-size: 11px; line-height: 1; }
+.sl-item.flash { animation: slFlash 2s ease-out; }
+@keyframes slFlash { from { background: #FEF3C7; } to { background: transparent; } }
+
+/* the journal */
+.sl-compose { background: #fff; border: 1px solid #DDE1E8; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+.sl-compose .fields { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.sl-compose .fields > div { flex: 1 1 160px; min-width: 0; }
+.sl-compose label { display: block; font-size: 11px; color: #6B7280; margin-bottom: 2px; }
+.sl-compose textarea { width: 100%; box-sizing: border-box; min-height: 70px; padding: 8px; border: 1px solid #C9CDD6; border-radius: 4px; font: inherit; font-size: 13px; resize: vertical; }
+.sl-compose .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.sl-entry { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.sl-entry .head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.sl-entry .seq { font-weight: 800; font-size: 13px; color: #1F2937; font-variant-numeric: tabular-nums; }
+.sl-entry .text { font-size: 13px; color: #1F2937; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sl-entry.command .text, .sl-mono { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 12.5px; background: #F3F4F6; border-radius: 4px; padding: 8px; }
+.sl-entry .foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sl-more { text-align: center; margin: 12px 0 4px; }
+
+/* notes */
+.sl-note-body { background: #fff; border: 1px solid #DDE1E8; border-radius: 10px; padding: 16px 18px; font-size: 14px; line-height: 1.55; color: #1F2937; overflow-wrap: anywhere; }
+.sl-note-body pre { background: #F3F4F6; padding: 10px; border-radius: 6px; overflow-x: auto; }
+.sl-note-body code { font-family: Consolas, Menlo, monospace; font-size: 12.5px; }
+/* Formatted text (SL.md): what a person or an agent wrote, never shown as raw Markdown (Tony,
+   2026-09-18). Several containers keep white space for plain text (.summary, .desc, .sl-msg, .val);
+   the class is repeated to outrank them without !important. Spacing is tight -- these sit in cards and rows. */
+.sl-md.sl-md.sl-md { white-space: normal; }
+.sl-md > :first-child { margin-top: 0; }
+.sl-md > :last-child { margin-bottom: 0; }
+.sl-md p { margin: 0 0 6px; }
+.sl-md ul, .sl-md ol { margin: 0 0 6px; padding-left: 20px; }
+.sl-md li { margin: 0 0 2px; }
+.sl-md h1, .sl-md h2, .sl-md h3, .sl-md h4, .sl-md h5, .sl-md h6 { font-size: 1.05em; font-weight: 700; margin: 8px 0 4px; line-height: 1.3; }
+.sl-md h1 { font-size: 1.15em; }
+.sl-md blockquote { margin: 0 0 6px; padding: 0 0 0 10px; border-left: 3px solid #D1D5DB; color: #4B5563; }
+.sl-md pre { background: #F3F4F6; border-radius: 4px; padding: 6px 8px; overflow-x: auto; white-space: pre-wrap; margin: 0 0 6px; }
+.sl-md code { font-family: Consolas, Menlo, monospace; font-size: .92em; background: #F3F4F6; border-radius: 3px; padding: 0 3px; }
+.sl-md pre code { background: none; padding: 0; }
+.sl-md table { border-collapse: collapse; margin: 0 0 6px; font-size: .95em; }
+.sl-md th, .sl-md td { border: 1px solid #DDE1E8; padding: 3px 6px; text-align: left; }
+.sl-md hr { border: none; border-top: 1px solid #DDE1E8; margin: 8px 0; }
+.sl-md a { color: #2563EB; overflow-wrap: anywhere; }
+.sl-sepia .sl-md code, .sl-sepia .sl-md pre { background: #efe6d3; }
+.sl-sepia .sl-md a { color: #9a6b2f; }
+
+/* A long note is clipped behind a More link until the reader asks for all of it. */
+.sl-note-body.clamped { max-height: 320px; overflow: hidden; position: relative; }
+.sl-note-body.clamped::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(rgba(255,255,255,0), #fff); }
+.sl-note-inline { padding: 8px 10px; margin: 6px 0 4px; font-size: 13px; cursor: auto; }
+.sl-link { background: none; border: none; padding: 4px 0; color: #2563EB; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.sl-link:hover { text-decoration: underline; }
+/* View: a note as a page to read, on sepia (the Leonardo Reader's sepia palette). The title and
+   the buttons stay put; only the page scrolls. */
+.sl-modal.sl-sepia { width: min(820px, 100%); height: 92vh; height: 92dvh; display: flex; flex-direction: column; overflow: hidden;
+    padding: 0; background: #f7f0df; color: #3b3323; }
+.sl-sepia-scroll { flex: 1 1 auto; overflow-y: auto; padding: 20px 24px 12px; -webkit-overflow-scrolling: touch; }
+.sl-modal.sl-sepia h2 { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: #3b3323; line-height: 1.25; overflow-wrap: anywhere; }
+.sl-sepia-meta { font-size: 12.5px; color: #6f6144; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid #d8c9a6; }
+.sl-sepia-body, .sl-sepia-step .v { font-family: Georgia, "Times New Roman", serif; font-size: 16.5px; line-height: 1.65; color: #3b3323; overflow-wrap: anywhere; }
+.sl-sepia-body > :first-child { margin-top: 0; }
+.sl-sepia-body h1, .sl-sepia-body h2, .sl-sepia-body h3, .sl-sepia-body h4 { color: #6b4a1f; line-height: 1.25; margin: 20px 0 8px; }
+.sl-sepia-body h1 { font-size: 21px; } .sl-sepia-body h2 { font-size: 19px; } .sl-sepia-body h3 { font-size: 17px; }
+.sl-sepia-body p { margin: 0 0 12px; }
+.sl-sepia-body ul, .sl-sepia-body ol { margin: 0 0 12px; padding-left: 24px; }
+.sl-sepia-body blockquote { margin: 0 0 12px; padding: 2px 0 2px 14px; border-left: 3px solid #d8c9a6; font-style: italic; color: #5a4d35; }
+.sl-sepia-body a { color: #9a6b2f; }
+.sl-sepia-body hr { border: none; border-top: 1px solid #d8c9a6; margin: 18px 0; }
+.sl-sepia-body code, .sl-sepia pre { font-family: Consolas, Menlo, monospace; font-size: 13px; background: #efe6d3; border-radius: 5px; }
+.sl-sepia-body code { padding: 1px 5px; }
+.sl-sepia pre { padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; margin: 2px 0 6px; }
+.sl-sepia-body pre code { padding: 0; background: none; }
+.sl-sepia-body table { border-collapse: collapse; width: 100%; margin: 0 0 12px; font-size: 14px; }
+.sl-sepia-body th, .sl-sepia-body td { border: 1px solid #d8c9a6; padding: 5px 8px; text-align: left; }
+.sl-sepia-body th { background: #efe6d3; }
+.sl-sepia-empty { color: #6f6144; font-style: italic; }
+.sl-sepia-h { margin: 22px 0 8px; font-size: 12px; letter-spacing: .5px; text-transform: uppercase; color: #6f6144; }
+.sl-sepia-step { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid #e3d6b8; }
+.sl-sepia-step .n { flex: 0 0 28px; height: 28px; border-radius: 14px; background: #9a6b2f; color: #fff; font-weight: 800; font-size: 13px; text-align: center; line-height: 28px; }
+.sl-sepia-step .t { flex: 1; min-width: 0; }
+.sl-sepia-step .st { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.sl-sepia-step .lbl { font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: #6f6144; margin: 6px 0 2px; }
+.sl-sepia-step .v { font-size: 15px; white-space: pre-wrap; }
+.sl-modal.sl-sepia .foot { flex: 0 0 auto; margin: 0; padding: 10px 16px; border-top: 1px solid #d8c9a6; background: #f3ead6; }
+@media (max-width: 599px) { .sl-sepia-scroll { padding: 16px 16px 10px; } }
+.sl-step { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; gap: 10px; }
+.sl-step .num { flex: 0 0 30px; height: 30px; border-radius: 15px; background: #2563EB; color: #fff; font-weight: 800; font-size: 13px; text-align: center; line-height: 30px; }
+.sl-step .main { flex: 1; min-width: 0; }
+.sl-step .title { font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 4px; overflow-wrap: anywhere; }
+.sl-step .lbl { font-size: 11px; color: #6B7280; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin: 6px 0 2px; }
+.sl-step .val { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sl-step .tools { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+
+/* conversations */
+.sl-thread { max-width: none; margin: 0; }
+.sl-msg { max-width: 82%; margin: 0 0 10px; padding: 9px 12px; border-radius: 12px; background: #fff; border: 1px solid #DDE1E8; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sl-msg.mine { margin-left: auto; background: #DBEAFE; border-color: #BFDBFE; }
+.sl-msg .who { font-size: 11px; font-weight: 700; color: #4B5563; margin-bottom: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+.sl-relay-note { background: #FEF3C7; border: 1px solid #FDE68A; color: #78350F; border-radius: 8px; padding: 9px 12px; font-size: 12.5px; line-height: 1.45; margin-bottom: 12px; }
+
+/* modal */
+.sl-overlay { position: fixed; inset: 0; background: rgba(17,24,39,.5); display: none; align-items: center; justify-content: center; z-index: 60; padding: 10px; }
+.sl-overlay.open { display: flex; }
+.sl-modal { background: #fff; border-radius: 10px; width: min(620px, 100%); max-height: 92vh; max-height: 92dvh; overflow: auto; padding: 18px 20px; box-sizing: border-box; }
+.sl-modal h2 { margin: 0 0 14px; font-size: 17px; color: #111827; }
+.sl-modal .fld { margin-bottom: 12px; }
+.sl-modal .fld label { display: block; font-size: 12px; color: #4B5563; margin-bottom: 3px; font-weight: 600; }
+.sl-modal .fld input[type="text"], .sl-modal .fld textarea { width: 100%; box-sizing: border-box; padding: 8px 9px; border: 1px solid #C9CDD6; border-radius: 4px; font: inherit; font-size: 14px; }
+.sl-modal .fld textarea { min-height: 110px; resize: vertical; }
+.sl-modal .fld textarea.tall { min-height: 260px; font-family: Consolas, Menlo, monospace; font-size: 13px; }
+.sl-modal .row2 { display: flex; gap: 12px; flex-wrap: wrap; }
+.sl-modal .row2 > .fld { flex: 1 1 200px; min-width: 0; }
+.sl-modal .hint { font-size: 11.5px; color: #6B7280; margin-top: 3px; }
+.sl-modal .warn { display: none; background: #FEE2E2; color: #991B1B; border-radius: 5px; padding: 8px 10px; font-size: 13px; margin-bottom: 10px; }
+.sl-modal .warn.show { display: block; }
+.sl-modal .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.sl-keybox { font-family: Consolas, Menlo, monospace; font-size: 13px; background: #111827; color: #A7F3D0; padding: 12px; border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+.sl-list-plain { margin: 0; padding: 0; list-style: none; }
+.sl-list-plain li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #EEF0F3; font-size: 13px; }
+.sl-list-plain li .grow { flex: 1; min-width: 0; }
+
+table.sl-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12.5px; }
+table.sl-table th, table.sl-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #EEF0F3; }
+table.sl-table th { color: #6B7280; font-weight: 700; background: #F9FAFB; }
+.sl-scroll-x { overflow-x: auto; }
+
+@media (max-width: 600px) {
+    .sl-body { padding: 10px; }
+    .sl-item .tools { flex-wrap: wrap; max-width: 78px; }
+    .sl-msg { max-width: 92%; }
+    .sl-toolbar .fld { flex: 1 1 45%; }
+}
+
+/* ---- folding: a chevron that turns, and the one-line folded shapes ---------------- */
+.chev { display: inline-block; font-size: 10px; color: #6B7280; transition: transform .15s; }
+.chev.folded { transform: rotate(-90deg); }
+.sl-foldable, .sl-entry .head, .sl-step .title, .sl-cardtitle { cursor: pointer; user-select: none; }
+.sl-item.folded { align-items: center; }
+.sl-item .title .sl-chip { margin-left: 4px; font-weight: 600; }
+.sl-entry.folded .text.oneline { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #4B5563; }
+.sl-step.folded { align-items: center; }
+.sl-step.folded .title { margin-bottom: 0; }
+
+/* ---- project cards: a grid, or one full-width row each; the grip reorders them ------ */
+.sl-cards.rows { grid-template-columns: 1fr; gap: 4px; }
+.sl-cardhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sl-cardtitle { display: flex; align-items: center; gap: 6px; flex: 1 1 160px; min-width: 0; }
+.sl-cardtitle h3 { margin: 0; overflow-wrap: anywhere; }
+/* Overview project rows: the title takes the room; the count and the status badge are fixed-width
+   columns at the right edge, so they line up from one project to the next. */
+.sl-projhead { flex-wrap: nowrap; }
+.sl-projhead .sl-cardtitle { flex: 1 1 auto; }
+.sl-projhead .sl-count { flex: 0 0 auto; min-width: 64px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sl-projhead .sl-pill { flex: 0 0 auto; min-width: 96px; box-sizing: border-box; text-align: center; }
+.sl-card.folded { padding-top: 5px; padding-bottom: 5px; }
+.sl-grip { flex: 0 0 auto; cursor: grab; color: #4B5563; background: #E5E7EB; border: 1px solid #D1D5DB; border-radius: 4px;
+    font-size: 16px; line-height: 1; padding: 7px 7px 7px 5px; letter-spacing: -4px; min-width: 28px; text-align: center;
+    touch-action: none; user-select: none; }
+.sl-grip:hover { background: #DBEAFE; border-color: #93C5FD; color: #1D4ED8; }
+.sl-grip:active { cursor: grabbing; }
+.sl-band.dragging { opacity: .55; outline: 2px dashed #2563EB; outline-offset: -2px; }
+.sl-card.dragging { opacity: .55; outline: 2px dashed #2563EB; outline-offset: -2px; }
+
+/* ---- the summary card folds to one line ------------------------------------------ */
+.sl-herohead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-bottom: 10px; font-size: 13px; }
+.sl-hero.folded { padding-top: 10px; padding-bottom: 10px; }
+.sl-hero.folded .sl-herohead { margin-bottom: 0; }
+.sl-herohead .chev { color: #6B7280; font-size: 11px; transition: transform .15s; }
+.sl-herohead .chev.folded { transform: rotate(-90deg); }
+
+/* Tight by request (Tony, 2026-09-17): margins and paddings on cards, bands and rows are
+   deliberately small -- "way too much white space ... wasting good real-estate". Do not loosen. */
+@media (max-width: 599px) {
+    .sl-toolbar { padding: 5px 8px; gap: 5px; }
+    .sl-toolbar .sl-btn { padding: 5px 9px; font-size: 13px; }
+    .sl-toolbar .check { font-size: 12.5px; padding-bottom: 4px; }
+}
+
+/* ---- Testing tab: a checklist is a grid -- test cases down the side, levels of testing across ----
+   One row = one grid with the same template, so the tick columns line up from row to row and from
+   group to group. --tp-n is the number of columns, set on the grid. A fully ticked row is shown by
+   color (green wash and edge), never struck through. */
+.sl-tp-group { margin-top: 8px; }
+.sl-tp-grouphead { flex-wrap: nowrap; }
+.sl-tp-grouphead .sl-count { white-space: nowrap; }
+.sl-tp-grid { margin-top: 6px; }
+.sl-tp-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--tp-n, 2), 60px) 52px 44px; align-items: center; border-top: 1px solid #EEF0F3; }
+.sl-tp-row.head { border-top: 0; align-items: end; }
+.sl-tp-text { padding: 5px 6px; font-size: 13px; color: #111827; min-width: 0; overflow-wrap: anywhere; cursor: pointer; }
+.sl-tp-text.head, .sl-tp-row.foot .sl-tp-text { cursor: default; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: .4px; }
+.sl-tp-text .note { font-size: 12px; color: #6B7280; margin-top: 2px; }
+.sl-tp-colhead { background: none; border: 0; padding: 4px 2px; font-size: 10.5px; font-weight: 700; color: #4B5563; line-height: 1.15;
+    text-align: center; overflow-wrap: anywhere; cursor: pointer; }
+.sl-tp-colhead:hover { color: #1D4ED8; text-decoration: underline; }
+.sl-tp-cell { display: flex; justify-content: center; padding: 4px 0; }
+.sl-tp-row.done { background: #F0FDF4; box-shadow: inset 3px 0 0 #4ADE80; }
+.sl-tp-row.done .sl-tp-text { color: #4B5563; }
+.sl-tp-row.foot .sl-tp-cell { font-size: 11px; font-weight: 700; color: #6B7280; }
+.sl-tp-row.foot .sl-tp-cell.all { color: #15803D; }
+.sl-tp-bars { display: grid; gap: 5px; margin-top: 4px; }
+.sl-tp-bar { display: grid; grid-template-columns: minmax(90px, 200px) minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; color: #374151; }
+.sl-tp-bar .name { overflow-wrap: anywhere; }
+.sl-tp-bar .track { height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; }
+.sl-tp-bar .track span { display: block; height: 100%; background: #16A34A; }
+.sl-tp-bar .num { white-space: nowrap; color: #6B7280; }
+.sl-modal .foot .left { margin-right: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 599px) {
+    .sl-tp-row { grid-template-columns: minmax(0, 1fr) repeat(var(--tp-n, 2), 46px) 44px 36px; }
+    .sl-tp-bar { grid-template-columns: 96px minmax(0, 1fr) auto; }
+    .sl-tp-grouphead { flex-wrap: wrap; }
+}
+
+/* ---- Files tab: View reads a file in place (2026-09-21) ---------------------------------------
+   A tall dialog whose middle scrolls. An HTML file sits in a sandboxed frame that fills it; a
+   picture is fitted; text keeps its lines. */
+.sl-modal.sl-fileview { width: min(1100px, 100%); height: 92vh; height: 92dvh; display: flex; flex-direction: column; overflow: hidden; }
+.sl-modal.sl-fileview h2 { flex: 0 0 auto; overflow-wrap: anywhere; }
+.sl-modal.sl-fileview .foot { flex: 0 0 auto; margin-top: 10px; }
+.sl-fileview-body { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid #DDE1E8; border-radius: 6px; background: #fff; }
+.sl-fileview-body.frame { overflow: hidden; }
+.sl-fileview-body.frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.sl-fileview-body.image { display: flex; align-items: center; justify-content: center; background: #F3F4F6; }
+.sl-fileview-body.image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sl-fileview-pre { margin: 0; padding: 10px 12px; font: 12.5px/1.45 Consolas, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: #111827; }
+.sl-fileview-md { padding: 10px 14px; font-size: 14px; line-height: 1.55; color: #111827; }
+/* The View sheet reads on sepia like every other View (the .sl-sepia palette above). Scoped to
+   the sheet: the Bay Window preview draws through the same helpers and stays white. A web page
+   keeps its own white -- it is someone else's page in a sandboxed frame. */
+.sl-modal.sl-fileview { background: #f7f0df; color: #3b3323; }
+.sl-modal.sl-fileview h2 { font-size: 22px; font-weight: 800; color: #3b3323; line-height: 1.25; }
+.sl-modal.sl-fileview .sl-muted { color: #6f6144; }
+.sl-modal.sl-fileview .sl-fileview-body { border-color: #d8c9a6; background: #fbf6ea; }
+.sl-modal.sl-fileview .sl-fileview-body.frame { background: #fff; }
+.sl-modal.sl-fileview .sl-fileview-body.image, .sl-modal.sl-fileview .ef-pv-pages { background: #efe6d3; }
+.sl-modal.sl-fileview .sl-fileview-md { font-family: Georgia, "Times New Roman", serif; font-size: 16.5px; line-height: 1.65; color: #3b3323; padding: 16px 20px; }
+.sl-modal.sl-fileview .sl-fileview-pre { color: #3b3323; }
+.sl-modal.sl-fileview .sl-md code, .sl-modal.sl-fileview .sl-md pre { background: #efe6d3; }
+.sl-modal.sl-fileview .sl-md a { color: #9a6b2f; }
+.sl-modal.sl-fileview .sl-md th, .sl-modal.sl-fileview .sl-md td, .sl-modal.sl-fileview .sl-md hr { border-color: #d8c9a6; }
+.sl-modal.sl-fileview .foot { margin: 10px -20px -18px; padding: 10px 16px; border-top: 1px solid #d8c9a6; background: #f3ead6; }
+
+/* Story 5594: the Files tab is the organized record Files tab (contacts/entity-files.css, ef-*),
+   with the Solutions extras. Cards = the same file cards laid out as a grid instead of rows. */
+/* The Web and Files tabs are the record page's own tabs (Story 5594: "not distinguishable"): the
+   same white surface and 16px edge as a record page, not the Solutions gray around them. */
+#pane-web, #pane-files { background: #fff; margin: -6px; min-height: calc(100% + 12px); box-sizing: border-box; }
+#pane-files.ef-pane { padding: 16px; }
+.ef-list.sl-files-cards .ef-band-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.ef-list.sl-files-cards .ef-band-body > .ef-card { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+/* A card is narrower than a row: its buttons wrap instead of running out past the card's left
+   edge (the row is right-aligned, so an overflow goes LEFT -- View on TestFile8000.txt, which
+   also has Reader, 2026-10-14), and a long word such as a SHA256 breaks inside the card. */
+.ef-list.sl-files-cards .ef-card .ed-card-actions { flex-wrap: wrap; }
+/* a folded group stays folded in Cards view (the grid above would otherwise show its body) */
+.ef-list.sl-files-cards .ef-band.collapsed .ef-band-body { display: none; }
+/* Expand all / Collapse all are words, not icons: let them size to their text */
+.ef-sort > button.ef-foldall.ef-foldall { flex: 0 0 auto; width: auto; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+.sl-files-store { color: #6B7280; }
+.sl-files-store.repo { color: #1E5AA8; font-weight: 600; }
+.sl-files-who { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sl-check-fld label { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; }
+.sl-check-fld input[type="checkbox"] { width: 18px; height: 18px; }
+/* A PDF in the View sheet: its pages, drawn as pictures, one under the next. */
+.sl-fileview-body .ef-pv-pages { min-height: 100%; }
+.sl-fileview-body .ef-pv-img { height: 100%; display: flex; align-items: center; justify-content: center; }
+.sl-fileview-body .ef-pv-img img { max-height: 100%; object-fit: contain; }
+
+/* Copy a project's name: a small word button beside it, never wider than it needs. */
+.sl-iconbtn.sl-copyname { min-width: 0; height: 24px; padding: 0 7px; font-size: 11px; font-weight: 600; flex: 0 0 auto; }
+
+/* ---- Configuration tab (Story 3516): properties down the side, environments across ---------------
+   The table scrolls sideways INSIDE its card, never the page; the property column stays put. Row
+   color is the match state from the server: green same everywhere, orange partly, red all
+   different; a row with a gap stays the ordinary color. On a phone the source columns fold into
+   the value cells ("from ...") so the grid stays readable. */
+.sl-cf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sl-cf-chip { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 700; background: #F3F4F6; color: #374151; }
+.sl-cf-chip.all { background: #DCFCE7; color: #15803D; }
+.sl-cf-chip.some { background: #FFEDD5; color: #C2410C; }
+.sl-cf-chip.none { background: #FEE2E2; color: #B91C1C; }
+.sl-cf-scroll { margin-top: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sl-cf-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+.sl-cf-table th, .sl-cf-table td { border-top: 1px solid #EEF0F3; padding: 4px 8px; text-align: left; vertical-align: top; }
+.sl-cf-table thead th { border-top: 0; font-size: 11px; font-weight: 700; color: #4B5563; white-space: nowrap; }
+.sl-cf-table thead .sl-tp-colhead { font-size: 11px; padding: 0; text-align: left; }
+.sl-cf-table .sl-cf-key { position: sticky; left: 0; z-index: 1; background: #fff; min-width: 150px; max-width: 260px; font-weight: 600; }
+.sl-cf-keybtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.sl-cf-key .desc { font-size: 11.5px; font-weight: 400; color: #6B7280; margin-top: 2px; }
+.sl-cf-type { display: inline-block; font-size: 10px; font-weight: 600; color: #6B7280; background: #F3F4F6; border-radius: 6px; padding: 0 5px; }
+.sl-cf-cell { min-width: 110px; }
+.sl-cf-cellbtn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
+.sl-cf-cellbtn .val { font-family: Consolas, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; word-break: break-all; }
+.sl-cf-cellbtn:hover .val, .sl-cf-keybtn:hover { text-decoration: underline; }
+.sl-cf-cellbtn .in-src { display: none; font-size: 11px; color: #6B7280; }
+.sl-cf-table td.col-src, .sl-cf-table th.col-src { color: #6B7280; font-size: 12px; min-width: 120px; overflow-wrap: anywhere; }
+.sl-cf-table td.col-src .also { font-size: 11px; }
+.sl-cf-blank { color: #9CA3AF; }
+.sl-cf-secret { color: #6B7280; font-style: italic; font-size: 12px; }
+.sl-cf-note { font-size: 10px; font-weight: 700; color: #1D4ED8; background: #DBEAFE; border-radius: 6px; padding: 0 4px; }
+.sl-cf-row.all th, .sl-cf-row.all td .val { color: #15803D; }
+.sl-cf-row.some th, .sl-cf-row.some td .val { color: #C2410C; }
+.sl-cf-row.none th, .sl-cf-row.none td .val { color: #B91C1C; }
+.sl-cf-row.flash > * { animation: slFlash 2s ease-out; }
+@media (max-width: 699px) {
+    .sl-cf-table .col-src { display: none; }
+    .sl-cf-cellbtn .in-src { display: block; }
+    .sl-cf-table .sl-cf-key { min-width: 110px; max-width: 150px; }
+}
+/* Every group's table has the same fixed column widths, so the columns line up from group to group;
+   past the card's width the table scrolls sideways inside the card. --cf-envs is set per table. */
+.sl-cf-table { table-layout: fixed; width: max(100%, calc(240px + var(--cf-envs, 3) * 2 * 140px)); }
+.sl-cf-table thead th.sl-cf-key { width: 240px; }
+.sl-cf-table .sl-cf-cell, .sl-cf-table td.col-src, .sl-cf-table th.col-src { min-width: 0; }
+@media (max-width: 699px) {
+    .sl-cf-table { width: max(100%, calc(118px + var(--cf-envs, 3) * 118px)); }
+    .sl-cf-table thead th.sl-cf-key { width: 118px; }
+    .sl-cf-key .desc { display: none; }
+}
+
+/* Testing tab: each case row starts with a grip that drags it up or down within its group. */
+.sl-tp-text.sl-tp-hasgrip { display: flex; align-items: flex-start; gap: 6px; cursor: default; }
+.sl-tp-words { flex: 1; min-width: 0; cursor: pointer; }
+.sl-grip.sl-tp-grip { flex: 0 0 auto; margin-top: 1px; }
+.sl-tp-row.dragging { opacity: .55; }
+.sl-tp-group.dragging { opacity: .55; }
+
+/* Testing tab: the Print column. An unticked case stays on the page, a little quieter, and is left off the
+   printed checklist. */
+.sl-tp-printhead { font-size: 10px; color: #6B7280; cursor: default; }
+.sl-tp-printcell input { width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: #2563EB; }
+.sl-tp-row.noprint .sl-tp-words { color: #6B7280; }
+
+/* Configuration -> By source: the settings grouped by where they are set. A tall dialog whose middle
+   scrolls; environment chips across the top. */
+.sl-modal.sl-cf-srcmodal { width: min(760px, 100%); height: 88vh; height: 88dvh; display: flex; flex-direction: column; overflow: hidden; }
+.sl-cf-srcmodal h2 { flex: 0 0 auto; }
+.sl-cf-srcmodal .foot { flex: 0 0 auto; margin-top: 10px; }
+.sl-cf-envchips { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.sl-cf-envchip { border: 1px solid #D1D5DB; background: #fff; color: #374151; border-radius: 14px; padding: 4px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sl-cf-envchip.on { background: #1D4ED8; border-color: #1D4ED8; color: #fff; }
+.sl-cf-srcbody { flex: 1 1 auto; min-height: 0; overflow: auto; border-top: 1px solid #EEF0F3; padding-top: 6px; }
+.sl-cf-srcsec { padding: 6px 2px 8px; border-bottom: 1px solid #EEF0F3; }
+.sl-cf-srcsec h3 { margin: 0 0 4px; font-size: 13.5px; color: #111827; overflow-wrap: anywhere; }
+.sl-cf-srcsec.nowhere h3 { color: #6B7280; }
+.sl-cf-srcsec ul { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.sl-cf-srcsec li { margin: 1px 0; overflow-wrap: anywhere; }
+.sl-cf-srcsec .k { font-weight: 600; color: #111827; }
+.sl-cf-srcsec .v { font-family: Consolas, Menlo, monospace; color: #374151; word-break: break-all; }
+.sl-cf-srcsec .also { font-size: 11.5px; color: #6B7280; margin-top: 4px; overflow-wrap: anywhere; }
+.sl-cf-srctable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sl-cf-srctable th, .sl-cf-srctable td { border-bottom: 1px solid #EEF0F3; padding: 5px 6px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.sl-cf-srctable th { font-size: 11px; color: #4B5563; }
+.sl-cf-srctable .n { text-align: right; width: 80px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.sl-cf-srctable .n.zero { color: #D1D5DB; font-weight: 400; }
+.sl-cf-srctable tr.nowhere td:first-child { color: #6B7280; font-style: italic; }
+
+/* Testing tab: a test can be marked FAILING (a red circle beside the ticks) and carry a note saying what
+   is failing, shown as an icon on the row (2026-09-25). A failing row is red-edged, and that outranks
+   the green "every column ticked" look. The note icon is quiet until the test has a note. */
+.sl-tick.sl-fail:hover { border-color: #DC2626; background: #FEE2E2; }
+.sl-tick.sl-fail.on { background: #DC2626; border-color: #DC2626; }
+.sl-tick.sl-fail.on:hover { background: #B91C1C; }
+.sl-tp-failhead { color: #B91C1C; cursor: default; }
+.sl-tp-row.failing, .sl-tp-row.done.failing { background: #FEF2F2; box-shadow: inset 3px 0 0 #EF4444; }
+.sl-tp-row.failing .sl-tp-words { color: #111827; }
+.sl-tp-noteicons { flex: 0 0 auto; display: flex; gap: 4px; margin-top: 1px; }
+.sl-tp-noteicons .sl-iconbtn { min-width: 26px; width: 26px; height: 24px; padding: 0; font-size: 13px; line-height: 1; }
+.sl-tp-noteicons .sl-tp-note.empty { opacity: .4; }
+.sl-tp-noteicons .sl-tp-note.empty:hover { opacity: 1; }
+.sl-tp-noteicons .sl-tp-note.has { background: #FEF3C7; border-color: #F59E0B; }
+.sl-tp-row.failing .sl-tp-noteicons .sl-tp-note.has { background: #FEE2E2; border-color: #EF4444; }
+.sl-tp-failcount { color: #B91C1C; font-weight: 700; }
+.sl-modal .check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: #374151; }
+.sl-modal .check input { width: 18px; height: 18px; margin: 0; accent-color: #DC2626; }
+
+/* ---- Terms tab (2026-10-09): the solution's glossary, shaped like the Leonardo Dictionary ---- */
+.sl-term { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+.sl-band-body .sl-term { margin: 6px 8px; }
+.sl-term.fav { border-left: 3px solid #F59E0B; }
+.sl-term-head { display: flex; align-items: flex-start; gap: 8px; }
+.sl-term-word { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; color: #111827; overflow-wrap: anywhere; }
+.sl-term-head .tools { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.sl-term-head .tools .sl-iconbtn { min-width: 26px; width: 26px; height: 26px; padding: 0; font-size: 12px; line-height: 1; }
+.sl-term-head .tools .star.on { color: #D97706; border-color: #F59E0B; background: #FFFBEB; }
+.sl-term-def { font-size: 13px; color: #374151; line-height: 1.45; margin-top: 4px; overflow-wrap: anywhere; }
+.sl-term-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.sl-term-cat { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 600; background: #E0E7FF; color: #3730A3; white-space: nowrap; }
+.sl-btn#btnTermsReverse.on { background: #0A66C2; color: #fff; }
+.sl-term-notes-h { font-size: 14px; margin: 18px 0 6px; color: #5b4a2a; }
+.sl-lookup-h { font-size: 14px; margin: 10px 0 4px; color: #111827; }
+.sl-lookup-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid #F0F1F4; }
+.sl-lookup-row .name { flex: 1; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.sl-lookup-row input[type="text"] { flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 1px solid #C9CDD6; border-radius: 4px; font: inherit; font-size: 13px; }
+.sl-lookup-row .sl-iconbtn { min-width: 26px; width: 26px; height: 26px; padding: 0; font-size: 12px; }
+
+/* ---- Configuration II (Story 5611): user-defined columns with colors, axes, per-set match tints, cell state ---- */
+.sl-gd-table { border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed;
+               width: max(100%, calc(220px + var(--gd-cols, 3) * 150px)); }
+.sl-gd-table th, .sl-gd-table td { border-top: 1px solid #EEF0F3; padding: 4px 8px; text-align: left; vertical-align: top; }
+.sl-gd-table thead th { border-top: 0; font-size: 11px; font-weight: 700; color: #4B5563; }
+.sl-gd-table thead th.sl-cf-key { width: 220px; }
+.sl-gd-table .sl-cf-key { position: sticky; left: 0; z-index: 1; background: #fff; font-weight: 600; }
+.sl-gd-colhead { border-top: 4px solid #E5E7EB !important; border-radius: 4px 4px 0 0; }
+.sl-gd-colhead.def { background: #F9FAFB; font-style: italic; }
+.sl-gd-colhead .sub { font-size: 10px; font-weight: 600; color: #6B7280; margin-top: 1px; overflow-wrap: anywhere; }
+.sl-gd-colbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: #111827; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.sl-gd-colbtn:hover { text-decoration: underline; }
+.sl-gd-cell .val { font-family: Consolas, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; word-break: break-all; }
+.sl-gd-cell .val.inh { color: #9CA3AF; font-style: italic; }
+.sl-gd-cell .src { display: block; font-size: 11px; color: #6B7280; overflow-wrap: anywhere; }
+.sl-gd-inh { font-size: 9.5px; font-weight: 700; color: #6B7280; background: #F3F4F6; border-radius: 6px; padding: 0 4px; }
+.sl-gd-cell.m-all { background: #F0FDF4; }
+.sl-gd-cell.m-all .val:not(.inh) { color: #15803D; }
+.sl-gd-cell.m-some { background: #FFF7ED; }
+.sl-gd-cell.m-some .val:not(.inh) { color: #C2410C; }
+.sl-gd-cell.m-none { background: #FEF2F2; }
+.sl-gd-cell.m-none .val:not(.inh) { color: #B91C1C; }
+.sl-gd-state { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; border-radius: 6px; padding: 0 5px; }
+.sl-gd-state.planned { background: #EDE9FE; color: #6D28D9; }
+.sl-gd-state.unverified { background: #FEF3C7; color: #92400E; }
+.sl-gd-row.flash > * { animation: slFlash 2s ease-out; }
+.sl-gd-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 12px; color: #374151; }
+.sl-gd-key { display: inline-flex; align-items: center; gap: 4px; }
+.sl-gd-key .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sl-gd-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 0 0 12px; cursor: pointer; }
+.sl-gd-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sl-gd-sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #D1D5DB; cursor: pointer; padding: 0; }
+.sl-gd-sw.none { background: #fff; color: #6B7280; font-size: 16px; line-height: 1; }
+.sl-gd-sw.on { box-shadow: 0 0 0 3px #111827; }
+.sl-gd-swatches.small { gap: 4px; }
+.sl-gd-swatches.small .sl-gd-sw { width: 22px; height: 22px; }
+.sl-gd-tagrow { margin-bottom: 6px; }
+.sl-gd-newaxis { margin-top: 4px; }
+.sl-modal.sl-gd-axesmodal { width: min(720px, 100%); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; overflow: hidden; }
+.sl-gd-axesbody { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.sl-gd-axis { border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px; margin-bottom: 10px; }
+.sl-gd-axishead, .sl-gd-valrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; }
+.sl-gd-axishead input, .sl-gd-valrow input { flex: 1 1 140px; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 1px solid #C9CDD6; border-radius: 4px; font: inherit; font-size: 13px; }
+.sl-gd-axishead input { font-weight: 700; }
+.sl-gd-valrow { padding-left: 12px; border-top: 1px solid #F0F1F4; }
+.sl-gd-axishead.add { border-top: 1px dashed #D1D5DB; padding-top: 10px; }
+@media (max-width: 640px) {
+    .sl-gd-table { width: max(100%, calc(120px + var(--gd-cols, 3) * 120px)); }
+    .sl-gd-table thead th.sl-cf-key { width: 120px; }
+    .sl-gd-table .sl-cf-key .desc { display: none; }
+}
+/* ---- the Search tab (2026-10-16): Find Transaction's fields, then one folded band per tab ---- */
+.sl-search-form { padding: 10px 12px; margin-bottom: 10px; }
+.sl-search-form .sl-cardhead h3 { margin: 0; font-size: 14px; }
+.sl-search-form.folded .sl-search-body { display: none; }
+.sl-search-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.sl-search-body { padding-top: 8px; }
+.sl-search-group { border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px 10px 8px; background: #FAFAFC; margin-bottom: 8px; }
+.sl-search-group-title { font-size: 11px; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px; }
+.sl-search-boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.sl-search-boxes-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 760px) { .sl-search-boxes { grid-template-columns: repeat(4, minmax(0, 1fr)); } .sl-search-boxes-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sl-search-boxes input, .sl-search-row input[type="date"] { width: 100%; box-sizing: border-box; min-width: 0; font: 13px "Segoe UI", system-ui, sans-serif;
+    border: 1px solid #C9CDD6; border-radius: 4px; padding: 7px 9px; color: #111827; background: #fff; }
+.sl-search-boxes input:focus, .sl-search-row input:focus { border-color: #0A66C2; outline: none; box-shadow: 0 0 0 1px #0A66C2; }
+.sl-search-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; margin-bottom: 8px; }
+.sl-search-row .fld { flex: 1 1 150px; min-width: 0; }
+.sl-search-row .fld label { display: block; font-size: 10px; color: #555; font-weight: 600; text-transform: uppercase; margin-bottom: 3px; letter-spacing: .3px; }
+.sl-search-row .check { padding-bottom: 7px; }
+.sl-search-tabs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+.sl-search-tabs .check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.sl-search-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }
+.sl-hit { cursor: pointer; }
+.sl-hit:hover { background: #ECF4FD; }
+.sl-hit .title { font-size: 13px; }
+.sl-hit-where { font-size: 11.5px; margin-top: 1px; overflow-wrap: anywhere; }
+.sl-hit-snippet { font-size: 12px; color: #4B5563; }
+.sl-hit mark, .sl-hit-snippet mark { background: #FDE68A; color: #111827; padding: 0 1px; border-radius: 2px; }
+/* A row the Search tab jumped to on another tab flashes the same way an item does. */
+.sl-entry.flash, .sl-tp-row.flash, .ef-row.flash { animation: slFlash 2s ease-out; }

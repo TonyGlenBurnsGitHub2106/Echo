@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3C3C3C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="picasso-base.css?v=6">
+    <link rel="stylesheet" href="/quick-launch/quick-launch.css?v=17">
+    <script src="/picasso-voice.js?v=14" defer></script>
+    <script src="/auth.js?v=36" defer></script>
+    <script src="/picasso-nav.js?v=1" defer></script>
+    <script src="/quick-launch/quick-launch.js?v=46" defer></script>
+    <style>
+        /* ---- Login card -------------------------------------------------------- */
+        #loginView {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #F2F2F4;
+        }
+        .login-card {
+            background: #FFFFFF;
+            border: 1px solid #E0E0E2;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            padding: 36px 40px 32px 40px;
+            width: min(360px, 90vw);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .login-card h1 {
+            margin: 0 0 6px 0;
+            font-size: 18pt;
+            font-weight: 600;
+            color: #1A1A1A;
+            text-align: center;
+        }
+        .login-card .subtitle {
+            text-align: center;
+            color: #5A5A5A;
+            font-size: 11pt;
+            margin-bottom: 4px;
+        }
+        .login-card input[type="text"],
+        .login-card input[type="password"] {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 12pt;
+        }
+        .login-card button#loginBtn {
+            width: 100%;
+            padding: 11px;
+            font-size: 12pt;
+            font-weight: 600;
+            background: #3C3C3C;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 3px;
+            margin-top: 2px;
+            cursor: pointer;
+        }
+        .login-card button#loginBtn:hover:not(:disabled):hover:not(:disabled) { background: #4A4A4A; }
+        .login-card button#loginBtn:disabled:disabled { background: #A0A0A4; cursor: default; }
+        .login-card .divider {
+            text-align: center;
+            color: #888;
+            font-size: 10pt;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .login-card .divider::before,
+        .login-card .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #E0E0E2;
+        }
+        .login-card .pw-toggle {
+            text-align: center;
+            color: #0A66C2;
+            font-size: 11pt;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px;
+        }
+        .login-card .pw-toggle:hover { text-decoration: underline; }
+        .login-card .pw-area { display: flex; flex-direction: column; gap: 10px; }
+        .login-card .pw-hint {
+            font-size: 9pt;
+            color: #888;
+            text-align: center;
+            margin: -4px 0 0 0;
+        }
+        .error-msg {
+            color: #C00000;
+            font-size: 13px;
+            min-height: 18px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        /* ---- Dashboard --------------------------------------------------------- */
+        #dashView { display: flex; flex-direction: column; height: 100vh; }
+        .header-user { font-size: 11pt; color: #DDDDDD; }
+        .ping-line { padding: 24px 20px 8px 20px; font-size: 12pt; color: #333333; }
+        .report-links { padding: 0 20px 24px 20px; }
+        .report-links h2 { font-size: 11pt; font-weight: 600; color: #5A5A5A; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+        .report-links h2 svg.section-icon { width: 18px; height: 18px; flex: 0 0 auto; opacity: 0.85; }
+        .report-links h2 .sec-toggle { margin-left: auto; font-size: 9pt; color: #C0C0C4; transition: transform 200ms ease; line-height: 1; }
+        .report-links.collapsed h2 { margin-bottom: 0; }
+        .report-links.collapsed h2 .sec-toggle { transform: rotate(-90deg); }
+        /* Hide every direct child EXCEPT the heading. The old rule hid only `a`,
+           which left anything that was not a bare link still showing under the
+           collapsed heading: the Games section wraps its link in a .game-row with
+           a pin button beside it (so a collapsed Games -- which is the default --
+           showed an orphan star), and "Pin items" mode wraps every link in a
+           .dm-pin-row with a star. Matching on structure instead of on one tag
+           name covers both of those and anything added to a section later. */
+        .report-links.collapsed > *:not(h2) { display: none; }
+        .report-links a { display: block; padding: 8px 12px; background: #F5F5F7; border: 1px solid #E0E0E2; border-radius: 3px; color: #0A66C2; margin-bottom: 6px; font-size: 12pt; }
+        .report-links a:hover { background: #ECF4FD; }
+        .picasso-header button {
+            background: transparent;
+            color: #FFFFFF;
+            border: 1px solid #6A6A6A;
+            border-radius: 3px;
+            padding: 4px 12px;
+        }
+        .picasso-header button:hover { background: #4A4A4A; }
+    </style>
+</head>
+<body class="ql-no-pin ql-band">
+
+    <!-- Echo's main menu (Story 5653) -- LeonardoWeb's dashboard, copied: the sign-in card, the
+         Main Menu Tool Bar Strip ("ql-band": Back / Forward / Main menu / Quick Launch, Logout on
+         the right), the Quick Launch row (press and hold a tile to move it), and the menu sections,
+         each folding and remembered in the database. One thing is on the menu for now: Solutions.
+         The Echo section holds the housekeeping a standalone app needs. -->
+    <div id="loginView" data-testid="login-view" style="display:none">
+        <div class="login-card" data-testid="login-card">
+            <h1>Echo</h1>
+            <p class="subtitle">Sign in</p>
+            <!-- No <form> element -- submit via JS only, as LeonardoWeb does. -->
+            <div class="pw-area" id="passwordArea" data-testid="login-password-area">
+                <input type="text"     id="username" data-testid="login-username" placeholder="Username" autocomplete="username" spellcheck="false">
+                <input type="password" id="password" data-testid="login-password" placeholder="Password" autocomplete="current-password">
+                <button id="loginBtn" data-testid="login-submit-btn">Sign in</button>
+            </div>
+            <div id="loginError" class="error-msg" data-testid="login-error"></div>
+        </div>
+    </div>
+
+    <div id="openingView" data-testid="opening-view"
+         style="display:none;align-items:center;justify-content:center;height:100vh;background:#2A2A2A;color:#E8E8E8;font-size:13pt">
+        <span id="openingText">Opening&hellip;</span>
+    </div>
+
+    <div id="dashView" data-testid="home-page" style="display:none">
+        <div class="picasso-header">
+            <h1 data-testid="page-title">Echo</h1>
+            <span class="picasso-breadcrumb"></span>
+            <button id="foldAllBtn" data-testid="home-fold-all-btn" title="Fold or open every section">Fold all</button>
+            <button id="pingBtn"    data-testid="home-refresh-btn">Refresh</button>
+            <button id="logoutBtn"  data-testid="home-logout-btn">Sign out</button>
+        </div>
+        <div class="picasso-content">
+            <div id="pingResult"></div>
+            <section class="ql-section" id="qlDashSection" data-testid="quick-launch-section" style="display:none">
+                <h2><span>&#9889;</span> Quick Launch</h2>
+                <div class="ql-tiles" id="qlDashTiles" data-testid="quick-launch-tiles"></div>
+                <div class="ql-section-empty" id="qlDashEmpty" data-testid="quick-launch-empty" style="display:none">
+                    No pins yet. Use the &#128204; Pin button on any page to add one,
+                    or open <strong>Echo &rarr; Manage Quick Launch</strong> in the menu below.
+                </div>
+            </section>
+            <div class="report-links" data-section="solutions">
+                <h2>Solutions</h2>
+                <a href="/solutions/solutions.html" data-testid="nav-solutions">Solutions</a>
+            </div>
+            <div class="report-links" data-section="echo">
+                <h2>Echo</h2>
+                <a href="/quick-launch/manage.html" data-testid="nav-quick-launch-manage">Manage Quick Launch</a>
+                <a href="/admin/api-clients.html" data-testid="nav-api-clients">API Clients (agents such as Rex)</a>
+                <a href="/settings/settings.html" data-testid="nav-settings">Settings (password, sign out everywhere, about Echo)</a>
+                <a href="/help/help.html" data-testid="nav-help">Help</a>
+            </div>
+        </div>
+        <div class="picasso-statusbar" id="dashStatus" data-testid="home-status">Echo</div>
+    </div>
+
+    <script src="picasso-utils.js?v=63"></script>
+    <script src="/picasso-view-state.js?v=3"></script>
+    <script src="app.js?v=18"></script>
+    <script>
+    // Folding sections. LeonardoWeb's dashboard keeps these in localStorage; Echo keeps them in the
+    // DATABASE (PicassoViewState, keys echo.dash.fold.<section>) so every browser sees the same menu.
+    // Fold all / Open all in the header works every section at once.
+    (function () {
+        var PREFIX = 'echo.dash.fold.';
+        var VS = window.PicassoViewState;
+
+        function keyOf(sec) {
+            var name = sec.getAttribute('data-section') || (sec.id === 'qlDashSection' ? 'quick-launch' : 'section');
+            return PREFIX + name;
+        }
+        function sections() { return Array.prototype.slice.call(document.querySelectorAll('.report-links, .ql-section')); }
+        function apply(sec) { sec.classList.toggle('collapsed', !!VS && VS.get(keyOf(sec)) === '1'); }
+        function paintFoldAll() {
+            var btn = document.getElementById('foldAllBtn');
+            var anyOpen = sections().some(function (s) { return s.style.display !== 'none' && !s.classList.contains('collapsed'); });
+            btn.textContent = anyOpen ? 'Fold all' : 'Open all';
+        }
+        function wireSection(sec) {
+            var h2 = sec.querySelector('h2');
+            if (!h2 || h2.querySelector('.sec-toggle')) return;
+            var chev = document.createElement('span');
+            chev.className = 'sec-toggle';
+            chev.textContent = String.fromCharCode(0x25BE);
+            chev.setAttribute('aria-hidden', 'true');
+            h2.appendChild(chev);
+            apply(sec);
+            h2.addEventListener('click', function () {
+                var now = sec.classList.toggle('collapsed');
+                if (VS) VS.set(keyOf(sec), now ? '1' : '0');
+                paintFoldAll();
+            });
+        }
+        function init() {
+            sections().forEach(wireSection);
+            paintFoldAll();
+            document.getElementById('foldAllBtn').addEventListener('click', function () {
+                var fold = this.textContent === 'Fold all';
+                sections().forEach(function (s) {
+                    s.classList.toggle('collapsed', fold);
+                    if (VS) VS.set(keyOf(s), fold ? '1' : '0');
+                });
+                paintFoldAll();
+            });
+        }
+        window.EchoDashSections = {
+            wire: function (sec) { wireSection(sec); paintFoldAll(); },
+            // After sign-in the server copy is pulled in and every section drawn again from it.
+            resync: async function () {
+                if (!VS) return;
+                try { await VS.sync(PREFIX); } catch (e) { /* the cache still holds */ }
+                sections().forEach(apply);
+                paintFoldAll();
+            }
+        };
+        if (document.readyState !== 'loading') init();
+        else document.addEventListener('DOMContentLoaded', init);
+    })();
+
+    // ---- Quick Launch -- fetch and draw the dashboard tiles (LeonardoWeb's, as it is) ----------
+    (function () {
+        var tries = 0, MAX_TRIES = 80, POLL_MS = 200;
+
+        function ready() {
+            return !!(window.LWAuth && window.LWAuth.apiGet && window.QuickLaunch
+                   && document.getElementById('dashView')
+                   && document.getElementById('dashView').style.display !== 'none');
+        }
+
+        async function loadAndRender() {
+            if (window.EchoDashSections) window.EchoDashSections.resync();
+            var res = await window.LWAuth.apiGet('/api/quick-launch');
+            if (!res || !res.ok) return;
+            var pins = Array.isArray(res.data) ? res.data : [];
+            var sec   = document.getElementById('qlDashSection');
+            var tiles = document.getElementById('qlDashTiles');
+            var empty = document.getElementById('qlDashEmpty');
+            tiles.innerHTML = '';
+            sec.style.display = '';
+            if (pins.length === 0) {
+                empty.style.display = '';
+                tiles.style.display = 'none';
+            } else {
+                empty.style.display = 'none';
+                tiles.style.display = '';
+                for (var i = 0; i < pins.length; i++) tiles.appendChild(window.QuickLaunch.renderTile(pins[i]));
+                window.QuickLaunch.makeReorderable(tiles, {
+                    onReorder: async function (orderedIds) {
+                        await window.LWAuth.apiPost('/api/quick-launch/reorder', { orderedIds: orderedIds }, 'PUT');
+                    }
+                });
+            }
+            if (window.EchoDashSections) window.EchoDashSections.wire(sec);
+            loadAbout();
+        }
+
+        async function loadAbout() {
+            var r = await window.LWAuth.apiGet('/api/system/about');
+            if (!r || !r.ok || !r.data) return;
+            document.getElementById('dashStatus').textContent = 'Echo ' + r.data.version + '  |  ' + r.data.database;
+        }
+
+        function poll() {
+            if (ready()) { loadAndRender(); return; }
+            tries++;
+            if (tries < MAX_TRIES) setTimeout(poll, POLL_MS);
+        }
+        if (document.readyState !== 'loading') poll();
+        else document.addEventListener('DOMContentLoaded', poll);
+    })();
+    </script>
+</body>
+</html>

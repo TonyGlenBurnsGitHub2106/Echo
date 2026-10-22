@@ -1,0 +1,24 @@
+/* PicassoPicker -- the standard typeahead dropdown for LeonardoWeb.
+   Visual + behavioural twin of the Find Transaction account/vendor picker,
+   extracted into a shared component so every new page uses one look. */
+
+.picker-wrap { position: relative; width: 100%; }
+.picker-wrap > input.picker-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.picker-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: #fff; border: 1px solid #C9C9CC; border-radius: 0 0 4px 4px;
+    max-height: 240px; overflow-y: auto; z-index: 300;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.picker-dropdown.open { display: block; }
+.picker-option { padding: 9px 11px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #F0F0F2; }
+.picker-option:last-child { border-bottom: none; }
+.picker-option:hover, .picker-option.active { background: #ECF4FD; }
+.picker-option mark { background: #FFF3CD; font-style: normal; }
+.picker-option.no-match { color: #888; font-style: italic; cursor: default; }
+.picker-option.picker-clear { color: #5b4bd6; font-weight: 600; }
+.picker-option.picker-add { color: #15803d; font-weight: 700; background: #f0fdf4; }
+.picker-option.picker-add:hover, .picker-option.picker-add.active { background: #dcfce7; }

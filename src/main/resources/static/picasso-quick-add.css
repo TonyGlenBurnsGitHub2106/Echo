@@ -1,0 +1,77 @@
+/* PicassoQuickAdd (Story 3550) -- the small stacked "add it here" form.
+   Above the record modal (1000/1100) and Quick Entry (200); below the
+   PicassoSelect popup (2000) so a dropdown inside it still opens on top. */
+.pqa-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.pqa-sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+    padding: 16px 18px 0;
+    box-sizing: border-box;
+    font: 14px "Segoe UI", system-ui, sans-serif;
+    color: #1A1A1A;
+    border-top: 4px solid #15803d;
+}
+.pqa-title { margin: 0 0 12px; font-size: 17px; font-weight: 700; }
+.pqa-field { margin-bottom: 10px; }
+.pqa-field label { display: block; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 4px; }
+.pqa-req { color: #b91c1c; }
+.pqa-field input[type="text"],
+.pqa-field textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 9px;
+    border: 1px solid #C9C9CC;
+    border-radius: 3px;
+    font: inherit;
+    background: #fff;
+    color: #1A1A1A;
+}
+.pqa-field input[type="text"]:focus,
+.pqa-field textarea:focus { outline: none; border-color: #0A66C2; }
+/* picasso-voice wraps text inputs in an inline-block span; keep them full width. */
+.pqa-field .voice-mic-wrap { display: block; }
+.pqa-check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pqa-err { color: #b91c1c; font-size: 13px; }
+.pqa-err:empty { display: none; }
+.pqa-actions {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 10px 0 16px;
+    margin-top: 6px;
+}
+.pqa-btn {
+    padding: 8px 18px;
+    border: 1px solid #C9C9CC;
+    border-radius: 4px;
+    background: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+.pqa-btn.primary { background: #15803d; border-color: #15803d; color: #fff; font-weight: 600; }
+.pqa-btn:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 600px) {
+    .pqa-bg { align-items: flex-end; padding: 0; }
+    .pqa-sheet { max-width: 100%; border-radius: 14px 14px 0 0; }
+}

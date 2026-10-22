@@ -1,0 +1,67 @@
+/* picasso-split.css -- the Bay Window (Leonardo Term "Preview Split"): a list and a preview,
+   side by side or one above the other, with a draggable bar and a list that minimizes to a
+   strip. See picasso-split.js. The page gives .ps-split its height while the preview is on. */
+
+.ps-split { display: flex; min-height: 0; min-width: 0; }
+/* Preview off: the list is exactly what it was before -- full width, nothing beside it. */
+.ps-split > .ps-list { flex: 1 1 auto; min-width: 0; min-height: 0; }
+.ps-split > .ps-preview { display: none; }
+.ps-split > .ps-splitter, .ps-split > .ps-rail, .ps-listbar, .ps-pvbar { display: none; }
+
+/* ---- preview on ---- */
+.ps-split.ps-on > .ps-list { flex: 0 0 var(--ps-list-w, min(40%, 480px)); overflow-y: auto; }
+.ps-split.ps-on > .ps-preview { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; flex-direction: column;
+    background: #fff; }
+.ps-split.ps-on > .ps-splitter { display: block; flex: 0 0 7px; position: relative; cursor: col-resize;
+    touch-action: none; background: #F1F5F9; border-left: 1px solid #E2E2E5; border-right: 1px solid #E2E2E5; }
+.ps-split.ps-on > .ps-splitter::after { content: ""; position: absolute; left: 2px; top: 50%; width: 1px; height: 28px;
+    margin-top: -14px; border-left: 1px dotted #94A3B8; border-right: 1px dotted #94A3B8; }
+.ps-split.ps-on > .ps-splitter:hover, .ps-split.ps-on > .ps-splitter:focus,
+.ps-split.ps-resizing > .ps-splitter { background: #DBEAFE; outline: none; }
+
+/* ---- the list on top ---- */
+.ps-split.ps-top { flex-direction: column; }
+.ps-split.ps-on.ps-top > .ps-list { flex: 0 0 var(--ps-list-h, 40%); }
+.ps-split.ps-on.ps-top > .ps-splitter { flex: 0 0 9px; cursor: row-resize; border: none;
+    border-top: 1px solid #E2E2E5; border-bottom: 1px solid #E2E2E5; }
+.ps-split.ps-on.ps-top > .ps-splitter::after { left: 50%; top: 3px; width: 28px; height: 1px; margin: 0 0 0 -14px;
+    border: none; border-top: 1px dotted #94A3B8; border-bottom: 1px dotted #94A3B8; }
+
+/* A finger needs a bigger bar than a mouse. */
+@media (pointer: coarse) {
+    .ps-split.ps-on > .ps-splitter { flex-basis: 16px; }
+    .ps-split.ps-on > .ps-splitter::after { left: 6px; }
+    .ps-split.ps-on.ps-top > .ps-splitter { flex-basis: 18px; }
+    .ps-split.ps-on.ps-top > .ps-splitter::after { top: 7px; left: 50%; }
+}
+
+/* While dragging: the preview frame must not swallow the pointer, and nothing gets selected. */
+.ps-split.ps-resizing iframe { pointer-events: none; }
+html.ps-dragging-x, html.ps-dragging-x * { user-select: none; cursor: col-resize !important; }
+html.ps-dragging-y, html.ps-dragging-y * { user-select: none; cursor: row-resize !important; }
+
+/* ---- minimize the list to a strip ---- */
+.ps-split.ps-on .ps-listbar, .ps-split.ps-on > .ps-preview > .ps-pvbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 2;
+    padding: 4px 8px; background: #F8FAFC; border-bottom: 1px solid #E2E2E5;
+    font: 600 12px "Segoe UI", system-ui, sans-serif; color: #475569; }
+.ps-listbar-text { flex: 1 1 auto; }
+.ps-min { background: #fff; color: #475569; border: 1px solid #CBD5E1; border-radius: 3px; cursor: pointer;
+    font-size: 11px; line-height: 1; padding: 5px 8px; }
+.ps-min:hover { background: #ECF4FD; }
+.ps-split.ps-on.ps-min > .ps-list, .ps-split.ps-on.ps-min > .ps-splitter { display: none; }
+.ps-split.ps-on.ps-min > .ps-rail { display: flex; }
+.ps-rail { flex: 0 0 34px; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer;
+    background: #F1F5F9; border: none; border-right: 1px solid #E2E2E5; color: #0A66C2;
+    font: 600 12px "Segoe UI", system-ui, sans-serif; }
+.ps-rail:hover, .ps-rail:focus { background: #DBEAFE; outline: none; }
+.ps-rail-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.ps-split.ps-top > .ps-rail { flex: 0 0 34px; flex-direction: row; justify-content: center; padding: 0 10px;
+    border-right: none; border-bottom: 1px solid #E2E2E5; }
+.ps-split.ps-top > .ps-rail .ps-rail-text { writing-mode: horizontal-tb; transform: none; }
+
+/* ---- minimize the preview to a strip (opt-in: previewLabel) -- the strip sits on the left
+   (or across the top) and the list takes the whole width. ---- */
+.ps-split.ps-on.ps-min > .ps-pvrail { display: none; }
+.ps-split.ps-on.ps-pvmin > .ps-preview, .ps-split.ps-on.ps-pvmin > .ps-splitter { display: none; }
+.ps-split.ps-on.ps-pvmin > .ps-list { flex: 1 1 auto; }
+.ps-split.ps-on.ps-pvmin > .ps-pvrail { display: flex; }

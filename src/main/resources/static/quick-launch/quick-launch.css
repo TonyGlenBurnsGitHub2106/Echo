@@ -1,0 +1,694 @@
+/* =====================================================================
+   Quick Launch -- shared styles
+   ---------------------------------------------------------------------
+   Used by:
+     - The "Pin this page" modal (injected on every authenticated page)
+     - The Quick Launch section at the top of the dashboard
+     - The /quick-launch/manage.html drag-to-reorder management page
+   ===================================================================== */
+
+/* ---- The Pin button in the top nav -------------------------------- */
+/* Icon-only and dimensionally identical to .lw-nav-btn. It used to carry the
+   word Pin / Pinned and measured 68px against its neighbours' 30-34, which on
+   a narrow phone was the single biggest reason the band wrapped to a second
+   row (Story 3478). Keep these numbers in step with .lw-nav-btn below. */
+.ql-pin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    text-decoration: none;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    min-width: 28px; height: 28px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    font-size: 11pt;
+    cursor: pointer;
+    line-height: 1;
+}
+.ql-pin-btn:hover { background: rgba(255,255,255,0.08); }
+.ql-pin-btn .ql-pin-ico { font-size: 12pt; }
+.ql-pin-btn[disabled] { opacity: 0.5; cursor: default; }
+.ql-pin-btn.is-pinned {
+    background: rgba(255, 200, 80, 0.16);
+    border-color: rgba(255, 200, 80, 0.55);
+}
+.ql-pin-btn.is-pinned:hover { background: rgba(255, 200, 80, 0.28); }
+
+/* ---- The icon band (standard top row) -------------------------------- */
+/* Injected as the row directly above the page header on every authenticated
+   content page. Holds ONLY icons: nav cluster + pin + page actions on the
+   left, logout alone on the right. Dark bar with light icons so it reads
+   uniformly regardless of the page header's own color.
+   Docked to the top: position:sticky + top:0 pins it to the top of the
+   viewport so it never scrolls away. On the flex-shell pages (height:100vh +
+   overflow:hidden) the band already lives outside the scroll area, so sticky
+   is a harmless no-op there; on the body-scroll pages it keeps the band
+   parked at the top while the page scrolls under it. z-index sits above the
+   page header (200) so the band stays on top if the two ever overlap. */
+/* THE BAND IS ONE LINE (Story 3478). The icons must never wrap onto a second
+   row and must never scroll off the side, so the row itself is nowrap and the
+   controls are sized to a budget that fits the narrowest phone in use.
+   BUDGET at 320px (the smallest viewport we support), band padding 6px 10px:
+     300 usable - 28 logout - 3 gap = 269 for the left group.
+     Back 30 + Forward 30 + Menu 28 + Quick Launch 32 + Search 28  = 148
+     + 4 internal gaps (3px)                                       =  12
+     + Pin 28 + Desk 28 + Print 28 + 4 outer gaps (3px)            =  96
+                                                             total = 256.
+   That leaves ~13px of slack, i.e. room for ONE more page-action icon before
+   this stops fitting. Anything beyond that belongs in the Quick Launch sheet
+   (see deskToggleRow in quick-launch.js), not in the band.
+   The band element itself still wraps, because the optional page-URL row is a
+   100%-basis child that has to drop onto its own line; it is the LEFT GROUP
+   that is nowrap. */
+.lw-iconband {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 3px;
+    row-gap: 4px;
+    padding: 6px 10px;
+    background: #2A2A2A;
+    color: #FFFFFF;
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 300;
+}
+.lw-iconband-left {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 3px;
+    min-width: 0;
+}
+/* Logout sits alone on the right (pushed by margin-left:auto) so it is hard
+   to fat-finger. */
+.lw-band-logout { margin-left: auto; }
+
+/* ---- Page URL row (Story 2320) --------------------------------------- */
+/* A full-width child of the band. flex-basis 100% makes the wrapping band
+   drop it onto its own line under the icons, so it is pinned chrome and
+   never scrolls away. Only present when "Show page URL" is on. */
+.lw-urlbar {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    min-width: 0;
+}
+/* Specificity note: picasso-base.css carries `input[type="text"] { background:
+   #FFFFFF; color: inherit; }` at (0,1,1), which outranks a bare `.lw-urlbar-text`
+   class (0,1,0) -- that rule painted the box white and let the color inherit the
+   band's white text, so the address was white-on-white and invisible. Qualifying
+   the class with its parent and the element (`.lw-urlbar input.lw-urlbar-text`
+   = (0,2,1)) wins cleanly without reaching for !important. Every property the
+   base rule sets is restated here for the same reason. */
+.lw-urlbar input.lw-urlbar-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 26px;
+    padding: 0 7px;
+    box-sizing: border-box;
+    font: 400 9.5pt Consolas, "Courier New", monospace;
+    color: #FFFFFF;
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 4px;
+    text-overflow: ellipsis;
+    -webkit-text-fill-color: #FFFFFF;   /* iOS paints readonly inputs grey without this */
+    opacity: 1;
+    -webkit-user-select: text;
+    user-select: text;
+}
+.lw-urlbar input.lw-urlbar-text:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.65);
+    box-shadow: none;
+    background: #141414;
+    color: #FFFFFF;
+}
+.lw-urlbar input.lw-urlbar-text::selection {
+    background: #3A6EA5;
+    color: #FFFFFF;
+}
+.lw-urlbar-copy {
+    flex: 0 0 auto;
+    font: 600 9.5pt "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ---- Global nav cluster (Back / Forward / Menu / Quick Launch) ------- */
+.lw-nav-cluster {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 3px;
+}
+/* 28px tall is unchanged -- only the horizontal padding came in, so the touch
+   target keeps its height and loses 4px of dead side margin. See the budget
+   note on .lw-iconband before changing either number. */
+.lw-nav-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 28px; height: 28px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    color: inherit;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+}
+.lw-nav-btn:hover  { background: rgba(255,255,255,0.08); }
+.lw-nav-btn:active { transform: scale(0.95); }
+.lw-nav-btn .lw-nav-ico {
+    font-size: 13pt; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ---- Quick Launch sheet ---------------------------------------------- */
+/* A top-anchored sheet listing pinned pages, opened from the nav cluster's
+   Quick Launch button. Reuses .ql-modal-bg for the dimmed backdrop. */
+.lw-qlsheet-bg { align-items: flex-start; }
+.lw-qlsheet {
+    background: #FFFFFF;
+    border-radius: 12px;
+    width: 100%; max-width: 420px;
+    margin-top: 8vh;
+    max-height: 80vh;
+    overflow: auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.30);
+    display: flex; flex-direction: column;
+}
+.lw-qlsheet-head {
+    display: flex; align-items: center;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #ECECEF;
+    position: sticky; top: 0; background: #FFFFFF; z-index: 2;
+}
+.lw-qlsheet-head h2 { margin: 0; font-size: 14pt; font-weight: 700; color: #1A1A1A; }
+.lw-qlsheet-close {
+    margin-left: auto;
+    width: 30px; height: 30px;
+    border: none; background: transparent;
+    font-size: 13pt; color: #6A6A70; cursor: pointer;
+    border-radius: 6px; line-height: 1;
+}
+.lw-qlsheet-close:hover { background: #F0F0F4; }
+.lw-qlsheet-list { display: flex; flex-direction: column; padding: 8px; gap: 4px; }
+.lw-qlsheet-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    color: #1A1A1A; text-decoration: none;
+    border: 1px solid transparent;
+}
+.lw-qlsheet-row:hover  { background: #ECF4FD; }
+.lw-qlsheet-row:active { background: #DCEBFB; }
+.lw-qlsheet-ico {
+    font-size: 17pt; width: 30px; flex: 0 0 auto;
+    text-align: center; line-height: 1;
+}
+.lw-qlsheet-ico.placeholder {
+    font-size: 12pt; color: #FFFFFF; font-weight: 700;
+    background: #8A8A92; border-radius: 7px;
+    height: 30px; display: flex; align-items: center; justify-content: center;
+}
+.lw-qlsheet-label {
+    font-size: 12pt; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The Leonardo Desk switch at the foot of the sheet (Story 3478). It is a
+   <button>, not a link, so it needs the row's inherited text styling put back
+   and the state pill pushed to the far right. */
+.lw-qlsheet-toggle {
+    width: 100%;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.lw-qlsheet-state {
+    margin-left: auto;
+    flex: 0 0 auto;
+    font-size: 10pt; font-weight: 700;
+    color: #6A6A70;
+    background: #F0F0F4;
+    border-radius: 999px;
+    padding: 3px 11px;
+}
+.lw-qlsheet-state.is-on {
+    color: #0A5C2E;
+    background: #D8F2E2;
+}
+
+.lw-qlsheet-home {
+    margin-top: 4px; border-top: 1px solid #ECECEF;
+    border-radius: 0; color: #0A66C2; font-weight: 600;
+}
+.lw-qlsheet-empty, .lw-qlsheet-loading {
+    padding: 18px 14px; color: #6A6A70; font-style: italic; text-align: center;
+}
+
+/* ---- Menu search sheet ----------------------------------------------- */
+/* A top-anchored find-as-you-type overlay over the whole dashboard menu,
+   opened from the nav cluster's magnifier (or Ctrl/Cmd+K). Reuses
+   .ql-modal-bg for the dimmed backdrop; anchored to the top like the
+   Quick Launch sheet so the keyboard doesn't shove it around on mobile. */
+.lw-mssheet-bg { align-items: flex-start; }
+.lw-mssheet {
+    background: #FFFFFF;
+    border-radius: 12px;
+    width: 100%; max-width: 460px;
+    margin-top: 7vh;
+    max-height: 82vh;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.30);
+    display: flex; flex-direction: column;
+}
+.lw-mssheet-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 12px 10px;
+    border-bottom: 1px solid #ECECEF;
+    flex: 0 0 auto;
+}
+.lw-mssheet-ico {
+    flex: 0 0 auto; width: 20px; height: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #6A6A70;
+}
+.lw-mssheet-input {
+    flex: 1 1 auto; min-width: 0;
+    border: none; outline: none; background: transparent;
+    font-size: 13pt; color: #1A1A1A;
+    padding: 4px 2px;
+}
+.lw-mssheet-close {
+    flex: 0 0 auto;
+    width: 30px; height: 30px;
+    border: none; background: transparent;
+    font-size: 13pt; color: #6A6A70; cursor: pointer;
+    border-radius: 6px; line-height: 1;
+}
+.lw-mssheet-close:hover { background: #F0F0F4; }
+.lw-mssheet-list {
+    display: flex; flex-direction: column;
+    padding: 8px; gap: 2px;
+    overflow: auto; flex: 1 1 auto;
+}
+.lw-mssheet-row {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: #1A1A1A; text-decoration: none;
+    border: 1px solid transparent;
+}
+.lw-mssheet-row:hover  { background: #F3F7FD; }
+.lw-mssheet-row.active { background: #ECF4FD; border-color: #CFE3FA; }
+.lw-mssheet-label {
+    flex: 1 1 auto; min-width: 0;
+    font-size: 12pt; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lw-mssheet-label mark {
+    background: #FFE9A8; color: inherit;
+    border-radius: 2px; padding: 0 1px;
+}
+.lw-mssheet-section {
+    flex: 0 0 auto;
+    font-size: 9pt; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: #8A8A92;
+    background: #F0F0F4; border-radius: 10px;
+    padding: 2px 8px;
+}
+.lw-mssheet-empty {
+    padding: 18px 14px; color: #6A6A70; font-style: italic; text-align: center;
+}
+/* Dashboard header magnifier -- inherits the header's own bordered-button
+   look; just center the SVG. */
+#lwDashSearchBtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    line-height: 1;
+}
+#lwDashSearchBtn svg { display: block; }
+
+/* ---- Pin modal ------------------------------------------------------- */
+.ql-modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(20,20,24,0.55);
+    z-index: 9000;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 14px;
+}
+.ql-modal-bg.show { display: flex; }
+.ql-modal {
+    background: #FFFFFF;
+    border-radius: 12px;
+    width: 100%; max-width: 460px;
+    max-height: 92vh;
+    overflow: auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.30);
+    display: flex; flex-direction: column;
+}
+.ql-modal h2 {
+    margin: 0; padding: 16px 20px 6px;
+    font-size: 15pt; font-weight: 700;
+    color: #1A1A1A;
+}
+.ql-modal .ql-sub {
+    padding: 0 20px 12px;
+    color: #6A6A70; font-size: 10.5pt;
+}
+.ql-modal form { padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.ql-modal label {
+    display: block; font-size: 9.5pt; font-weight: 600;
+    color: #4A4A50; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.ql-modal input[type="text"] {
+    width: 100%; box-sizing: border-box;
+    padding: 9px 11px; font-size: 12pt;
+    border: 1px solid #D0D0D6; border-radius: 6px;
+    background: #FFFFFF; color: #1A1A1A;
+    outline: none;
+}
+.ql-modal input[type="text"]:focus { border-color: #0A66C2; box-shadow: 0 0 0 2px rgba(10,102,194,0.18); }
+.ql-modal .ql-url {
+    color: #5A5A60; font-size: 10.5pt; word-break: break-all;
+    padding: 7px 10px;
+    background: #F5F5F7; border: 1px solid #E0E0E2; border-radius: 6px;
+}
+
+/* ---- Icon picker pager ------------------------------------------------ */
+/* A single horizontally-scrollable row of page pills (Core, Smileys, ...).
+   Sticky to the top of the picker so page-switching is always one tap away,
+   even after scrolling deep into a page. Single-row (nowrap + overflow-x)
+   keeps its height fixed so the sticky category headers below clear it. */
+.ql-icon-pager {
+    display: flex; gap: 6px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    padding: 2px 0 8px;
+    margin-bottom: 4px;
+    position: sticky; top: 0; z-index: 4;
+    background: #FFFFFF;
+}
+.ql-page-btn {
+    flex: 0 0 auto;
+    padding: 5px 12px;
+    font-size: 10pt; font-weight: 600;
+    color: #4A4A50;
+    background: #F0F0F4;
+    border: 1px solid #D8D8DE; border-radius: 16px;
+    cursor: pointer; line-height: 1.2;
+}
+.ql-page-btn:hover { background: #E5E5EA; }
+.ql-page-btn.active {
+    background: #0A66C2; color: #FFFFFF; border-color: #0A66C2;
+}
+
+/* ---- Icon picker grid ------------------------------------------------- */
+.ql-icon-filter {
+    width: 100%; box-sizing: border-box;
+    padding: 8px 10px; margin-bottom: 8px;
+    font-size: 11pt;
+    border: 1px solid #D0D0D6; border-radius: 6px;
+    outline: none;
+    background: #FFFFFF;
+}
+.ql-icon-filter:focus { border-color: #0A66C2; box-shadow: 0 0 0 2px rgba(10,102,194,0.18); }
+.ql-icons {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+.ql-icon-tile {
+    aspect-ratio: 1 / 1;
+    border: 1px solid #DEDEE4; border-radius: 8px;
+    background: #F8F8FB;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18pt; line-height: 1;
+    cursor: pointer; user-select: none;
+    transition: transform 0.08s, background 0.12s, border-color 0.12s;
+}
+.ql-icon-tile.none {
+    font-size: 9.5pt; color: #6A6A70; text-transform: uppercase; letter-spacing: 0.6px;
+}
+.ql-icon-tile:hover { background: #ECF4FD; }
+.ql-icon-tile.selected {
+    background: #ECF4FD; border-color: #0A66C2;
+    box-shadow: 0 0 0 2px rgba(10,102,194,0.30);
+}
+.ql-icon-tile:active { transform: scale(0.94); }
+.ql-icon-cat {
+    grid-column: 1 / -1;
+    font-size: 9pt; font-weight: 700;
+    color: #6A6A70; text-transform: uppercase; letter-spacing: 0.6px;
+    margin: 4px 0 -2px;
+    position: sticky;
+    top: 40px;                    /* clear the sticky page-pager row above */
+    background: #FFFFFF;
+    padding: 6px 0 4px;
+    z-index: 2;
+}
+
+/* ---- Modal action row ------------------------------------------------- */
+.ql-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 4px 20px 18px;
+}
+.ql-btn {
+    padding: 9px 16px; font-size: 11pt; font-weight: 600;
+    border-radius: 6px; cursor: pointer;
+    border: 1px solid transparent;
+    line-height: 1.2;
+}
+.ql-btn-secondary { background: #F0F0F4; color: #1A1A1A; border-color: #D0D0D6; }
+.ql-btn-secondary:hover { background: #E5E5EA; }
+.ql-btn-primary { background: #0A66C2; color: #FFFFFF; }
+.ql-btn-primary:hover { background: #0856A0; }
+.ql-btn-danger { background: #C0392B; color: #FFFFFF; }
+.ql-btn-danger:hover { background: #A12C20; }
+.ql-toast {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: rgba(20,20,24,0.92); color: #FFFFFF;
+    padding: 9px 16px; border-radius: 20px;
+    font-size: 11pt; z-index: 9100;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.18s;
+}
+.ql-toast.show { opacity: 1; }
+
+/* =====================================================================
+   Dashboard section -- Quick Launch tiles
+   ===================================================================== */
+.ql-section { padding: 12px 20px 22px 20px; }
+.ql-section h2 {
+    font-size: 11pt; font-weight: 600; color: #5A5A5A;
+    margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+}
+.ql-section h2 .sec-toggle {
+    margin-left: auto; font-size: 9pt; color: #C0C0C4;
+    transition: transform 200ms ease; line-height: 1;
+}
+.ql-section.collapsed h2 .sec-toggle { transform: rotate(-90deg); }
+/* Same structural rule the dashboard's .report-links sections use: hide every
+   direct child except the heading. Naming the children one at a time missed
+   .ql-section-empty, so collapsing Quick Launch while nothing was pinned left
+   the "no pins yet" message sitting under the collapsed heading. */
+.ql-section.collapsed > *:not(h2) { display: none; }
+
+.ql-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 10px;
+}
+.ql-tile {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px;
+    background: #FFFFFF;
+    border: 1px solid #E0E0E2;
+    border-radius: 10px;
+    padding: 14px 8px 12px;
+    color: #1A1A1A; text-decoration: none;
+    min-height: 84px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    user-select: none;
+    transition: background 0.12s, transform 0.08s, box-shadow 0.12s;
+    text-align: center;
+}
+.ql-tile:hover  { background: #ECF4FD; }
+.ql-tile:active { transform: scale(0.97); }
+.ql-tile.dragging { opacity: 0.4; }
+.ql-tile.drop-target { box-shadow: 0 0 0 2px #0A66C2; }
+/* A notifications pin with at least one unread item -- amber tint + a soft
+   glow so a glance at the dashboard surfaces it without reading the count. */
+.ql-tile.has-notifications {
+    background: #FFF6E3;
+    border-color: #E2B85A;
+    box-shadow: 0 0 0 1px #E2B85A, 0 1px 2px rgba(0,0,0,0.04);
+}
+.ql-tile.has-notifications:hover { background: #FFEFC8; }
+.ql-tile.has-notifications .ql-tile-label { color: #6B4A06; font-weight: 700; }
+.ql-tile-badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    min-width: 22px; height: 22px;
+    padding: 0 7px; box-sizing: border-box;
+    background: #C0392B; color: #FFFFFF;
+    border-radius: 999px;
+    font: 700 10pt "Segoe UI",system-ui,sans-serif;
+    line-height: 22px; text-align: center;
+    box-shadow: 0 0 0 2px #FFF6E3;
+}
+.ql-tile { position: relative; }
+.ql-tile .ql-tile-ico {
+    font-size: 22pt; line-height: 1;
+}
+.ql-tile .ql-tile-ico.placeholder {
+    font-size: 14pt; color: #B0B0B6; font-weight: 700;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: #F0F0F4; border-radius: 8px;
+}
+.ql-tile .ql-tile-label {
+    font-size: 11pt; font-weight: 500; line-height: 1.25;
+    color: #1A1A1A;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+/* Mic overlay on dictation-eligible tiles (checklists, task lists) */
+.ql-tile-mic {
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    color: #A0A0A8;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.55;
+    transition: opacity 0.15s, color 0.15s, background 0.12s;
+    -webkit-appearance: none;
+    z-index: 2;
+}
+.ql-tile-mic:hover  { opacity: 1; color: #1A73E8; background: rgba(26,115,232,0.10); }
+.ql-tile-mic:active { opacity: 1; color: #1A73E8; background: rgba(26,115,232,0.20); }
+
+.ql-section-empty {
+    color: #6A6A70; font-style: italic; font-size: 10.5pt;
+    padding: 8px 0 0;
+}
+.ql-section-manage {
+    margin-top: 10px; text-align: right;
+}
+.ql-section-manage a {
+    color: #0A66C2; font-size: 10.5pt; text-decoration: none;
+    border-bottom: 1px dotted rgba(10,102,194,0.4);
+}
+.ql-section-manage a:hover { border-bottom-style: solid; }
+
+/* =====================================================================
+   Manage page
+   ===================================================================== */
+.ql-manage-wrap {
+    max-width: 720px; margin: 0 auto; padding: 16px 16px 110px;
+}
+.ql-manage-hint {
+    color: #5A5A60; font-size: 10.5pt; margin: 4px 0 14px;
+}
+.ql-list { display: flex; flex-direction: column; gap: 8px; }
+.ql-row {
+    display: flex; align-items: center; gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E0E0E2;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    user-select: none;
+    /* touch-action: none REMOVED on 2026-05-18 - this was originally added
+       to support long-press touch-drag, but it had the side effect of
+       100% disabling scroll when a finger touched any row. The long-press
+       drag is gone (Up/Down arrow buttons replaced it on phone), so the
+       restriction is harmful with no benefit. */
+}
+.ql-row.dragging { opacity: 0.45; }
+.ql-row.drop-target { box-shadow: 0 0 0 2px #0A66C2; }
+.ql-row .ql-grip {
+    color: #B0B0B6; font-size: 16pt; line-height: 1;
+    padding: 2px 4px;
+    cursor: grab;
+}
+.ql-row .ql-row-ico {
+    font-size: 18pt; width: 32px; text-align: center;
+}
+.ql-row .ql-row-text { flex: 1; min-width: 0; }
+.ql-row .ql-row-label {
+    font-size: 12pt; font-weight: 500; color: #1A1A1A;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ql-row .ql-row-url {
+    font-size: 9.5pt; color: #6A6A70;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ql-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ql-row-actions button {
+    background: transparent; border: 1px solid #D0D0D6;
+    border-radius: 6px; padding: 5px 9px; font-size: 10pt;
+    cursor: pointer;
+}
+.ql-row-actions button:hover:not(:disabled) { background: #F0F0F4; }
+.ql-row-actions button:disabled { opacity: 0.35; cursor: not-allowed; }
+.ql-row-actions button.danger { color: #C0392B; border-color: #E2BDBC; }
+.ql-row-actions button.danger:hover:not(:disabled) { background: #FDECEB; }
+.ql-row-actions button.arrow {
+    font-size: 13pt; line-height: 1;
+    padding: 3px 10px;
+    font-weight: 700;
+    color: #1A1A1A;
+}
+.ql-manage-add {
+    margin-top: 16px;
+    display: flex; justify-content: center;
+}
+.ql-manage-add button {
+    padding: 11px 22px;
+    background: #0A66C2; color: #FFFFFF;
+    border: none; border-radius: 22px;
+    font-size: 11.5pt; font-weight: 600;
+    cursor: pointer;
+}
+.ql-manage-add button:hover { background: #0856A0; }
+.ql-manage-empty {
+    text-align: center; padding: 36px 14px;
+    color: #6A6A70; font-style: italic;
+}
+
+/* ---- Pin destinations (Story 3485) ---------------------------------- */
+/* The Pin modal's "Pin to" block: Quick Launch and Entity IV Links, one
+   checkbox each, reflecting where the page already is. Hidden except in the
+   current-page mode; quick-launch.js shows it with display:block. */
+#qlDestWrap { display: none; }
+.ql-modal label.ql-dest {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    text-transform: none; letter-spacing: 0;
+    font-size: 11.5pt; font-weight: 500; color: #1A1A1A;
+    margin: 6px 0 0; cursor: pointer;
+}
+.ql-modal label.ql-dest input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+.ql-dest-note { color: #6A6A70; font-size: 9.5pt; font-weight: 400; }
+/* The record picker under "A record's Links tab" (Story 3485): shown only
+   while its box is ticked. The dropdown is the standard Picasso one. */
+.ql-modal .ql-dest-record { display: none; margin: 4px 0 0 28px; width: calc(100% - 28px); }
+.ql-modal .ql-dest-record .picker-dropdown { z-index: 9100; }

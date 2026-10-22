@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>Solution &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="../picasso-base.css?v=6">
+    <link rel="stylesheet" href="/picasso-select.css?v=5">
+    <link rel="stylesheet" href="/picasso-picker.css?v=2">
+    <link rel="stylesheet" href="/picasso-tags.css?v=2">
+    <!-- entity-detail.css carries the shared record-tab styles the Files tab draws with (ed-btn ...).
+         It comes BEFORE solutions.css so the solution page keeps its own body background. -->
+    <link rel="stylesheet" href="../contacts/entity-detail.css?v=23">
+    <link rel="stylesheet" href="/picasso-quick-add.css?v=1">
+    <link rel="stylesheet" href="/files/file-kit.css?v=6">
+    <link rel="stylesheet" href="/contacts/entity-files.css?v=10">
+    <link rel="stylesheet" href="solutions.css?v=46">
+    <script src="/picasso-voice.js?v=14" defer></script>
+</head>
+<body>
+<div class="sl-shell" data-testid="solution-page">
+
+    <div class="ct-header" data-testid="solution-header">
+        <!-- This row exists for the tool bar strip: it is the anchor the strip hangs above, and
+             Print is lifted out of it into the strip. Once that has happened the row is empty
+             and folds away (solution.js, slimHeader) -- the solution's name is on the first
+             line of the Overview instead, and the screen gets the row back (Story 3493). -->
+        <button type="button" id="btnPrint" data-testid="solution-print">Print</button>
+    </div>
+
+    <div class="sl-tabs" id="tabBar" data-testid="solution-tabs">
+        <button type="button" class="sl-tab active" data-tab="overview"      data-testid="solution-tab-overview">Overview</button>
+        <button type="button" class="sl-tab"        data-tab="items"         data-testid="solution-tab-items">Items <span class="badge" id="badgeItems"></span></button>
+        <button type="button" class="sl-tab"        data-tab="log"           data-testid="solution-tab-log">Log</button>
+        <button type="button" class="sl-tab"        data-tab="notes"         data-testid="solution-tab-notes">Notes</button>
+        <button type="button" class="sl-tab"        data-tab="terms"         data-testid="solution-tab-terms">Terms</button>
+        <button type="button" class="sl-tab"        data-tab="tests"         data-testid="solution-tab-tests">Testing</button>
+        <button type="button" class="sl-tab"        data-tab="qa"            data-testid="solution-tab-qa">QA</button>
+        <button type="button" class="sl-tab"        data-tab="config"        data-testid="solution-tab-config">Configuration</button>
+        <button type="button" class="sl-tab"        data-tab="grid"          data-testid="solution-tab-grid">Configuration II</button>
+        <button type="button" class="sl-tab"        data-tab="files"         data-testid="solution-tab-files">Files</button>
+        <button type="button" class="sl-tab"        data-tab="conversations" data-testid="solution-tab-conversations">Conversations <span class="badge" id="badgeConv"></span></button>
+        <button type="button" class="sl-tab"        data-tab="search"        data-testid="solution-tab-search">Search</button>
+    </div>
+
+    <!-- One toolbar per tab; only the active tab's is shown. -->
+    <div class="sl-toolbar" id="toolbar-overview" data-testid="solution-toolbar-overview">
+        <button type="button" class="sl-btn primary" id="btnAddProject" data-testid="solution-add-project">+ Project</button>
+        <button type="button" class="sl-btn" id="btnEditSolution" data-testid="solution-edit-btn" title="Edit this solution: name, status, owner, target date, where things stand">Edit</button>
+        <button type="button" class="sl-btn" id="btnShare" data-testid="solution-share-btn" title="Share this solution with an outside agent">Share</button>
+        <button type="button" class="sl-btn" id="btnBrief" data-testid="solution-brief-top" title="The instructions to hand the agent this solution is shared with" hidden>Brief</button>
+        <button type="button" class="sl-btn" id="btnProjExpand" data-testid="solution-expand-all">Expand all</button>
+        <button type="button" class="sl-btn" id="btnProjCollapse" data-testid="solution-collapse-all">Collapse all</button>
+        <button type="button" class="sl-btn" id="btnProjView" data-testid="solution-view-toggle">Cards</button>
+        <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects" title="Arrange -- drag to reorder" data-testid="solution-arrange-btn">&#8645;</button>
+        <label class="check"><input type="checkbox" id="fProjOpen" data-testid="solution-open-only"> Open only</label>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn" id="btnArchive" data-testid="solution-archive-btn">Archive</button>
+        <button type="button" class="sl-btn danger" id="btnDeleteSolution" data-testid="solution-delete-btn">Delete</button>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-items" hidden data-testid="solution-toolbar-items">
+        <div class="fld"><label for="fItemProject">Project</label><select id="fItemProject" data-ps-placeholder="All projects" data-testid="items-filter-project"></select></div>
+        <div class="fld"><label for="fItemStatus">Status</label><select id="fItemStatus" data-ps-placeholder="Any status" data-testid="items-filter-status"></select></div>
+        <div class="fld"><label for="fItemAssignee">Assigned to</label><select id="fItemAssignee" data-ps-placeholder="Anyone" data-testid="items-filter-assignee"></select></div>
+        <label class="check"><input type="checkbox" id="fItemHideClosed" data-testid="items-filter-hide-closed"> Hide closed</label>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn" id="btnItemsExpand" data-testid="items-expand-all">Expand all</button>
+        <button type="button" class="sl-btn" id="btnItemsCollapse" data-testid="items-collapse-all">Collapse all</button>
+        <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects and items" title="Arrange -- drag to reorder" data-testid="items-arrange-btn">&#8645;</button>
+        <button type="button" class="sl-btn primary" id="btnAddItem" data-testid="items-add-btn">+ Item</button>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-log" hidden data-testid="solution-toolbar-log">
+        <div class="fld"><label for="fLogType">Kind</label><select id="fLogType" data-ps-placeholder="Every kind" data-testid="log-filter-type"></select></div>
+        <div class="fld"><label for="fLogAuthor">Written by</label><select id="fLogAuthor" data-ps-placeholder="Anyone" data-testid="log-filter-author"></select></div>
+        <div class="fld"><label for="fLogProject">Project</label><select id="fLogProject" data-ps-placeholder="All projects" data-testid="log-filter-project"></select></div>
+        <div class="fld"><label for="fLogOrder">Order</label>
+            <select id="fLogOrder" data-testid="log-filter-order">
+                <option value="desc">Newest first</option>
+                <option value="asc">In the order it was done</option>
+            </select>
+        </div>
+        <div class="grow"><label for="fLogSearch">Search</label><input type="search" id="fLogSearch" data-testid="log-filter-search" placeholder="Search the log" autocomplete="off"></div>
+        <button type="button" class="sl-btn" id="btnLogExpand" data-testid="log-expand-all">Expand all</button>
+        <button type="button" class="sl-btn" id="btnLogCollapse" data-testid="log-collapse-all">Collapse all</button>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-notes" hidden data-testid="solution-toolbar-notes">
+        <button type="button" class="sl-btn" id="btnNoteBack" hidden data-testid="notes-back-btn">&lsaquo; All notes</button>
+        <button type="button" class="sl-btn primary" id="btnAddNote" data-testid="notes-add-btn">+ Note</button>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn" id="btnNoteView" data-testid="notes-view-toggle">Cards</button>
+        <button type="button" class="sl-btn sl-kindfold" id="btnKindFold" hidden data-testid="notes-kinds-fold"></button>
+        <button type="button" class="sl-btn" id="btnNotesFold" hidden data-testid="notes-fold-toggle"></button>
+        <button type="button" class="sl-btn" id="btnNoteExpand" hidden data-testid="notes-expand-all">Expand all</button>
+        <button type="button" class="sl-btn" id="btnNoteCollapse" hidden data-testid="notes-collapse-all">Collapse all</button>
+        <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the kinds, notes and steps" title="Arrange -- drag to reorder" data-testid="notes-arrange-btn">&#8645;</button>
+        <button type="button" class="sl-btn" id="btnNoteRead" hidden data-testid="notes-view-btn">View</button>
+        <button type="button" class="sl-btn" id="btnNoteEdit" hidden data-testid="notes-edit-btn">Edit</button>
+        <button type="button" class="sl-btn" id="btnNoteVersions" hidden data-testid="notes-versions-btn">Versions</button>
+        <button type="button" class="sl-btn" id="btnNoteAddStep" hidden data-testid="notes-add-step-btn">+ Step</button>
+        <button type="button" class="sl-btn danger" id="btnNoteDelete" hidden data-testid="notes-delete-btn">Delete</button>
+    </div>
+
+    <!-- The Terms tab: this solution's glossary, shaped like the Leonardo Dictionary (solution-terms.js). -->
+    <div class="sl-toolbar" id="toolbar-terms" hidden data-testid="solution-toolbar-terms">
+        <button type="button" class="sl-btn primary" id="btnAddTerm" data-testid="terms-add-btn">+ Term</button>
+        <div class="grow"><label for="fTermSearch">Search</label><input type="search" id="fTermSearch" data-testid="terms-filter-search" placeholder="Search term, definition, type or category" autocomplete="off"></div>
+        <div class="fld"><label for="fTermGroup">Group by</label>
+            <select id="fTermGroup" data-testid="terms-group-by">
+                <option value="type">Type</option>
+                <option value="category">Category</option>
+                <option value="none">None</option>
+            </select>
+        </div>
+        <div class="fld"><label for="fTermType">Type</label><select id="fTermType" data-ps-placeholder="Every type" data-testid="terms-filter-type"></select></div>
+        <div class="fld"><label for="fTermCategory">Category</label><select id="fTermCategory" data-ps-placeholder="Every category" data-testid="terms-filter-category"></select></div>
+        <label class="check"><input type="checkbox" id="fTermFav" data-testid="terms-filter-favorites"> Favorites only</label>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn" id="btnTermsFold" data-testid="terms-fold-toggle">Collapse all</button>
+        <button type="button" class="sl-btn" id="btnTermsReverse" aria-pressed="false" data-testid="terms-reverse-btn" title="Reverse the order of the groups">Reverse</button>
+        <button type="button" class="sl-btn" id="btnTermsRandom" data-testid="terms-random-btn" title="Show a term picked at random">Surprise me</button>
+        <button type="button" class="sl-btn" id="btnTermsCopy" data-testid="terms-copy-all-btn" title="Copy every term the filter shows">Copy all</button>
+        <button type="button" class="sl-btn" id="btnTermsLookups" data-testid="terms-lookups-btn" title="Rename or remove this solution's term types and categories">Types and categories</button>
+    </div>
+
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-tests" hidden data-testid="solution-toolbar-tests">
+        <button type="button" class="ef-tools-toggle" data-tp="tools-toggle" aria-expanded="true" title="Fold the checklist tools away, or bring them back" data-testid="tests-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" data-tp="tools-summary">Testing checklists and tools</span></button>
+        <div class="ef-tools sl-tools" data-testid="tests-tools">
+            <div class="fld" id="fTestPlanFld" data-tp="plan-field" hidden><label for="fTestPlan">Checklist</label><select id="fTestPlan" data-tp="plan-select" data-ps-placeholder="Pick a checklist" data-testid="tests-plan-select"></select></div>
+            <button type="button" class="sl-btn primary" id="btnAddTestPlan" data-tp="add-plan" data-testid="tests-add-plan">+ Checklist</button>
+            <button type="button" class="sl-btn" id="btnEditTestPlan" data-tp="edit-plan" hidden data-testid="tests-edit-plan" title="Rename this checklist or change its description">Edit</button>
+            <button type="button" class="sl-btn" id="btnAddTestGroup" data-tp="add-group" hidden data-testid="tests-add-group">+ Group</button>
+            <button type="button" class="sl-btn" id="btnAddTestColumn" data-tp="add-column" hidden data-testid="tests-add-column" title="Add a level of testing, for example End to end">+ Column</button>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnTestsExpand" data-tp="expand" hidden data-testid="tests-expand-all">Expand all</button>
+            <button type="button" class="sl-btn" id="btnTestsCollapse" data-tp="collapse" hidden data-testid="tests-collapse-all">Collapse all</button>
+            <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the groups and tests" title="Arrange -- drag to reorder" data-testid="tests-arrange-btn">&#8645;</button>
+            <button type="button" class="sl-btn" id="btnClearTests" data-tp="clear" hidden data-testid="tests-clear" title="Untick everything, to run the tests again">Untick all</button>
+            <button type="button" class="sl-btn danger" id="btnDeleteTestPlan" data-tp="delete" hidden data-testid="tests-delete-plan">Delete</button>
+        </div>
+    </div>
+
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-qa" hidden data-testid="solution-toolbar-qa">
+        <button type="button" class="ef-tools-toggle" data-tp="tools-toggle" aria-expanded="true" title="Fold the checklist tools away, or bring them back" data-testid="qa-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" data-tp="tools-summary">QA checklists and tools</span></button>
+        <div class="ef-tools sl-tools" data-testid="qa-tools">
+            <div class="fld" id="fQaPlanFld" data-tp="plan-field" hidden><label for="fQaPlan">Checklist</label><select id="fQaPlan" data-tp="plan-select" data-ps-placeholder="Pick a QA checklist" data-testid="qa-plan-select"></select></div>
+            <button type="button" class="sl-btn primary" id="btnAddQaPlan" data-tp="add-plan" data-testid="qa-add-plan">+ Checklist</button>
+            <button type="button" class="sl-btn" id="btnEditQaPlan" data-tp="edit-plan" hidden data-testid="qa-edit-plan" title="Rename this checklist or change its description">Edit</button>
+            <button type="button" class="sl-btn" id="btnAddQaGroup" data-tp="add-group" hidden data-testid="qa-add-group">+ Group</button>
+            <button type="button" class="sl-btn" id="btnAddQaColumn" data-tp="add-column" hidden data-testid="qa-add-column" title="Add another column, for example Production">+ Column</button>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnQaExpand" data-tp="expand" hidden data-testid="qa-expand-all">Expand all</button>
+            <button type="button" class="sl-btn" id="btnQaCollapse" data-tp="collapse" hidden data-testid="qa-collapse-all">Collapse all</button>
+            <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the groups and tests" title="Arrange -- drag to reorder" data-testid="qa-arrange-btn">&#8645;</button>
+            <button type="button" class="sl-btn" id="btnClearQa" data-tp="clear" hidden data-testid="qa-clear" title="Untick everything, to run the tests again">Untick all</button>
+            <button type="button" class="sl-btn danger" id="btnDeleteQaPlan" data-tp="delete" hidden data-testid="qa-delete-plan">Delete</button>
+        </div>
+    </div>
+
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-config" hidden data-testid="solution-toolbar-config">
+        <button type="button" class="ef-tools-toggle" id="configToolsToggle" aria-expanded="true" title="Fold the search and tools away, or bring them back" data-testid="config-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="configToolsSummary">Search and tools</span></button>
+        <div class="ef-tools sl-tools" data-testid="config-tools">
+            <div class="sl-searchrow"><input type="search" id="fConfigSearch" data-testid="config-search" aria-label="Search the configuration"
+                 placeholder="Search properties, values, sources and notes" autocomplete="off"></div>
+            <div class="fld">
+                <select id="fConfigShow" aria-label="Which properties to show" data-testid="config-filter-show">
+                    <option value="all">Every property</option>
+                    <option value="diff">Only where they differ</option>
+                    <option value="gaps">Only not filled in</option>
+                </select>
+            </div>
+            <button type="button" class="sl-btn primary" id="btnAddConfigGroup" data-testid="config-add-group">+ Group</button>
+            <button type="button" class="sl-btn" id="btnAddConfigEnv" data-testid="config-add-environment" title="Add an environment, for example Staging">+ Environment</button>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnConfigBySource" data-testid="config-by-source" title="Group the settings by where they are set, one environment at a time">By source</button>
+            <button type="button" class="sl-btn" id="btnConfigExpand" data-testid="config-expand-all">Expand all</button>
+            <button type="button" class="sl-btn" id="btnConfigCollapse" data-testid="config-collapse-all">Collapse all</button>
+        </div>
+    </div>
+
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-grid" hidden data-testid="solution-toolbar-grid">
+        <button type="button" class="ef-tools-toggle" id="gridToolsToggle" aria-expanded="true" title="Fold the search and tools away, or bring them back" data-testid="grid-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="gridToolsSummary">Search and tools</span></button>
+        <div class="ef-tools sl-tools" data-testid="grid-tools">
+            <div class="sl-searchrow"><input type="search" id="fGridSearch" data-testid="grid-search" aria-label="Search Configuration II"
+                 placeholder="Search properties, values, sources and notes" autocomplete="off"></div>
+            <div class="fld">
+                <select id="fGridShow" aria-label="Which properties to show" data-testid="grid-filter-show">
+                    <option value="all">Every property</option>
+                    <option value="diff">Only where they differ</option>
+                    <option value="gaps">Only not filled in</option>
+                    <option value="planned">Only with a planned value</option>
+                    <option value="unverified">Only with an unverified value</option>
+                </select>
+            </div>
+            <div class="fld"><label for="fGridCompare">Compare</label>
+                <select id="fGridCompare" data-testid="grid-compare"></select>
+            </div>
+            <div class="fld"><label for="fGridColorBy">Column colors</label>
+                <select id="fGridColorBy" data-testid="grid-color-by"></select>
+            </div>
+            <div class="fld"><label for="fGridColumns">Columns</label>
+                <select id="fGridColumns" data-testid="grid-columns-filter"></select>
+            </div>
+            <button type="button" class="sl-btn primary" id="btnGridAddGroup" data-testid="grid-add-group">+ Group</button>
+            <button type="button" class="sl-btn" id="btnGridAddColumn" data-testid="grid-add-column">+ Column</button>
+            <button type="button" class="sl-btn" id="btnGridAxes" data-testid="grid-axes" title="The ways the columns are described, for example Environment and Server, and their colors">Axes</button>
+            <button type="button" class="sl-btn" id="btnGridImport" hidden data-testid="grid-import" title="Copy the Configuration tab into this one">Copy from Configuration</button>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnGridExpand" data-testid="grid-expand-all">Expand all</button>
+            <button type="button" class="sl-btn" id="btnGridCollapse" data-testid="grid-collapse-all">Collapse all</button>
+        </div>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-files" hidden data-testid="solution-toolbar-files">
+        <input type="file" id="fileInput" multiple hidden data-testid="files-input">
+        <span class="sl-chip" id="fileStorageChip" data-testid="files-storage-chip"></span>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn" id="btnFileView" data-testid="files-view-toggle">Cards</button>
+    </div>
+
+    <!-- The Search tab (2026-10-16): every other tab searched at once (solution-search.js). The fields live in
+         the pane; this row keeps Search, Clear and Fold all in reach once the fields have folded away. -->
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-search" hidden data-testid="solution-toolbar-search">
+        <button type="button" class="ef-tools-toggle" id="searchToolsToggle" aria-expanded="true" title="Fold the search tools away, or bring them back" data-testid="search-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="searchToolsSummary">Search every tab of this solution</span></button>
+        <div class="ef-tools sl-tools" data-testid="search-tools">
+            <button type="button" class="sl-btn primary" id="btnSearchGo" data-testid="search-go-btn">Search</button>
+            <button type="button" class="sl-btn" id="btnSearchClear" data-testid="search-clear-btn">Clear</button>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnSearchFoldAll" hidden aria-label="Fold or open every tab of results" data-testid="search-fold-all">&#9662;&#9662;</button>
+        </div>
+    </div>
+
+    <div class="sl-toolbar" id="toolbar-conversations" hidden data-testid="solution-toolbar-conversations">
+        <button type="button" class="sl-btn" id="btnConvBack" hidden data-testid="conv-back-btn">&lsaquo; All conversations</button>
+        <button type="button" class="sl-btn primary" id="btnAddConv" data-testid="conv-add-btn">+ Conversation</button>
+        <button type="button" class="sl-btn" id="btnConvRename" hidden data-testid="conv-rename-btn" title="Change this conversation's title">Edit</button>
+        <span class="spacer"></span>
+        <button type="button" class="sl-btn danger" id="btnConvUnlink" hidden data-testid="conv-unlink-btn">Remove from solution</button>
+    </div>
+
+    <div class="sl-body" id="slBody" data-testid="solution-body">
+        <div class="sl-wrap">
+            <div id="pane-overview"      data-testid="solution-pane-overview"><div class="sl-empty">Loading&hellip;</div></div>
+            <div id="pane-items"         hidden data-testid="solution-pane-items"></div>
+            <div id="pane-log"           hidden data-testid="solution-pane-log"></div>
+            <div id="pane-notes"         hidden data-testid="solution-pane-notes"></div>
+            <div id="pane-terms"         hidden data-testid="solution-pane-terms"></div>
+            <div id="pane-tests"         hidden data-testid="solution-pane-tests"></div>
+            <div id="pane-qa"            hidden data-testid="solution-pane-qa"></div>
+            <div id="pane-config"        hidden data-testid="solution-pane-config"></div>
+            <div id="pane-grid"          hidden data-testid="solution-pane-grid"></div>
+            <div id="pane-files"         hidden data-testid="solution-pane-files"></div>
+            <div id="pane-conversations" hidden data-testid="solution-pane-conversations"></div>
+            <div id="pane-search"        hidden data-testid="solution-pane-search"></div>
+            <!-- Built on demand by solution-print.js and handed to the Print Menu; never shown. -->
+            <div id="printArea" hidden data-testid="solution-print-area"></div>
+        </div>
+    </div>
+    <div class="sl-status" id="statusBar" data-testid="solution-status">Echo | Solutions</div>
+</div>
+
+<!-- Edit the solution -->
+<div class="sl-overlay" id="solutionOverlay" data-testid="solution-edit-overlay">
+    <div class="sl-modal">
+        <h2>Edit solution</h2>
+        <div class="warn" id="solutionWarn"></div>
+        <div class="fld"><label for="sName">Name</label><input type="text" id="sName" data-testid="solution-name" autocomplete="off"></div>
+        <div class="fld"><label for="sAlias">Alias &mdash; the short name you say to Felix and Rex</label>
+            <input type="text" id="sAlias" data-testid="solution-alias" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="for example: claims"></div>
+        <div class="fld"><label for="sSummary">Where things stand</label>
+            <textarea id="sSummary" data-testid="solution-summary" placeholder="One paragraph: where are we right now" style="min-height:80px"></textarea></div>
+        <div class="fld"><label for="sDescription">Description</label><textarea id="sDescription" data-testid="solution-description"></textarea></div>
+        <div class="row2">
+            <div class="fld"><label for="sStatus">Status</label><select id="sStatus" data-testid="solution-status-select"></select></div>
+            <div class="fld"><label for="sOwner">Owner</label><select id="sOwner" data-ps-placeholder="Nobody yet" data-testid="solution-owner-select"></select></div>
+        </div>
+        <div class="fld"><label for="sTarget">Target date</label><input type="text" id="sTarget" data-testid="solution-target" placeholder="MM/DD/YYYY" autocomplete="off" inputmode="numeric"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="solutionCancel" data-testid="solution-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="solutionSave" data-testid="solution-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Share the solution with an outside agent -->
+<!-- The hand-off text for one client this solution is shared with. Echo keeps only a
+     fingerprint of a key, so the key is pasted here and folded in IN THE BROWSER; it is never
+     sent anywhere and never saved. -->
+<div class="sl-overlay" id="shareBriefOverlay" data-testid="share-brief-overlay">
+    <div class="sl-modal" style="width:min(820px,100%)">
+        <h2 id="sbTitle">Brief</h2>
+        <p style="font-size:13px;line-height:1.5;margin:0 0 10px">Paste this into the agent's standing instructions. It says how to connect, how the key must be kept,
+            and how to use conversations. Echo keeps only a fingerprint of a key, so it cannot fill the key in for you: paste the key below and
+            <strong>Copy with key</strong> folds it in. The key stays in this window -- it is not sent to Echo and not saved.</p>
+        <div class="fld" style="margin-bottom:10px">
+            <label for="sbKey" id="sbKeyLabel">The key</label>
+            <input type="text" id="sbKey" name="echo-not-a-login" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-voice-skip="true" placeholder="echo_..."
+                   data-testid="share-brief-key" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #C9CDD6;border-radius:4px;font:13px Consolas,Menlo,monospace;-webkit-text-security:disc">
+        </div>
+        <div class="warn" id="sbWarn"></div>
+        <pre class="sl-mono" id="sbText" data-testid="share-brief-text" style="white-space:pre-wrap;max-height:42vh;overflow:auto;margin:0"></pre>
+        <div class="foot" style="margin-top:12px">
+            <button type="button" class="sl-btn" id="sbCopyPlain" data-testid="share-brief-copy-plain">Copy without key</button>
+            <button type="button" class="sl-btn primary" id="sbCopyKey" data-testid="share-brief-copy-key">Copy with key</button>
+            <button type="button" class="sl-btn" id="sbClose" data-testid="share-brief-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="sl-overlay" id="shareOverlay" data-testid="share-overlay">
+    <div class="sl-modal">
+        <h2>Share this solution</h2>
+        <p style="font-size:13px;line-height:1.5;margin:0 0 10px">Whoever you share it with gets full rights inside this solution and can see
+            nothing else in Echo -- no other solution, no page. They can never delete the solution, share it onward, or print.</p>
+        <div class="warn" id="shareWarn"></div>
+        <ul class="sl-list-plain" id="shareList" data-testid="share-list"></ul>
+        <div class="foot" style="margin-top:12px">
+            <a class="sl-btn" href="/admin/api-clients.html" data-testid="share-manage-link" style="text-decoration:none">API Clients</a>
+            <button type="button" class="sl-btn primary" id="shareClose" data-testid="share-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit an attached file -->
+<div class="sl-overlay" id="fileOverlay" data-testid="file-overlay">
+    <div class="sl-modal">
+        <h2>Edit file</h2>
+        <div class="warn" id="fileWarn"></div>
+        <div class="fld"><label for="fTitle">Title</label><input type="text" id="fTitle" data-testid="file-title" autocomplete="off"></div>
+        <div class="fld"><label for="fCategory">Category (blank = Staging)</label>
+            <div class="picker-wrap"><input type="text" id="fCategory" class="picker-input" data-testid="file-category" autocomplete="off" placeholder="Type to find or add a category" data-voice-skip="true"><div class="picker-dropdown" id="fCategoryList"></div></div></div>
+        <div class="fld"><label for="fDocDate">Document date</label><input type="date" id="fDocDate" data-testid="file-docdate"></div>
+        <div class="fld sl-check-fld"><label><input type="checkbox" id="fImportant" data-testid="file-important"> Important</label></div>
+        <div class="fld"><label for="fNotes">Notes</label><textarea id="fNotes" data-testid="file-notes" style="min-height:80px"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="fileCancel" data-testid="file-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="fileSave" data-testid="file-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Read an attached file here. An HTML file is drawn in a sandboxed frame: nothing in it can run. -->
+<div class="sl-overlay" id="fileViewOverlay" data-testid="file-view-overlay">
+    <div class="sl-modal sl-fileview" role="dialog" aria-labelledby="fvTitle">
+        <h2 id="fvTitle" data-testid="file-view-title"></h2>
+        <div class="sl-muted" id="fvMeta" data-testid="file-view-meta" style="margin:-8px 0 10px"></div>
+        <div class="sl-fileview-body" id="fvBody" data-testid="file-view-body"></div>
+        <div class="foot">
+            <span class="left">
+                <button type="button" class="sl-btn" id="fvDownload" data-testid="file-view-download">Download</button>
+                <button type="button" class="sl-btn" id="fvFolder" data-testid="file-view-open-folder">Open folder</button>
+                <button type="button" class="sl-btn" id="fvReader" hidden data-testid="file-view-reader">Reader</button>
+                <button type="button" class="sl-btn" id="fvPrint" hidden data-testid="file-view-print">Print</button>
+            </span>
+            <button type="button" class="sl-btn primary" id="fvClose" data-testid="file-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit a project -->
+<div class="sl-overlay" id="projectOverlay" data-testid="project-overlay">
+    <div class="sl-modal">
+        <h2 id="projectTitle">New project</h2>
+        <div class="warn" id="projectWarn"></div>
+        <div class="fld"><label for="pName">Name</label><input type="text" id="pName" data-testid="project-name" placeholder="The workstream, e.g. Deployment" autocomplete="off"></div>
+        <div class="fld"><label for="pDescription">Description</label><textarea id="pDescription" data-testid="project-description"></textarea></div>
+        <div class="row2">
+            <div class="fld"><label for="pStatus">Status</label><select id="pStatus" data-testid="project-status-select"></select></div>
+            <div class="fld"><label for="pOwner">Owner</label><select id="pOwner" data-ps-placeholder="Nobody yet" data-testid="project-owner-select"></select></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="projectCancel" data-testid="project-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="projectSave" data-testid="project-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit an item -->
+<div class="sl-overlay" id="itemOverlay" data-testid="item-overlay">
+    <div class="sl-modal">
+        <h2 id="itemTitleBar">New item</h2>
+        <div class="warn" id="itemWarn"></div>
+        <div class="sl-muted" id="itemContext" style="margin-bottom:10px"></div>
+        <div class="fld"><label for="iTitle">Title</label><input type="text" id="iTitle" data-testid="item-title" placeholder="What has to happen" autocomplete="off"></div>
+        <div class="fld"><label for="iDetail">Detail</label><textarea id="iDetail" data-testid="item-detail" placeholder="Anything that helps whoever picks this up"></textarea></div>
+        <div class="row2">
+            <div class="fld" id="iProjectFld"><label for="iProject">Project</label><select id="iProject" data-testid="item-project-select"></select></div>
+            <div class="fld"><label for="iStatus">Status</label><select id="iStatus" data-testid="item-status-select"></select></div>
+        </div>
+        <div class="row2">
+            <div class="fld"><label for="iAssignee">Assigned to</label><select id="iAssignee" data-ps-placeholder="Nobody yet" data-testid="item-assignee-select"></select></div>
+            <div class="fld"><label for="iPriority">Priority</label>
+                <select id="iPriority" data-testid="item-priority-select">
+                    <option value="1">1 - Highest</option><option value="2">2 - High</option><option value="3">3 - Normal</option>
+                    <option value="4">4 - Low</option><option value="5">5 - Lowest</option>
+                </select></div>
+        </div>
+        <div class="fld"><label for="iDue">Due date</label><input type="text" id="iDue" data-testid="item-due" placeholder="MM/DD/YYYY" autocomplete="off" inputmode="numeric"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="itemCancel" data-testid="item-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="itemSave" data-testid="item-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Read an item: the whole thing as a page, on sepia, nothing to edit -->
+<div class="sl-overlay" id="itemViewOverlay" data-testid="item-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="itemViewTitle">
+        <div class="sl-sepia-scroll" id="itemViewScroll" data-testid="item-view-scroll">
+            <h2 id="itemViewTitle" data-testid="item-view-title"></h2>
+            <div class="sl-sepia-meta" id="itemViewMeta" data-testid="item-view-meta"></div>
+            <div class="sl-sepia-body" id="itemViewBody" data-testid="item-view-body"></div>
+            <div id="itemViewSubs" data-testid="item-view-subs"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="itemViewCopy" data-testid="item-view-copy">Copy</button>
+            <button type="button" class="sl-btn" id="itemViewEdit" data-testid="item-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="itemViewClose" data-testid="item-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Change an item's status in one tap -->
+<div class="sl-overlay" id="statusOverlay" data-testid="status-overlay">
+    <div class="sl-modal" style="width:min(360px,100%)">
+        <h2 id="statusTitle">Change status</h2>
+        <ul class="sl-list-plain" id="statusChoices" data-testid="status-choices"></ul>
+        <div class="foot"><button type="button" class="sl-btn" id="statusCancel" data-testid="status-cancel">Cancel</button></div>
+    </div>
+</div>
+
+<!-- Correct a log entry -->
+<div class="sl-overlay" id="logOverlay" data-testid="log-overlay">
+    <div class="sl-modal">
+        <h2 id="logTitle">Correct log entry</h2>
+        <div class="warn" id="logWarn"></div>
+        <div class="fld"><label for="lType">Kind</label><div class="picker-wrap"><input type="text" id="lType" class="picker-input" data-testid="log-edit-type" placeholder="Pick a kind or type a new one" autocomplete="off" data-voice-skip="true"><div class="picker-dropdown" id="lTypeDD" data-testid="log-edit-type-list"></div></div></div>
+        <div class="fld"><label for="lText">Text</label><textarea id="lText" data-testid="log-edit-text" style="min-height:160px"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="logCancel" data-testid="log-edit-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="logSave" data-testid="log-edit-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Turn a log entry into a runbook step -->
+<div class="sl-overlay" id="promoteOverlay" data-testid="promote-overlay">
+    <div class="sl-modal" style="width:min(440px,100%)">
+        <h2>Make this a runbook step</h2>
+        <div class="warn" id="promoteWarn"></div>
+        <div class="fld"><label for="promoteNote">Runbook</label><select id="promoteNote" data-testid="promote-note-select"></select>
+            <div class="hint">The entry is added as the last step. What was done becomes how to do it again.</div></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="promoteCancel" data-testid="promote-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="promoteSave" data-testid="promote-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit a note -->
+<div class="sl-overlay" id="noteOverlay" data-testid="note-overlay">
+    <div class="sl-modal" style="width:min(820px,100%)">
+        <h2 id="noteTitleBar">New note</h2>
+        <div class="warn" id="noteWarn"></div>
+        <div class="fld"><label for="dTitle">Title</label><input type="text" id="dTitle" data-testid="note-title" autocomplete="off"></div>
+        <div class="row2">
+            <div class="fld"><label for="dType">Kind</label><div class="picker-wrap"><input type="text" id="dType" class="picker-input" data-testid="note-type-select" placeholder="Pick a kind or type a new one" autocomplete="off" data-voice-skip="true"><div class="picker-dropdown" id="dTypeDD" data-testid="note-type-list"></div></div></div>
+            <div class="fld"><label for="dProject">Project</label><select id="dProject" data-ps-placeholder="The whole solution" data-testid="note-project-select"></select></div>
+        </div>
+        <div class="fld"><label for="dBody">Body</label><textarea id="dBody" class="tall" data-testid="note-body" placeholder="Markdown. Every changed save is kept as a version."></textarea></div>
+        <div class="fld"><label for="dNote">What changed</label><input type="text" id="dNote" data-testid="note-change-note" placeholder="A line for the version history" autocomplete="off"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="noteCancel" data-testid="note-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="noteSave" data-testid="note-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Read a note: the text as a page, on sepia, nothing to edit -->
+<div class="sl-overlay" id="noteViewOverlay" data-testid="note-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="noteViewTitle">
+        <div class="sl-sepia-scroll" id="noteViewScroll" data-testid="note-view-scroll">
+            <h2 id="noteViewTitle" data-testid="note-view-title"></h2>
+            <div class="sl-sepia-meta" id="noteViewMeta" data-testid="note-view-meta"></div>
+            <div class="sl-sepia-body" id="noteViewBody" data-testid="note-view-body"></div>
+            <div id="noteViewSteps" data-testid="note-view-steps"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="noteViewEdit" data-testid="note-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="noteViewClose" data-testid="note-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Terms tab: add / edit one term -->
+<div class="sl-overlay" id="termOverlay" data-testid="term-overlay">
+    <div class="sl-modal" style="width:min(720px,100%)">
+        <h2 id="termTitleBar">New term</h2>
+        <div class="warn" id="termWarn" data-testid="term-warn"></div>
+        <div class="fld"><label for="tmTerm">Term</label><input type="text" id="tmTerm" data-testid="term-term" placeholder="The word, acronym, rule or name" autocomplete="off" maxlength="400"></div>
+        <div class="fld"><label for="tmDefinition">Definition</label><textarea id="tmDefinition" data-testid="term-definition" placeholder="What it means here"></textarea></div>
+        <div class="fld"><label for="tmType">Type</label><div class="picker-wrap"><input type="text" id="tmType" class="picker-input" data-testid="term-type" placeholder="Acronym, Rule, System -- or type a new one" autocomplete="off" data-voice-skip="true" maxlength="200"><div class="picker-dropdown" id="tmTypeDD" data-testid="term-type-list"></div></div></div>
+        <div class="fld"><label for="tmCatInput">Categories</label>
+            <div class="pt-wrap"><div class="pt-box"><span class="pt-chips" id="tmCatChips" data-testid="term-category-chips"></span><input type="text" class="pt-input" id="tmCatInput" data-testid="term-categories" placeholder="Choose or type a category" autocomplete="off" data-voice-skip="true"></div><div class="pt-dropdown" id="tmCatDD" data-testid="term-category-list"></div></div></div>
+        <div class="fld"><label for="tmSource">Source</label><input type="text" id="tmSource" data-testid="term-source" placeholder="A document, a person, a link (optional)" autocomplete="off" maxlength="500"></div>
+        <div class="fld"><label for="tmNotes">Notes</label><textarea id="tmNotes" data-testid="term-notes" placeholder="Your own note (optional)"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="termCancel" data-testid="term-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="termSave" data-testid="term-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Terms tab: read one term (the sepia View, like every other View on this page) -->
+<div class="sl-overlay" id="termViewOverlay" data-testid="term-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="termViewTitle">
+        <div class="sl-sepia-scroll" data-testid="term-view-scroll">
+            <h2 id="termViewTitle" data-testid="term-view-title"></h2>
+            <div class="sl-sepia-meta" id="termViewMeta" data-testid="term-view-meta"></div>
+            <div class="sl-sepia-body" id="termViewBody" data-testid="term-view-body"></div>
+            <div id="termViewNotes" data-testid="term-view-notes"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="termViewStar" data-testid="term-view-star">Favorite</button>
+            <button type="button" class="sl-btn" id="termViewAnother" hidden data-testid="term-view-another">Another</button>
+            <button type="button" class="sl-btn" id="termViewEdit" data-testid="term-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="termViewClose" data-testid="term-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Terms tab: this solution's term types and categories -->
+<div class="sl-overlay" id="termLookupsOverlay" data-testid="term-lookups-overlay">
+    <div class="sl-modal" style="width:min(560px,100%)">
+        <h2>Types and categories</h2>
+        <div class="warn" id="termLookupsWarn" data-testid="term-lookups-warn"></div>
+        <div id="termLookupsBody" data-testid="term-lookups-body"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn primary" id="termLookupsClose" data-testid="term-lookups-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Version history -->
+<div class="sl-overlay" id="versionsOverlay" data-testid="versions-overlay">
+    <div class="sl-modal" style="width:min(820px,100%)">
+        <h2>Versions</h2>
+        <ul class="sl-list-plain" id="versionsList" data-testid="versions-list"></ul>
+        <div class="sl-note-body" id="versionBody" hidden data-testid="version-body" style="margin-top:12px"></div>
+        <div class="foot" style="margin-top:12px"><button type="button" class="sl-btn primary" id="versionsClose" data-testid="versions-close">Close</button></div>
+    </div>
+</div>
+
+<!-- Add / edit a runbook step -->
+<div class="sl-overlay" id="stepOverlay" data-testid="step-overlay">
+    <div class="sl-modal">
+        <h2 id="stepTitleBar">New step</h2>
+        <div class="warn" id="stepWarn"></div>
+        <div class="fld"><label for="stTitle">What to do</label><input type="text" id="stTitle" data-testid="step-title" autocomplete="off"></div>
+        <div class="fld"><label for="stCommand">Command</label><textarea id="stCommand" data-testid="step-command" style="min-height:70px;font-family:Consolas,Menlo,monospace"></textarea></div>
+        <div class="fld"><label for="stExpected">What you should see</label><textarea id="stExpected" data-testid="step-expected" style="min-height:60px"></textarea></div>
+        <div class="fld"><label for="stNotes">Notes</label><textarea id="stNotes" data-testid="step-notes" style="min-height:60px"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="stepCancel" data-testid="step-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="stepSave" data-testid="step-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit a testing checklist -->
+<div class="sl-overlay" id="testPlanOverlay" data-testid="tests-plan-overlay">
+    <div class="sl-modal">
+        <h2 id="tpHeading">New testing checklist</h2>
+        <div class="warn" id="tpWarn"></div>
+        <div class="fld"><label for="tpTitle">Title</label><input type="text" id="tpTitle" data-testid="tests-plan-title-input" placeholder="What is being tested" autocomplete="off"></div>
+        <div class="fld"><label for="tpDescription">Description</label><textarea id="tpDescription" data-testid="tests-plan-description" placeholder="Anything a tester should know first" style="min-height:70px"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="tpCancel" data-testid="tests-plan-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="tpSave" data-testid="tests-plan-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / rename a group or a column of a testing checklist -->
+<div class="sl-overlay" id="testNameOverlay" data-testid="tests-name-overlay">
+    <div class="sl-modal" style="width:min(440px,100%)">
+        <h2 id="tnHeading">New group</h2>
+        <div class="warn" id="tnWarn"></div>
+        <div class="fld"><label for="tnName" id="tnLabel">Name</label><input type="text" id="tnName" data-testid="tests-name-input" autocomplete="off"></div>
+        <div class="foot">
+            <span class="left">
+                <button type="button" class="sl-btn danger" id="tnDelete" hidden data-testid="tests-name-delete">Delete</button>
+                <button type="button" class="sl-btn" id="tnClear" hidden data-testid="tests-name-clear" title="Untick every case in this column">Untick column</button>
+            </span>
+            <button type="button" class="sl-btn" id="tnCancel" data-testid="tests-name-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="tnSave" data-testid="tests-name-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit a test case -->
+<div class="sl-overlay" id="testCaseOverlay" data-testid="tests-case-overlay">
+    <div class="sl-modal">
+        <h2 id="tcHeading">New test case</h2>
+        <div class="warn" id="tcWarn"></div>
+        <div class="sl-muted" id="tcContext" style="margin-bottom:10px"></div>
+        <div class="fld"><label for="tcText">What to test</label><textarea id="tcText" data-testid="tests-case-text-input" placeholder="What to try, and what should happen" style="min-height:70px"></textarea></div>
+        <div class="fld"><label for="tcNote">Note</label><textarea id="tcNote" data-testid="tests-case-note" placeholder="How to set it up, or where to look" style="min-height:60px"></textarea></div>
+        <div class="fld" id="tcGroupFld" hidden><label for="tcGroup">Group</label><select id="tcGroup" data-testid="tests-case-group"></select></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="tcDelete" hidden data-testid="tests-case-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="tcCancel" data-testid="tests-case-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="tcSave" data-testid="tests-case-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Testing: the result of running one test -- failing or not, and what is failing (2026-09-25) -->
+<div class="sl-overlay" id="testResultOverlay" data-testid="tests-result-overlay">
+    <div class="sl-modal">
+        <h2 id="trHeading">Test note</h2>
+        <div class="warn" id="trWarn"></div>
+        <div class="sl-muted" id="trContext" style="margin-bottom:10px;overflow-wrap:anywhere" data-testid="tests-result-context"></div>
+        <label class="check" style="margin-bottom:10px"><input type="checkbox" id="trFailing" data-testid="tests-result-failing"> Failing</label>
+        <div class="fld"><label for="trNote">What is failing</label><textarea id="trNote" data-testid="tests-result-note" placeholder="What went wrong, what you saw, what you expected" style="min-height:120px"></textarea></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn" id="trView" data-testid="tests-result-view">View</button></span>
+            <button type="button" class="sl-btn" id="trCancel" data-testid="tests-result-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="trSave" data-testid="tests-result-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Testing: read a test's note in the sepia reading view -->
+<div class="sl-overlay" id="testResultViewOverlay" data-testid="tests-result-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="trViewTitle">
+        <div class="sl-sepia-scroll" id="trViewScroll" data-testid="tests-result-view-scroll">
+            <h2 id="trViewTitle" data-testid="tests-result-view-title"></h2>
+            <div class="sl-sepia-meta" id="trViewMeta" data-testid="tests-result-view-meta"></div>
+            <div class="sl-sepia-body" id="trViewBody" data-testid="tests-result-view-body"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="trViewEdit" data-testid="tests-result-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="trViewClose" data-testid="tests-result-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration: add / rename a property group or an environment -->
+<div class="sl-overlay" id="configNameOverlay" data-testid="config-name-overlay">
+    <div class="sl-modal" style="width:min(440px,100%)">
+        <h2 id="cnHeading">New property group</h2>
+        <div class="warn" id="cnWarn"></div>
+        <div class="fld"><label for="cnName" id="cnLabel">Name</label><input type="text" id="cnName" data-testid="config-name-input" autocomplete="off"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="cnDelete" hidden data-testid="config-name-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="cnCancel" data-testid="config-name-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="cnSave" data-testid="config-name-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration: the same settings grouped by WHERE they are set, per environment -->
+<div class="sl-overlay" id="configSourceOverlay" data-testid="config-source-overlay">
+    <div class="sl-modal sl-cf-srcmodal" role="dialog" aria-labelledby="csHeading">
+        <h2 id="csHeading">Where settings are set</h2>
+        <div class="sl-cf-envchips" id="csEnvs" data-testid="config-source-envs"></div>
+        <div class="sl-cf-srcbody" id="csBody" data-testid="config-source-body"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn" id="csCopy" data-testid="config-source-copy">Copy</button></span>
+            <button type="button" class="sl-btn primary" id="csClose" data-testid="config-source-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration: add / edit a property -->
+<div class="sl-overlay" id="configPropertyOverlay" data-testid="config-property-overlay">
+    <div class="sl-modal">
+        <h2 id="cpHeading">New property</h2>
+        <div class="warn" id="cpWarn"></div>
+        <div class="fld"><label for="cpKey">Property</label><input type="text" id="cpKey" data-testid="config-property-key" placeholder="The name it goes by, for example logback.smtpHost" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="fld"><label for="cpDescription">What it means</label><textarea id="cpDescription" data-testid="config-property-description" placeholder="What it controls, in plain words" style="min-height:70px"></textarea></div>
+        <div class="row2">
+            <div class="fld"><label for="cpType">Kind of value</label><select id="cpType" data-testid="config-property-type"></select></div>
+            <div class="fld" id="cpGroupFld" hidden><label for="cpGroup">Group</label><select id="cpGroup" data-testid="config-property-group"></select></div>
+        </div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="cpDelete" hidden data-testid="config-property-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="cpCancel" data-testid="config-property-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="cpSave" data-testid="config-property-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration: one property in one environment -->
+<div class="sl-overlay" id="configCellOverlay" data-testid="config-cell-overlay">
+    <div class="sl-modal">
+        <h2 id="ccHeading" style="overflow-wrap:anywhere">Property</h2>
+        <div class="warn" id="ccWarn"></div>
+        <div class="sl-muted" id="ccContext" style="margin:-8px 0 10px"></div>
+        <div class="fld" id="ccValueFld"><label for="ccValue">Value</label><input type="text" id="ccValue" data-testid="config-cell-value" autocomplete="off" autocapitalize="off" spellcheck="false" data-voice-skip="true"></div>
+        <div class="sl-muted" id="ccSecretNote" hidden style="margin-bottom:10px">This is a secret. Its value is never stored here -- record only where it is set.</div>
+        <div class="fld"><label for="ccSource">Read from -- the place that wins</label>
+            <div class="picker-wrap"><input type="text" id="ccSource" class="picker-input" data-testid="config-cell-source" placeholder="For example claims-batch.properties" autocomplete="off" data-voice-skip="true"><div class="picker-dropdown" id="ccSourceDD"></div></div></div>
+        <div class="fld"><label for="ccAlsoInput">Also set in</label>
+            <div class="pt-wrap"><div class="pt-box"><span class="pt-chips" id="ccAlsoChips"></span><input type="text" class="pt-input" id="ccAlsoInput" data-testid="config-cell-also" placeholder="Other places it is set" autocomplete="off" data-voice-skip="true"></div><div class="pt-dropdown" id="ccAlsoDD"></div></div></div>
+        <div class="fld"><label for="ccNote">Note</label><textarea id="ccNote" data-testid="config-cell-note" style="min-height:60px"></textarea></div>
+        <div class="sl-muted" id="ccOthers" data-testid="config-cell-others" style="margin-bottom:8px;overflow-wrap:anywhere"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="ccClear" hidden data-testid="config-cell-clear">Clear</button></span>
+            <button type="button" class="sl-btn" id="ccCancel" data-testid="config-cell-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="ccSave" data-testid="config-cell-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration II: add / rename a property group -->
+<div class="sl-overlay" id="gridGroupOverlay" data-testid="grid-group-overlay">
+    <div class="sl-modal" style="width:min(440px,100%)">
+        <h2 id="ggHeading">New property group</h2>
+        <div class="warn" id="ggWarn"></div>
+        <div class="fld"><label for="ggName">Group name</label><input type="text" id="ggName" data-testid="grid-group-name" placeholder="For example: Message broker" autocomplete="off"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="ggDelete" hidden data-testid="grid-group-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="ggCancel" data-testid="grid-group-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="ggSave" data-testid="grid-group-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration II: add / edit a column -->
+<div class="sl-overlay" id="gridColumnOverlay" data-testid="grid-column-overlay">
+    <div class="sl-modal">
+        <h2 id="gcHeading">New column</h2>
+        <div class="warn" id="gcWarn"></div>
+        <div class="fld"><label for="gcTitle">Column name</label><input type="text" id="gcTitle" data-testid="grid-column-title" placeholder="For example: QA - Tomcat 11" autocomplete="off"></div>
+        <label class="sl-gd-check"><input type="checkbox" id="gcDefault" data-testid="grid-column-default"> Applies to all -- its value fills any other column left blank</label>
+        <div class="fld"><label>Color</label><div class="sl-gd-swatches" id="gcColors" data-testid="grid-column-colors"></div></div>
+        <div class="fld"><label>Described by</label>
+            <div id="gcTags" data-testid="grid-column-tags"></div>
+            <div class="row2 sl-gd-newaxis">
+                <div class="fld"><input type="text" id="gcNewAxis" data-testid="grid-column-new-axis" placeholder="Another axis, for example Region" autocomplete="off"></div>
+                <div class="fld"><input type="text" id="gcNewAxisValue" data-testid="grid-column-new-axis-value" placeholder="Its value, for example East" autocomplete="off"></div>
+            </div>
+        </div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="gcDelete" hidden data-testid="grid-column-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="gcCancel" data-testid="grid-column-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="gcSave" data-testid="grid-column-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration II: the axes, their values and colors -->
+<div class="sl-overlay" id="gridAxesOverlay" data-testid="grid-axes-overlay">
+    <div class="sl-modal sl-gd-axesmodal">
+        <h2>Axes</h2>
+        <div class="sl-muted" style="margin:-8px 0 8px">An axis describes the columns -- for example Environment (Local, QA, Prod) or Server (Tomcat 9, Tomcat 11). Give a value a color to color the columns by it.</div>
+        <div class="warn" id="gaWarn"></div>
+        <div class="sl-gd-axesbody" id="gaBody" data-testid="grid-axes-body"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn primary" id="gaClose" data-testid="grid-axes-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration II: add / edit a property -->
+<div class="sl-overlay" id="gridPropertyOverlay" data-testid="grid-property-overlay">
+    <div class="sl-modal">
+        <h2 id="gpHeading">New property</h2>
+        <div class="warn" id="gpWarn"></div>
+        <div class="fld"><label for="gpKey">Property</label><input type="text" id="gpKey" data-testid="grid-property-key" placeholder="The name it goes by, for example logback.smtpHost" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="fld"><label for="gpDescription">What it means</label><textarea id="gpDescription" data-testid="grid-property-description" placeholder="What it controls, in plain words" style="min-height:70px"></textarea></div>
+        <div class="row2">
+            <div class="fld"><label for="gpType">Kind of value</label><select id="gpType" data-testid="grid-property-type"></select></div>
+            <div class="fld" id="gpGroupFld" hidden><label for="gpGroup">Group</label><select id="gpGroup" data-testid="grid-property-group"></select></div>
+        </div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="gpDelete" hidden data-testid="grid-property-delete">Delete</button></span>
+            <button type="button" class="sl-btn" id="gpCancel" data-testid="grid-property-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="gpSave" data-testid="grid-property-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration II: one property in one column -->
+<div class="sl-overlay" id="gridCellOverlay" data-testid="grid-cell-overlay">
+    <div class="sl-modal">
+        <h2 id="gxHeading" style="overflow-wrap:anywhere">Property</h2>
+        <div class="warn" id="gxWarn"></div>
+        <div class="sl-muted" id="gxContext" style="margin:-8px 0 10px"></div>
+        <div class="fld" id="gxValueFld"><label for="gxValue">Value</label><input type="text" id="gxValue" data-testid="grid-cell-value" autocomplete="off" autocapitalize="off" spellcheck="false" data-voice-skip="true"></div>
+        <div class="sl-muted" id="gxInherited" hidden data-testid="grid-cell-inherited" style="margin:-6px 0 10px;overflow-wrap:anywhere"></div>
+        <div class="sl-muted" id="gxSecretNote" hidden style="margin-bottom:10px">This is a secret. Its value is never stored here -- record only where it is set.</div>
+        <div class="fld"><label for="gxState">State</label><select id="gxState" data-testid="grid-cell-state"></select></div>
+        <div class="fld"><label for="gxSource">Read from -- the place that wins</label>
+            <div class="picker-wrap"><input type="text" id="gxSource" class="picker-input" data-testid="grid-cell-source" placeholder="For example claims-batch.properties" autocomplete="off" data-voice-skip="true"><div class="picker-dropdown" id="gxSourceDD"></div></div></div>
+        <div class="fld"><label for="gxAlsoInput">Also set in</label>
+            <div class="pt-wrap"><div class="pt-box"><span class="pt-chips" id="gxAlsoChips"></span><input type="text" class="pt-input" id="gxAlsoInput" data-testid="grid-cell-also" placeholder="Other places it is set" autocomplete="off" data-voice-skip="true"></div><div class="pt-dropdown" id="gxAlsoDD"></div></div></div>
+        <div class="fld"><label for="gxNote">Note</label><textarea id="gxNote" data-testid="grid-cell-note" style="min-height:60px"></textarea></div>
+        <div class="sl-muted" id="gxOthers" data-testid="grid-cell-others" style="margin-bottom:8px;overflow-wrap:anywhere"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn danger" id="gxClear" hidden data-testid="grid-cell-clear">Clear</button></span>
+            <button type="button" class="sl-btn" id="gxCancel" data-testid="grid-cell-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="gxSave" data-testid="grid-cell-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Open a conversation -->
+<div class="sl-overlay" id="convOverlay" data-testid="conv-overlay">
+    <div class="sl-modal">
+        <h2>New conversation</h2>
+        <div class="warn" id="convWarn"></div>
+        <div class="fld"><label for="cTitle">Title</label><input type="text" id="cTitle" data-testid="conv-title" placeholder="What the thread is about" autocomplete="off"></div>
+        <div class="fld"><label for="cMessage">First message</label><textarea id="cMessage" data-testid="conv-first-message"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="convCancel" data-testid="conv-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="convSave" data-testid="conv-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<script src="../marked.min.js?v=1"></script>
+<script src="../picasso-utils.js?v=63"></script>
+<script src="../auth.js?v=36"></script>
+<script src="/picasso-select.js?v=5"></script>
+<script src="/picasso-picker.js?v=4"></script>
+<script src="/picasso-view-state.js?v=3"></script>
+<script src="/picasso-tags.js?v=5"></script>
+<script src="solutions-common.js?v=13"></script>
+<script src="solution.js?v=35"></script>
+<script src="solution-items.js?v=21"></script>
+<script src="solution-log.js?v=9"></script>
+<script src="solution-notes.js?v=21"></script>
+<script src="solution-terms.js?v=1"></script>
+<script src="solution-conv.js?v=8"></script>
+<script src="solution-files.js?v=17"></script>
+<script src="solution-tests.js?v=15"></script>
+<script src="solution-config.js?v=9"></script>
+<script src="solution-config-grid.js?v=3"></script>
+<script src="solution-search.js?v=1"></script>
+<script src="solution-print.js?v=8"></script>
+<script src="/picasso-quick-add.js?v=2"></script>
+<script src="/picasso-context-menu.js?v=1"></script>
+<script src="/files/file-kit.js?v=8"></script>
+<script src="/picasso-groups.js?v=3"></script>
+</body>
+</html>

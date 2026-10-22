@@ -1,0 +1,168 @@
+/* Picasso Dialog -- the standard message and question modals for every LeonardoWeb page
+   (Story 5606). A message stays on screen until the user answers it: no timer, no tap
+   outside, no blur. Only its own buttons or Escape close it.
+
+   Kinds colour the band across the top: info (blue), success (green), warning (amber),
+   error (red), question (violet), danger (red, for a delete confirmation). */
+
+.pdlg-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(17, 24, 39, 0.55);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    animation: pdlg-fade 0.16s ease-out;
+}
+
+.pdlg-card {
+    --pdlg-a: #2563EB;          /* accent, set per kind below */
+    --pdlg-b: #7C3AED;          /* second gradient stop */
+    --pdlg-soft: #EFF6FF;       /* tinted icon disc */
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #FFFFFF;
+    color: #111827;
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35), 0 2px 6px rgba(15, 23, 42, 0.12);
+    font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+    animation: pdlg-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.pdlg-card.k-info     { --pdlg-a: #2563EB; --pdlg-b: #06B6D4; --pdlg-soft: #E0F2FE; }
+.pdlg-card.k-success  { --pdlg-a: #059669; --pdlg-b: #84CC16; --pdlg-soft: #DCFCE7; }
+.pdlg-card.k-warning  { --pdlg-a: #D97706; --pdlg-b: #F59E0B; --pdlg-soft: #FEF3C7; }
+.pdlg-card.k-error    { --pdlg-a: #DC2626; --pdlg-b: #F97316; --pdlg-soft: #FEE2E2; }
+.pdlg-card.k-question { --pdlg-a: #7C3AED; --pdlg-b: #EC4899; --pdlg-soft: #F3E8FF; }
+.pdlg-card.k-danger   { --pdlg-a: #B91C1C; --pdlg-b: #E11D48; --pdlg-soft: #FFE4E6; }
+
+.pdlg-band {
+    flex: 0 0 auto;
+    height: 6px;
+    background: linear-gradient(90deg, var(--pdlg-a), var(--pdlg-b));
+}
+
+.pdlg-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 22px 6px;
+}
+
+.pdlg-icon {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--pdlg-soft);
+    color: var(--pdlg-a);
+    font-size: 22px;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 2px var(--pdlg-a);
+}
+
+.pdlg-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    line-height: 1.25;
+    color: #0F172A;
+}
+
+.pdlg-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 8px 22px 18px 80px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    color: #334155;
+}
+
+.pdlg-body.no-icon { padding-left: 22px; }
+
+.pdlg-buttons {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    background: #F8FAFC;
+    border-top: 1px solid #E2E8F0;
+}
+
+.pdlg-btn {
+    min-width: 96px;
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 10px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #1E293B;
+    font: 600 15px "Segoe UI", system-ui, -apple-system, sans-serif;
+    cursor: pointer;
+    transition: transform 0.06s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.pdlg-btn:hover { background: #F1F5F9; }
+.pdlg-btn:active { transform: translateY(1px); }
+.pdlg-btn:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
+
+.pdlg-btn.primary {
+    border-color: transparent;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, var(--pdlg-a), var(--pdlg-b));
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.pdlg-btn.primary:hover { filter: brightness(1.06); }
+
+.pdlg-btn.danger {
+    border-color: transparent;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #B91C1C, #E11D48);
+    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);
+}
+
+/* Phone: the card rides the bottom of the screen, buttons stack full width with the
+   primary on top, where the thumb is. */
+@media (max-width: 560px) {
+    .pdlg-backdrop { align-items: flex-end; padding: 0; }
+    .pdlg-card {
+        max-width: none;
+        border-radius: 20px 20px 0 0;
+        max-height: 88vh;
+        max-height: 88dvh;
+        animation: pdlg-rise 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .pdlg-body { padding-left: 22px; }
+    .pdlg-buttons { flex-direction: column-reverse; }
+    .pdlg-btn { width: 100%; min-height: 48px; }
+}
+
+@keyframes pdlg-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pdlg-pop  { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pdlg-rise { from { transform: translateY(100%); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .pdlg-backdrop, .pdlg-card { animation: none; }
+}
+
+@media print {
+    .pdlg-backdrop { display: none !important; }
+}

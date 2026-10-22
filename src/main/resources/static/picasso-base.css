@@ -1,0 +1,517 @@
+/* Shared Picasso visual language. Each report includes this first, then its own
+   styles.css for tweaks. The look mirrors fPicassoAccountDrillDown's WinForms
+   grid pixel-for-pixel: dark headers (#3C3C3C), soft alt rows (#F5F5F7), red
+   negatives (#C00000), Segoe UI throughout. */
+
+/* The icon band (quick-launch.js) supplies Back / Forward / Main menu /
+   Quick Launch / Pin and a logout icon on every content page, so each page's
+   hard-coded "home" link is redundant. Hide it at FIRST PAINT so it never
+   flashes before the band's JS runs and retires it. The dashboard and Manage
+   Quick Launch opt out of the band (body.ql-no-pin) and keep their own
+   controls, so they are excluded. */
+body:not(.ql-no-pin) a[data-testid="nav-home"],
+body:not(.ql-no-pin) .lw-nav > a[href="/"] { display: none !important; }
+
+:root {
+    --picasso-header-bg:   #3C3C3C;
+    --picasso-header-fg:   #FFFFFF;
+    --picasso-row-alt:     #F5F5F7;
+    --picasso-row-hover:   #ECF4FD;
+    --picasso-row-select:  #DCEBFC;
+    --picasso-border:      #E6E6E8;
+    --picasso-neg:         #C00000;
+    --picasso-link:        #0A66C2;
+    --picasso-toolbar-bg:  #F8F9FA;
+    --picasso-text:        #111111;
+    --picasso-text-muted:  #5A5A5A;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    color: var(--picasso-text);
+    background: #FFFFFF;
+    font: 13px "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+a { color: var(--picasso-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+    font: inherit;
+    color: inherit;
+    background: #FFFFFF;
+    border: 1px solid #C9C9CC;
+    padding: 5px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+button:hover  { background: #F0F0F2; }
+button:active { background: #E4E4E7; }
+button:disabled { color: #A0A0A4; background: #FAFAFB; cursor: default; }
+
+input[type="text"], input[type="search"] {
+    font: inherit;
+    color: inherit;
+    background: #FFFFFF;
+    border: 1px solid #C9C9CC;
+    padding: 5px 8px;
+    border-radius: 3px;
+    outline: none;
+}
+input[type="text"]:focus, input[type="search"]:focus {
+    border-color: var(--picasso-link);
+    box-shadow: 0 0 0 1px var(--picasso-link);
+}
+
+/* ---- Shared nav bar (used by tasks, receipts, calendar) ------------------ */
+
+.lw-nav {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.lw-nav + * {
+    /* space between the black nav bar and whatever follows it */
+    margin-top: 8px;
+}
+
+/* ---- Page chrome --------------------------------------------------------- */
+
+.picasso-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+.picasso-header {
+    background: var(--picasso-header-bg);
+    color: var(--picasso-header-fg);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+}
+.picasso-header h1 {
+    margin: 0;
+    font-size: 14pt;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+.picasso-header .picasso-breadcrumb {
+    flex: 1 1 auto;
+    color: #DDDDDD;
+    font-size: 11pt;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.picasso-header .picasso-breadcrumb a {
+    color: #B6D4FF;
+}
+.picasso-header .picasso-breadcrumb .sep {
+    margin: 0 8px;
+    color: #888888;
+}
+.picasso-header .picasso-help {
+    background: transparent;
+    color: var(--picasso-header-fg);
+    border: 1px solid #6A6A6A;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-weight: 600;
+    cursor: pointer;
+}
+.picasso-header .picasso-help:hover { background: #4A4A4A; }
+
+.picasso-toolbar {
+    background: var(--picasso-toolbar-bg);
+    border-bottom: 1px solid var(--picasso-border);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.picasso-toolbar .spacer { flex: 1 1 auto; }
+.picasso-toolbar input[type="search"] { width: 240px; }
+
+.picasso-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 18px 0 0;
+}
+
+.picasso-statusbar {
+    background: #F0F0F2;
+    border-top: 1px solid var(--picasso-border);
+    padding: 4px 12px;
+    color: var(--picasso-text-muted);
+    font-size: 11px;
+    flex: 0 0 auto;
+}
+
+/* ---- Table --------------------------------------------------------------- */
+
+.picasso-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.picasso-grid thead th {
+    background: var(--picasso-header-bg);
+    color: var(--picasso-header-fg);
+    font: 600 9pt "Segoe UI", system-ui, sans-serif;
+    padding: 8px 10px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    border-right: 1px solid #4A4A4A;
+}
+.picasso-grid thead th:last-child { border-right: none; }
+.picasso-grid thead th.sortable:hover { background: #4A4A4A; }
+.picasso-grid thead th .sort-arrow {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    opacity: 0.85;
+    width: 10px;
+}
+.picasso-grid thead th.align-right  { text-align: right; }
+.picasso-grid thead th.align-center { text-align: center; }
+
+.picasso-grid tbody td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--picasso-border);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.picasso-grid tbody tr:nth-child(even) td { background: var(--picasso-row-alt); }
+.picasso-grid tbody tr:hover td           { background: var(--picasso-row-hover); }
+.picasso-grid tbody tr.selected td        { background: var(--picasso-row-select); }
+.picasso-grid tbody td.align-right  { text-align: right; }
+.picasso-grid tbody td.align-center { text-align: center; }
+.picasso-grid tbody td.neg { color: var(--picasso-neg); }
+.picasso-grid tbody td.fill { width: 100%; }
+.picasso-grid tbody tr.hidden { display: none; }
+.picasso-grid tbody tr.empty td {
+    text-align: center;
+    color: var(--picasso-text-muted);
+    padding: 24px 12px;
+    font-style: italic;
+}
+
+/* ---- Custom right-click menu --------------------------------------------- */
+
+.picasso-ctxmenu {
+    position: fixed;
+    background: #FFFFFF;
+    border: 1px solid #C9C9CC;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+    padding: 4px 0;
+    min-width: 180px;
+    z-index: 100;
+    font: 13px "Segoe UI", sans-serif;
+}
+.picasso-ctxmenu .item {
+    padding: 6px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+.picasso-ctxmenu .item:hover { background: var(--picasso-row-hover); }
+.picasso-ctxmenu .item.bold  { font-weight: 600; }
+.picasso-ctxmenu .sep {
+    border-bottom: 1px solid var(--picasso-border);
+    margin: 4px 0;
+}
+
+/* ---- Help modal ---------------------------------------------------------- */
+
+.picasso-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+.picasso-modal {
+    background: #FFFFFF;
+    border-radius: 6px;
+    width: min(880px, 90vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+.picasso-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--picasso-border);
+}
+.picasso-modal-header h2 { margin: 0; font-size: 14pt; font-weight: 600; flex: 1 1 auto; }
+.picasso-modal-body {
+    padding: 18px 24px;
+    overflow: auto;
+    line-height: 1.55;
+}
+.picasso-modal-body h1 { font-size: 18pt; margin: 0 0 12px 0; font-weight: 600; }
+.picasso-modal-body h2 { font-size: 14pt; margin: 22px 0 10px 0; font-weight: 600; }
+.picasso-modal-body h3 { font-size: 12pt; margin: 18px 0 8px 0; font-weight: 600; }
+.picasso-modal-body p  { margin: 8px 0; }
+.picasso-modal-body ul, .picasso-modal-body ol { margin: 8px 0; padding-left: 24px; }
+.picasso-modal-body li { margin: 4px 0; }
+.picasso-modal-body code {
+    background: #F5F5F7;
+    border: 1px solid var(--picasso-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font: 11.5pt "Cascadia Mono", "Consolas", monospace;
+}
+.picasso-modal-body pre {
+    background: #F5F5F7;
+    border: 1px solid var(--picasso-border);
+    border-radius: 3px;
+    padding: 10px 12px;
+    overflow: auto;
+}
+.picasso-modal-body pre code { background: none; border: none; padding: 0; }
+.picasso-modal-body table {
+    border-collapse: collapse;
+    margin: 12px 0;
+}
+.picasso-modal-body th, .picasso-modal-body td {
+    border: 1px solid var(--picasso-border);
+    padding: 6px 10px;
+    text-align: left;
+}
+.picasso-modal-body th { background: #F5F5F7; font-weight: 600; }
+
+/* ---- Toast --------------------------------------------------------------- */
+
+.picasso-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2A2A2A;
+    color: #FFFFFF;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+.picasso-toast.show { opacity: 1; }
+
+/* ---- Voice dictation (picasso-voice.js) ---------------------------------- */
+
+/* Base toggle look -- quiet, icon-only. State is conveyed by opacity + a
+   small green dot, not a colored background. Each placement variant adds
+   a class (.voice-tp-*) that positions and sizes the button. */
+.voice-toggle-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: 14px "Segoe UI", system-ui, sans-serif;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.40;
+    transition: opacity 0.15s ease;
+    position: relative;
+}
+.voice-toggle-btn:hover  { opacity: 0.85; background: transparent; }
+.voice-toggle-btn:active { background: transparent; }
+.voice-toggle-btn.voice-toggle-on { opacity: 1; }
+.voice-toggle-btn.voice-toggle-on::after {
+    content: "";
+    position: absolute;
+    top: -1px;
+    right: -3px;
+    width: 6px;
+    height: 6px;
+    background: #2DB350;
+    border-radius: 50%;
+    border: 1px solid #FFFFFF;
+}
+
+/* Placement A -- inside the page header bar (.picasso-header / .*-header) */
+.voice-tp-header {
+    margin-left: auto;
+    padding: 4px 6px;
+    color: #FFFFFF;
+    font-size: 15px;
+}
+
+/* Placement B -- small floating circle bottom-right of viewport (DEFAULT) */
+.voice-tp-floating {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 999;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #C9C9CC;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    font-size: 16px;
+    color: #444;
+}
+.voice-tp-floating:hover { background: #FFFFFF; }
+
+/* Placement C -- appended into the thin black .lw-nav strip */
+.voice-tp-nav {
+    float: right;
+    color: #B6D4FF;
+    font-size: 13px;
+    padding: 0 4px;
+    margin-top: -1px;
+}
+
+/* Placement D -- tiny corner dot in the very top-right of the viewport */
+.voice-tp-corner {
+    position: fixed;
+    top: 2px;
+    right: 4px;
+    z-index: 9999;
+    font-size: 11px;
+    width: 16px;
+    height: 16px;
+    color: #FFFFFF;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+    opacity: 0.30;
+}
+.voice-tp-corner:hover                  { opacity: 0.85; }
+.voice-tp-corner.voice-toggle-on        { opacity: 0.85; }
+.voice-tp-corner.voice-toggle-on::after { top: -2px; right: -4px; }
+
+/* Placement E -- small footer-style pill pinned to the viewport bottom-right
+   (DEFAULT). Lives as a direct child of <body> so page JS that updates the
+   status bar text can't wipe it. position:fixed + high z-index keeps it
+   visible above modal backdrops on every page. Visually it looks like a
+   tiny extension of the page footer at the same corner. */
+.voice-tp-footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    z-index: 999999;
+    padding: 3px 7px 4px 7px;
+    background: #F0F0F2;
+    border-top:  1px solid #D0D0D4;
+    border-left: 1px solid #D0D0D4;
+    border-top-left-radius: 4px;
+    color: #555555;
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.75;
+}
+.voice-tp-footer:hover               { opacity: 1; }
+.voice-tp-footer.voice-toggle-on     { opacity: 1; color: #1A1A1A; }
+.voice-tp-footer.voice-toggle-on::after { top: 0; right: -2px; }
+
+/* When a modal is open, swap to white-on-dark for contrast against the
+   modal's dark backdrop (the light pill background blends into it). */
+body.has-voice-modal-open .voice-tp-footer {
+    background: rgba(0, 0, 0, 0.55);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #FFFFFF;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+    opacity: 0.95;
+}
+body.has-voice-modal-open .voice-tp-footer:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.voice-mic-wrap {
+    position: relative;
+    display: inline-block;
+}
+.voice-mic-wrap-block { display: block; }
+
+/* In form-row contexts the wrapped input is meant to fill the row
+   (width:100%). An inline-block wrap shrinks to intrinsic content size,
+   collapsing the input. Force the wrap to block in those contexts. */
+.modal-field .voice-mic-wrap,
+.ed-modal .field .voice-mic-wrap,
+.ed-info-form .field .voice-mic-wrap,
+.cl-field .voice-mic-wrap {
+    display: block;
+}
+
+body:not(.voice-mics-hidden) .voice-mic-wrap > input,
+body:not(.voice-mics-hidden) .voice-mic-wrap > textarea {
+    padding-right: 22px;
+}
+
+.voice-mic-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    color: #444;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+    z-index: 10;
+}
+.voice-mic-btn:hover { opacity: 1; background: #FFFFFF; }
+.voice-mic-btn.recording {
+    background: #C00000;
+    color: #FFFFFF;
+    opacity: 1;
+    border-color: #C00000;
+    animation: voice-mic-pulse 1.1s infinite;
+}
+
+body.voice-mics-hidden .voice-mic-btn { display: none; }
+
+@media (pointer: coarse) {
+    .voice-mic-btn { width: 22px; height: 22px; font-size: 13px; }
+    body:not(.voice-mics-hidden) .voice-mic-wrap > input,
+    body:not(.voice-mics-hidden) .voice-mic-wrap > textarea {
+        padding-right: 28px;
+    }
+}
+
+@keyframes voice-mic-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(192, 0, 0, 0.55); }
+    70%  { box-shadow: 0 0 0 6px  rgba(192, 0, 0, 0);    }
+    100% { box-shadow: 0 0 0 0   rgba(192, 0, 0, 0);    }
+}

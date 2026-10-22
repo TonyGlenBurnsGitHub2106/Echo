@@ -1,0 +1,59 @@
+/*
+ * picasso-context-menu.css -- the Leonardo Context Menu (Story 5619).
+ * Loaded by picasso-context-menu.js itself; pages need not link it.
+ */
+.pcm-menu {
+    display: none;
+    position: fixed;
+    z-index: 2300;
+    min-width: 180px;
+    max-width: calc(100vw - 8px);
+    max-height: calc(100vh - 8px);
+    max-height: calc(100dvh - 8px);
+    overflow-y: auto;
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    padding: 4px;
+}
+.pcm-menu.open { display: block; }
+
+.pcm-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #111827;
+    cursor: pointer;
+}
+.pcm-item:hover, .pcm-item:focus { background: #EEF2FF; outline: none; }
+.pcm-item.danger { color: #B91C1C; }
+.pcm-item[disabled] { color: #9CA3AF; cursor: default; background: transparent; }
+
+.pcm-sep { height: 1px; margin: 4px 6px; background: #E5E7EB; }
+
+/* The visible More button -- the phone's way into the same menu. */
+.pcm-more {
+    flex: 0 0 auto;
+    min-width: 32px;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: #374151;
+    font: 700 16px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+}
+.pcm-more:hover, .pcm-more:focus { background: #F3F4F6; }
+
+/* Phones: bigger targets for a thumb. */
+@media (pointer: coarse) {
+    .pcm-item { padding: 12px 14px; font-size: 15px; }
+    .pcm-more { min-width: 40px; height: 34px; }
+}

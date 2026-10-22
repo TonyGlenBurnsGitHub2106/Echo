@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>Solutions &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="../picasso-base.css?v=6">
+    <link rel="stylesheet" href="/picasso-select.css?v=5">
+    <link rel="stylesheet" href="solutions.css?v=45">
+</head>
+<body>
+<div class="sl-shell" data-testid="solutions-page">
+
+    <div class="ct-header" data-testid="solutions-header">
+        <h1 data-testid="page-title">Solutions</h1>
+        <button type="button" id="btnPrint" data-testid="solutions-print">Print</button>
+    </div>
+
+    <div class="sl-toolbar" data-testid="solutions-toolbar">
+        <button type="button" class="sl-btn primary" id="btnAdd" data-testid="solutions-add-btn">+ Solution</button>
+        <label class="check"><input type="checkbox" id="chkArchived" data-testid="solutions-show-archived"> Show archived</label>
+    </div>
+
+    <div class="sl-body" id="slBody" data-testid="solutions-body">
+        <div class="sl-wrap">
+            <div class="sl-cards" id="cards" data-testid="solutions-list"><div class="sl-empty">Loading&hellip;</div></div>
+        </div>
+    </div>
+    <div class="sl-status" id="statusBar" data-testid="solutions-status">Echo | Solutions</div>
+</div>
+
+<!-- Add a solution -->
+<div class="sl-overlay" id="solutionOverlay" data-testid="solutions-edit-overlay">
+    <div class="sl-modal">
+        <h2>New solution</h2>
+        <div class="warn" id="solutionWarn" data-testid="solutions-edit-warn"></div>
+        <div class="fld">
+            <label for="fldName">Name</label>
+            <input type="text" id="fldName" data-testid="solutions-name" placeholder="What the whole effort is called" autocomplete="off">
+        </div>
+        <div class="fld">
+            <label for="fldDescription">Description</label>
+            <textarea id="fldDescription" data-testid="solutions-description" placeholder="What it is, and what done looks like"></textarea>
+        </div>
+        <div class="row2">
+            <div class="fld">
+                <label for="fldStatus">Status</label>
+                <select id="fldStatus" data-testid="solutions-status-select"></select>
+            </div>
+            <div class="fld">
+                <label for="fldOwner">Owner</label>
+                <select id="fldOwner" data-testid="solutions-owner-select" data-ps-placeholder="Nobody yet"></select>
+            </div>
+        </div>
+        <div class="fld">
+            <label for="fldTarget">Target date</label>
+            <input type="text" id="fldTarget" data-testid="solutions-target" placeholder="MM/DD/YYYY" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="solutionCancel" data-testid="solutions-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="solutionSave" data-testid="solutions-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<script src="../picasso-utils.js?v=63"></script>
+<script src="../auth.js?v=36"></script>
+<script src="/picasso-select.js?v=5"></script>
+<script src="../marked.min.js?v=1"></script>
+<script src="solutions-common.js?v=13"></script>
+<script src="solutions.js?v=5"></script>
+</body>
+</html>

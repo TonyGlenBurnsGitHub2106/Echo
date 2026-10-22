@@ -1,0 +1,133 @@
+.ps-select {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 9px;
+    border: 1px solid #C9C9CC;
+    border-radius: 3px;
+    background: #fff;
+    font: 13px "Segoe UI", system-ui, sans-serif;
+    color: #1A1A1A;
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: left;
+}
+.ps-select:focus,
+.ps-select.is-open {
+    outline: none;
+    border-color: #0A66C2;
+}
+.ps-select .ps-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ps-select .ps-label.ps-placeholder { color: #888; }
+.ps-select .ps-chev {
+    margin-left: 8px;
+    color: #666;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.ps-popup {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #C9C9CC;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 2000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font: 13px "Segoe UI", system-ui, sans-serif;
+}
+
+.ps-popup .ps-search-wrap {
+    padding: 8px;
+    border-bottom: 1px solid #EEE;
+    background: #FAFAFB;
+    flex: 0 0 auto;
+}
+.ps-popup .ps-search {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #C9C9CC;
+    border-radius: 3px;
+    font: inherit;
+    box-sizing: border-box;
+}
+.ps-popup .ps-search:focus { outline: none; border-color: #0A66C2; }
+
+.ps-popup .ps-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.ps-popup .ps-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #F2F2F4;
+    color: #1A1A1A;
+}
+.ps-popup .ps-option:last-child { border-bottom: 0; }
+.ps-popup .ps-option:hover,
+.ps-popup .ps-option.is-active {
+    background: #EAF3FF;
+}
+.ps-popup .ps-option.is-selected {
+    background: #DDEBFC;
+    font-weight: 600;
+}
+.ps-popup .ps-empty {
+    padding: 14px;
+    color: #777;
+    text-align: center;
+    font-style: italic;
+}
+
+/* Add-in-place row (Story 3550) -- the same green as PicassoPicker's "+ Add". */
+.ps-popup .ps-add {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #15803d;
+    font-weight: 700;
+    background: #f0fdf4;
+    border-top: 1px solid #dcfce7;
+}
+.ps-popup .ps-add:hover { background: #dcfce7; }
+.ps-popup .ps-add[hidden] { display: none; }
+.ps-popup.is-sheet .ps-add { padding: 14px 16px; font-size: 15px; }
+
+.ps-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1999;
+}
+
+.ps-popup.is-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 14px 14px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+    animation: ps-slide-up 0.18s ease-out;
+}
+.ps-popup.is-sheet .ps-option { padding: 14px 16px; font-size: 15px; }
+.ps-popup.is-sheet .ps-search { padding: 11px 12px; font-size: 15px; }
+@keyframes ps-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}

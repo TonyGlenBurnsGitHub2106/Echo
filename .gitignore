@@ -1,0 +1,20 @@
+# Echo (Story 5653)
+
+# Build output
+target/
+
+# This computer's settings -- the database password, the token secret, the service key.
+# Written by scripts\Install-Echo.ps1. NEVER commit them.
+config/
+src/main/resources/application-local.properties
+
+# The files attached to solutions, Echo's logs, database backups, the SQL Server Windows sign-in DLL.
+EchoFiles/
+logs/
+backups/
+lib/
+
+# WinSW runtime logs churn on every restart; the wrapper exe + xml stay tracked.
+service/*.log
+
+.mvn/wrapper/maven-wrapper.jar

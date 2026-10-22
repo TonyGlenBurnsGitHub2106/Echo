@@ -1,0 +1,54 @@
+/* PicassoTags -- multi-select chip picker for LeonardoWeb.
+   Matches PicassoPicker's dropdown look; the field itself reads as one input
+   that holds chips + a type-ahead box inline. */
+
+.pt-wrap { position: relative; width: 100%; box-sizing: border-box; }
+
+.pt-box {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+    width: 100%; box-sizing: border-box;
+    min-height: 40px; padding: 5px 7px;
+    background: #fff; border: 1px solid #C9C9CC; border-radius: 4px;
+    cursor: text;
+}
+.pt-wrap:focus-within .pt-box { border-color: #5b4bd6; box-shadow: 0 0 0 2px rgba(91,75,214,0.15); }
+
+.pt-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 4px 3px 9px; font-size: 12.5px; line-height: 1.2;
+    color: #3a2f8f; background: #ece9fb; border: 1px solid #d6cff5; border-radius: 12px;
+    white-space: nowrap;
+}
+.pt-x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; padding: 0; margin: 0;
+    font-size: 15px; line-height: 1; color: #6b5fc4;
+    background: transparent; border: none; border-radius: 50%; cursor: pointer;
+}
+.pt-x:hover { background: #d6cff5; color: #2a2170; }
+
+.pt-input {
+    flex: 1 1 90px; min-width: 90px;
+    border: none; outline: none; background: transparent;
+    font-size: 13px; padding: 4px 2px;
+}
+
+.pt-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: #fff; border: 1px solid #C9C9CC; border-radius: 0 0 4px 4px;
+    max-height: 240px; overflow-y: auto; z-index: 300;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.pt-dropdown.open { display: block; }
+.pt-option { padding: 9px 11px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #F0F0F2; }
+.pt-option:last-child { border-bottom: none; }
+.pt-option:hover, .pt-option.active { background: #ECF4FD; }
+.pt-option mark { background: #FFF3CD; font-style: normal; }
+.pt-option.no-match { color: #888; font-style: italic; cursor: default; }
+.pt-option.pt-add { color: #15803d; font-weight: 700; background: #f0fdf4; }
+.pt-option.pt-add:hover, .pt-option.pt-add.active { background: #dcfce7; }
+
+/* Story 5575: a second line under an option, and a chip that does not look right. */
+.pt-sub { display: block; font-size: 11px; color: #64748B; margin-top: 2px; }
+.pt-chip.pt-bad { color: #991B1B; background: #FEE2E2; border-color: #FCA5A5; }
+.pt-chip.pt-bad .pt-x { color: #B91C1C; }
