@@ -6,74 +6,30 @@ work machine. The first part it echoes is **Solutions**: every feature of Leonar
 the same screens, buttons and behavior, minus the record links that only make sense inside Leonardo.
 It looks and works like LeonardoWeb: the same icon band, Quick Launch, menu and Print menu.
 
-## Signing in
+The help is in two parts; tap a heading to open it.
 
-Open Echo in a browser on the computer it runs on: [http://localhost:8770](http://localhost:8770). Type your user name
-and password and tap **Sign in**. Echo keeps you signed in on that browser; tap the **Logout** icon
-at the right of the icon band to sign out.
+<details>
+<summary><strong>Setting up and installing Echo</strong></summary>
 
-Five wrong passwords in a row lock the account for fifteen minutes.
+### Running Echo
 
-## The icon band and the main menu
+On the computer Echo is installed on, these files in the Echo folder do the work (double-click, or
+run them in a command window):
 
-Every page has the icon band across the top, exactly as in LeonardoWeb:
-
-| Icon | What it does |
+| File | What it does |
 |---|---|
-| Back / Forward | The page you came from, and back again |
-| Main menu | Echo's main menu |
-| Quick Launch (lightning) | Your pinned pages, from anywhere |
-| Search (magnifier) | Find a page in the menu by typing part of its name |
-| Pin | Pin the page you are on to Quick Launch |
-| Print | The Print menu for the page you are on |
-| Logout (right) | Sign out |
+| `install.cmd` | Installs Echo, start to finish. **Run it as administrator** (right-click -> Run as administrator); otherwise it stops and changes nothing. Finds the running SQL Server on this computer by itself (asks which one if several are running), and, if that SQL Server's TCP/IP is off, asks before switching it on and restarting SQL Server (other programs using it are disconnected for a moment; add `-RestartSqlServer` to say yes ahead of time). If the SQL Server the last install used is stopped, it stops and says so rather than use another. At the end it asks for your sign-in password; pressing Enter with nothing typed stops the install there, keeps what is done and does not start Echo -- run it again to finish. Safe to run again: a run over an existing install says so in yellow at the start, keeps your settings and sign-in, and so asks for no password. Each run is written to `logs\install-<date>.log`. |
+| `start-echo.cmd` | Starts Echo in the background. |
+| `stop-echo.cmd` | Stops it. |
+| `update-echo.cmd` | Gets the newest Echo, backs up the database, updates it, rebuilds and restarts. |
+| `backup-echo.cmd` | Backs up the Echo database to a dated file. |
+| `uninstall-echo.cmd` | Takes Echo off the computer again: backs up the database, removes it and Echo's SQL login (kept if another Echo database on that SQL Server still uses it), and moves Echo's settings, logs and files to the Recycle Bin. Run it as administrator; it asks you to type YES first. Run `install.cmd` to put it back. |
+| `set-password.cmd` | Sets a new password (or creates another sign-in). Also how a forgotten password is reset. A password too short or typed differently twice is asked for again; Enter with nothing typed cancels. |
+| `export-solution.cmd` / `import-solution.cmd` | Copy a solution from Leonardo (or another Echo) into this Echo -- see above. |
 
-The main menu has the **Quick Launch** row, a **Solutions** section, and an **Echo** section for
-housekeeping (Manage Quick Launch, API Clients, Settings, Help). Tap a section's heading to fold or
-open it; **Fold all** / **Open all** works them all at once. Echo remembers which sections you
-folded, in its database, so every browser you use sees the same menu.
+---
 
-## Quick Launch
-
-- **Pin a page**: open it, tap the **Pin** icon, pick an icon and a label, tap **Save**.
-- **Open a pin**: tap its tile on the main menu, or tap the lightning icon on any page.
-- **Put pins in order**: on the main menu, press and hold a tile and drag it. Or open
-  **Echo -> Manage Quick Launch**, tap **Arrange**, drag the rows by their grips, and tap **Done**.
-- **Rename, change the icon, or remove a pin**: Echo -> Manage Quick Launch -> **Edit** or **Delete**.
-  A delete asks first.
-
-## Solutions
-
-Main menu -> Solutions -> Solutions. Everything here works as it does in LeonardoWeb, tab for tab:
-Overview, Items, Log, Notes, Terms, Testing, QA, Configuration, Configuration II, Files,
-Conversations and Search, with Arrange, folding, the item tick, View and Edit on every record, and
-the printed report. See *Solutions* in Leonardo's help for the full walkthrough; it describes Echo's
-Solutions too.
-
-What is different in Echo:
-
-- **No Web tab and no linked records.** Leonardo can hang a solution on a matter, a person or a
-  vendor; Echo has none of those.
-- **Files are kept in Echo's own files folder** on the computer Echo runs on (the Files tab says so).
-  Removing a file moves it to a trash folder there; nothing is erased. There is no "from the
-  Reading Nook" or "from Leonardo Files", and no Reader -- **View** shows every file.
-- **No quizzes.**
-
-## Sharing a solution with an agent (Rex)
-
-An outside agent -- Rex, say -- can work inside a solution you share with it, and nowhere else.
-
-1. **Echo -> API Clients.** Echo asks for your password again first, because this page hands out keys.
-2. Add a client (a short code such as `rex` and a name), then **Issue key**. The key is shown once:
-   copy it straight into the agent's own secret store.
-3. Open the solution -> Overview -> **Share**, and tick the client.
-4. **Brief** (in the same Overview row) is the text you paste into the agent's instructions. Paste
-   the key into the box and tap **Copy with key** to fold it in; the key never leaves the page.
-
-The agent can read and change everything inside the shared solution. It cannot see any other
-solution, cannot delete or share the solution, and cannot reach any other page or setting of Echo.
-
-## Bringing a solution over from Leonardo
+### Bringing a solution over from Leonardo
 
 A solution you already keep in Leonardo can be copied into Echo whole -- every project and item,
 the log with its numbers, dates and authors, every note with all its versions and steps, the
@@ -99,40 +55,7 @@ the agent its own key in this Echo and share it again. The file holds the whole 
 it private and remove it yourself once it is in. The same two commands also move a solution from
 one Echo to another (`-Database Echo` on the export).
 
-## The Print menu
-
-Tap **Print** on any page. Echo's Print menu offers **Print on this device**, **Display** (opens the
-PDF), **Download**, and **Cancel**. (Leonardo's other destinations -- the home printer, the Reading
-Nook, email, a record -- belong to Leonardo.)
-
-## Settings
-
-Main menu -> Echo -> Settings:
-
-- **Change your password.** Type the current one and the new one twice. Every other browser you are
-  signed in to is signed out; this one stays signed in.
-- **Sign out everywhere.** Ends every Echo session in every browser, this one included.
-- **About Echo.** The version, how long it has been running, the database it uses, and the folder
-  that holds its files.
-
-## Running Echo
-
-On the computer Echo is installed on, these files in the Echo folder do the work (double-click, or
-run them in a command window):
-
-| File | What it does |
-|---|---|
-| `install.cmd` | Installs Echo, start to finish. Safe to run again. |
-| `start-echo.cmd` | Starts Echo in the background. |
-| `stop-echo.cmd` | Stops it. |
-| `update-echo.cmd` | Gets the newest Echo, backs up the database, updates it, rebuilds and restarts. |
-| `backup-echo.cmd` | Backs up the Echo database to a dated file. |
-| `set-password.cmd` | Sets a new password (or creates another sign-in). Also how a forgotten password is reset. |
-| `export-solution.cmd` / `import-solution.cmd` | Copy a solution from Leonardo (or another Echo) into this Echo -- see above. |
-
----
-
-## Technical details
+### Technical details
 
 > Everything below is for developers and for troubleshooting. If you just wanted to know what Echo
 > does, you are done.
@@ -182,11 +105,35 @@ optionally `echo.files.path`, `echo.public.url`, `echo.session.inactivity-minute
 `config\echo-install.json` records the Java, SQL Server and port the scripts use. Logs:
 `logs\echo.log`.
 
+**Which SQL Server.** Without `-SqlServer` the installer (and `Install-EchoDatabase.ps1`,
+`Set-EchoPassword.ps1`) uses the one `config\echo-install.json` recorded, else reads the instances
+installed on this computer from the registry (`Instance Names\SQL`), tries each RUNNING one, uses
+the only one that answers or asks which when several do; a stopped instance is never chosen or
+started; when the recorded instance is stopped or does not answer, the installer stops rather than
+fall back to another (the kept settings point at the recorded one). The installer and uninstaller
+run as administrator (`Assert-EchoAdmin`): a chosen local instance with TCP/IP off, after a Y/N
+question (or `-RestartSqlServer`), gets `SuperSocketNetLib\Tcp\Enabled = 1` and a restart of its service
+(`Enable-EchoSqlTcp`), since Java connects only over TCP/IP; the services that depend on it (SQL
+Server Agent) are started again. The first install at home failed on the old `localhost` default.
+`-Password` (a SecureString) on `scripts\Install-Echo.ps1` / `scripts\Set-EchoPassword.ps1`, called
+from PowerShell, is for scripted installs (a .cmd cannot pass one). Run elevated, the installer starts Echo through
+`explorer.exe` so Echo itself runs as the signed-in person, not as administrator, and a plain
+`stop-echo.cmd` can stop it; a re-run stops a running Echo before it rebuilds. Neither the
+installer nor the uninstaller will touch Leonardo, Hearth or a system database
+(`Assert-EchoDatabaseName`) -- Echo's procedures carry Leonardo's names. The installer marks a database it creates
+with the extended property `EchoDatabase` before any table goes in, and both scripts accept only an
+empty database or one with that mark or Echo's `AppUser` (`Test-EchoIsEchoDatabase`) -- so a first
+install that failed halfway can be finished or uninstalled. The uninstaller checks before it stops
+or asks anything, and drops a login only when no other database on the server maps a user to it.
+A run given `-AdminSqlPassword` writes no install log (the log's header records the command line).
+
 **SQL Server connection.** The installer turns a named instance into its TCP port (so SQL Browser
 need not run) and turns encryption on for SQL Server 2016 and newer only (older ones cannot do the
 TLS Java 21 requires). `-Auth SqlLogin` (default) makes the login `echo_app` (db_datareader,
 db_datawriter, EXECUTE); `-Auth Windows` uses `integratedSecurity=true` and downloads
-`lib\mssql-jdbc_auth-<version>.x64.dll`, passed to Java as `java.library.path`.
+`lib\mssql-jdbc_auth-<version>.x64.dll`, passed to Java as `java.library.path`; since Echo runs
+without administrator rights, the desktop account gets its own login and database user with the same
+rights (recorded as `windowsLogin` in `echo-install.json` when the install made it, so uninstall removes it).
 
 **Copying a solution.** `scripts\EchoSolutionTables.ps1` lists, table by table and parents first,
 which rows make up one solution (and the shared lookups it uses). `Export-Solution.ps1` writes
@@ -200,3 +147,95 @@ arrive as StorageCode `local`. A failed import moves the files it had written to
 **Execution policy.** The `.cmd` files start PowerShell with `-ExecutionPolicy Bypass`, so the
 scripts run on a machine whose policy is AllSigned or Restricted. A Group Policy that forbids
 Bypass would still stop them.
+
+</details>
+
+<details>
+<summary><strong>Using Echo</strong></summary>
+
+### Signing in
+
+Open Echo in a browser on the computer it runs on: [http://localhost:8770](http://localhost:8770). Type your user name
+and password and tap **Sign in**. Your user name is the one `install.cmd` made -- **tony** unless it was
+told otherwise -- and the password is the one you chose when the installer asked. Forgot it? Run
+`set-password.cmd` to choose a new one. Echo keeps you signed in on that browser; tap the **Logout** icon
+at the right of the icon band to sign out.
+
+Five wrong passwords in a row lock the account for fifteen minutes.
+
+### The icon band and the main menu
+
+Every page has the icon band across the top, exactly as in LeonardoWeb:
+
+| Icon | What it does |
+|---|---|
+| Back / Forward | The page you came from, and back again |
+| Main menu | Echo's main menu |
+| Quick Launch (lightning) | Your pinned pages, from anywhere |
+| Search (magnifier) | Find a page in the menu by typing part of its name |
+| Pin | Pin the page you are on to Quick Launch |
+| Print | The Print menu for the page you are on |
+| Logout (right) | Sign out |
+
+The main menu has the **Quick Launch** row, a **Solutions** section, and an **Echo** section for
+housekeeping (Manage Quick Launch, API Clients, Settings, Help). Tap a section's heading to fold or
+open it; **Fold all** / **Open all** works them all at once. Echo remembers which sections you
+folded, in its database, so every browser you use sees the same menu.
+
+### Quick Launch
+
+- **Pin a page**: open it, tap the **Pin** icon, pick an icon and a label, tap **Save**.
+- **Open a pin**: tap its tile on the main menu, or tap the lightning icon on any page.
+- **Put pins in order**: on the main menu, press and hold a tile and drag it. Or open
+  **Echo -> Manage Quick Launch**, tap **Arrange**, drag the rows by their grips, and tap **Done**.
+- **Rename, change the icon, or remove a pin**: Echo -> Manage Quick Launch -> **Edit** or **Delete**.
+  A delete asks first.
+
+### Solutions
+
+Main menu -> Solutions -> Solutions. Everything here works as it does in LeonardoWeb, tab for tab:
+Overview, Items, Log, Notes, Terms, Testing, QA, Configuration, Configuration II, Files,
+Conversations and Search, with Arrange, folding, the item tick, View and Edit on every record, and
+the printed report. See *Solutions* in Leonardo's help for the full walkthrough; it describes Echo's
+Solutions too.
+
+What is different in Echo:
+
+- **No Web tab and no linked records.** Leonardo can hang a solution on a matter, a person or a
+  vendor; Echo has none of those.
+- **Files are kept in Echo's own files folder** on the computer Echo runs on (the Files tab says so).
+  Removing a file moves it to a trash folder there; nothing is erased. There is no "from the
+  Reading Nook" or "from Leonardo Files", and no Reader -- **View** shows every file.
+- **No quizzes.**
+
+### Sharing a solution with an agent (Rex)
+
+An outside agent -- Rex, say -- can work inside a solution you share with it, and nowhere else.
+
+1. **Echo -> API Clients.** Echo asks for your password again first, because this page hands out keys.
+2. Add a client (a short code such as `rex` and a name), then **Issue key**. The key is shown once:
+   copy it straight into the agent's own secret store.
+3. Open the solution -> Overview -> **Share**, and tick the client.
+4. **Brief** (in the same Overview row) is the text you paste into the agent's instructions. Paste
+   the key into the box and tap **Copy with key** to fold it in; the key never leaves the page.
+
+The agent can read and change everything inside the shared solution. It cannot see any other
+solution, cannot delete or share the solution, and cannot reach any other page or setting of Echo.
+
+### The Print menu
+
+Tap **Print** on any page. Echo's Print menu offers **Print on this device**, **Display** (opens the
+PDF), **Download**, and **Cancel**. (Leonardo's other destinations -- the home printer, the Reading
+Nook, email, a record -- belong to Leonardo.)
+
+### Settings
+
+Main menu -> Echo -> Settings:
+
+- **Change your password.** Type the current one and the new one twice. Every other browser you are
+  signed in to is signed out; this one stays signed in.
+- **Sign out everywhere.** Ends every Echo session in every browser, this one included.
+- **About Echo.** The version, how long it has been running, the database it uses, and the folder
+  that holds its files.
+
+</details>

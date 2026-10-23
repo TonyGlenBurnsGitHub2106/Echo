@@ -124,6 +124,19 @@ function Resolve-EchoJdbcServer([string]$SqlServer, [string]$SqlUser, [string]$S
         $machine = $SqlServer.Substring(0, $SqlServer.IndexOf('\'))
         if ($machine -eq '.' -or $machine -eq '(local)') { $machine = 'localhost' }
         $hostPart = "${machine}:$port"
+    } elseif ($SqlServer.Contains('\')) {
+        # Story 5653: Java reaches SQL Server only over TCP/IP. With no port to name, it needs the SQL
+        # Browser service -- say so plainly here rather than let Echo fail to start later.
+        # The installer has already switched TCP/IP on (Enable-EchoSqlTcp); this is the backstop.
+        $local = Get-EchoLocalInstanceFor $SqlServer
+        if ($local -and $local.Tcp -eq $false) {
+            Enable-EchoSqlTcp $SqlServer $SqlUser $SqlPassword
+            return Resolve-EchoJdbcServer $SqlServer $SqlUser $SqlPassword
+        }
+        $browser = Get-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
+        if (-not $browser -or $browser.Status -ne 'Running') {
+            Write-Warning "Could not learn the TCP port of $SqlServer and the SQL Browser service is not running; Echo may not be able to connect. If it fails to start, give the instance a fixed TCP port in SQL Server Configuration Manager and run install.cmd -Reconfigure."
+        }
     }
     return [pscustomobject]@{ Host = $hostPart; Major = $major; Encrypt = ($major -ge 13) }
 }
@@ -168,4 +181,244 @@ function Get-EchoProcess([string]$Root) {
     $jar = (Join-Path $Root 'target\echo.jar').ToLower()
     Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" |
         Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($jar) }
+}
+
+# The SQL Server instances installed on THIS computer (registry), each with its service state and
+# whether TCP/IP is switched on. Name MSSQLSERVER is the default instance (Server = localhost).
+function Get-EchoLocalSqlInstances {
+    $list = @()
+    foreach ($key in 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL',
+                     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server\Instance Names\SQL') {
+        if (-not (Test-Path $key)) { continue }
+        $p = Get-ItemProperty $key
+        foreach ($prop in $p.PSObject.Properties) {
+            if ($prop.Name -like 'PS*') { continue }
+            $name = $prop.Name
+            if ($list | Where-Object { $_.Name -eq $name }) { continue }
+            $svcName = if ($name -eq 'MSSQLSERVER') { 'MSSQLSERVER' } else { "MSSQL`$$name" }
+            $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+            $tcp = $null; $tcpKey = $null
+            foreach ($base in 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server') {
+                $t = Join-Path $base "$($prop.Value)\MSSQLServer\SuperSocketNetLib\Tcp"
+                if (Test-Path $t) { $tcpKey = $t; $tcp = ((Get-ItemProperty $t -ErrorAction SilentlyContinue).Enabled -eq 1); break }
+            }
+            $list += [pscustomobject]@{
+                Name    = $name
+                Id      = $prop.Value
+                Server  = $(if ($name -eq 'MSSQLSERVER') { 'localhost' } else { "$env:COMPUTERNAME\$name" })
+                Service = $svcName
+                Running = [bool]($svc -and $svc.Status -eq 'Running')
+                Tcp     = $tcp
+                TcpKey  = $tcpKey
+            }
+        }
+    }
+    return $list
+}
+
+# Story 5653: the installer runs as administrator (it may start SQL Server, switch its TCP/IP on and
+# restart it). True when this PowerShell has administrator rights.
+function Test-EchoAdmin {
+    $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Stops the script (exit 1) with what to do when this PowerShell is not running as administrator.
+function Assert-EchoAdmin([string]$What = 'install.cmd',
+                          [string]$Why = 'It may need to switch SQL Server''s TCP/IP on and restart SQL Server, which only an administrator can do.') {
+    if (Test-EchoAdmin) { return }
+    Write-Host ''
+    Write-Host "$What must be run as administrator." -ForegroundColor Red
+    Write-Host "  $Why"
+    Write-Host '  Nothing was changed. Do one of these, then run it again:'
+    Write-Host "    - right-click $What and choose 'Run as administrator', or"
+    Write-Host "    - Start menu -> type cmd -> right-click Command Prompt -> 'Run as administrator', then cd to the Echo folder and run $What."
+    Write-Host ''
+    exit 1
+}
+
+# Story 5653: Echo's database is never a system database nor another program of the house's --
+# Echo's procedures carry Leonardo's names, and an uninstall drops the database.
+function Assert-EchoDatabaseName([string]$Database) {
+    if ($Database -notmatch '^[A-Za-z][A-Za-z0-9_]{0,63}$') { throw "A database name is letters, digits and underscores." }
+    if (@('master', 'model', 'msdb', 'tempdb', 'Leonardo', 'Hearth') -contains $Database) {
+        throw "$Database is not an Echo database and can never be used as one. Nothing was changed."
+    }
+}
+
+# Story 5653: is this database Echo's? 1 when it has Echo's sign-in table (AppUser, or EchoUser from the
+# first build) or the EchoDatabase mark the installer puts on a database the moment it creates it --
+# so a first install that failed halfway (tables but no AppUser yet) can still be finished or
+# uninstalled. Leonardo and Hearth have neither. $conn is a connection to master.
+function Test-EchoIsEchoDatabase($conn, [string]$Database) {
+    return [int](Invoke-EchoScalar $conn ("SELECT CASE WHEN OBJECT_ID(N'[$Database].dbo.AppUser', 'U') IS NOT NULL " +
+        "OR OBJECT_ID(N'[$Database].dbo.EchoUser', 'U') IS NOT NULL " +
+        "OR EXISTS (SELECT 1 FROM [$Database].sys.extended_properties WHERE class = 0 AND name = N'EchoDatabase') THEN 1 ELSE 0 END")) -eq 1
+}
+
+# Story 5653: marks a database as Echo's (see Test-EchoIsEchoDatabase). Safe to call again.
+function Set-EchoDatabaseMark($conn, [string]$Database) {
+    Invoke-EchoNonQuery $conn ("IF NOT EXISTS (SELECT 1 FROM [$Database].sys.extended_properties WHERE class = 0 AND name = N'EchoDatabase') " +
+        "EXEC [$Database].sys.sp_addextendedproperty @name = N'EchoDatabase', @value = N'Echo (Story 5653)'")
+}
+
+# Story 5653: the account signed in to this desktop (DOMAIN\name), which is who Echo runs as -- the
+# installer starts it through explorer.exe. Not an elevating administrator's account. $null if unknown.
+function Get-EchoDesktopAccount {
+    try {
+        $sessionId = (Get-Process -Id $PID).SessionId
+        $shell = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" | Where-Object { $_.SessionId -eq $sessionId } | Select-Object -First 1
+        if (-not $shell) { return [Security.Principal.WindowsIdentity]::GetCurrent().Name }
+        $o = Invoke-CimMethod -InputObject $shell -MethodName GetOwner
+        if ($o.User) { return "$($o.Domain)\$($o.User)" }
+    } catch { }
+    return $null
+}
+
+# The folder Windows runs things from at sign-in, for the person signed in to this desktop -- not for
+# a separate administrator account the installer may have been elevated with (Story 5653).
+function Get-EchoStartupFolder {
+    $mine = [Environment]::GetFolderPath('Startup')
+    try {
+        $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $sessionId = (Get-Process -Id $PID).SessionId
+        $shell = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" | Where-Object { $_.SessionId -eq $sessionId } | Select-Object -First 1
+        if (-not $shell) { return $mine }
+        $owner = (Invoke-CimMethod -InputObject $shell -MethodName GetOwnerSid).Sid
+        if (-not $owner -or $owner -eq $sid) { return $mine }
+        $profilePath = (Get-CimInstance Win32_UserProfile -Filter "SID = '$owner'").LocalPath
+        if (-not $profilePath) { return $mine }
+        return (Join-Path $profilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup')
+    } catch { return $mine }
+}
+
+# The SQL Server instance on THIS computer that a server name means, or $null (another computer).
+function Get-EchoLocalInstanceFor([string]$SqlServer) {
+    $s = $SqlServer.Trim()
+    $machine = $s; $inst = 'MSSQLSERVER'
+    if ($s.Contains('\')) { $machine = $s.Substring(0, $s.IndexOf('\')); $inst = $s.Substring($s.IndexOf('\') + 1) }
+    elseif ($s.Contains(',')) { return $null }
+    if (@('.', '(local)', 'localhost', '127.0.0.1', $env:COMPUTERNAME) -notcontains $machine) { return $null }
+    return Get-EchoLocalSqlInstances | Where-Object { $_.Name -eq $inst } | Select-Object -First 1
+}
+
+# Waits until SQL Server answers a sign-in (after a start or restart). Throws after $Seconds.
+function Wait-EchoSqlServer([string]$SqlServer, [string]$SqlUser, [string]$SqlPassword, [int]$Seconds = 90) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    $err = $null
+    while ((Get-Date) -lt $deadline) {
+        $err = Test-EchoSqlServer $SqlServer $SqlUser $SqlPassword
+        if (-not $err) { return }
+        Start-Sleep -Seconds 2
+    }
+    throw "SQL Server $SqlServer did not answer within $Seconds seconds: $err"
+}
+
+# Story 5653: Java (Echo) reaches SQL Server only over TCP/IP, which SQL Server Express ships with
+# switched OFF. On this computer, as administrator: switch it on (the same setting SQL Server
+# Configuration Manager changes) and restart the instance so it takes effect. Another computer's
+# SQL Server is left alone.
+function Enable-EchoSqlTcp([string]$SqlServer, [string]$SqlUser, [string]$SqlPassword, [switch]$Confirmed) {
+    $i = Get-EchoLocalInstanceFor $SqlServer
+    if (-not $i -or $i.Tcp -ne $false) { return }
+    if (-not $i.TcpKey) { throw "SQL Server $SqlServer has TCP/IP switched off and its setting could not be found. Switch it on in SQL Server Configuration Manager, restart it, and run install.cmd again." }
+    Assert-EchoAdmin
+    # Story 5653: a restart drops every program connected to this SQL Server (at work it may serve
+    # others), so it is asked for first -- or -RestartSqlServer says yes ahead of time.
+    if (-not $Confirmed) {
+        $others = '?'
+        try {
+            $c = New-EchoConnection -SqlServer $SqlServer -Database 'master' -SqlUser $SqlUser -SqlPassword $SqlPassword
+            try { $others = [int](Invoke-EchoScalar $c 'SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1 AND session_id <> @@SPID') } finally { $c.Close() }
+        } catch { }
+        Write-Host ''
+        Write-Host "  SQL Server $SqlServer has TCP/IP switched off. Echo needs it on, and switching it on means" -ForegroundColor Yellow
+        Write-Host "  restarting SQL Server: the $others other connection(s) to it now are dropped (their programs reconnect)." -ForegroundColor Yellow
+        $answer = Read-Host '  Restart it now? Type Y for yes'
+        if ($answer -notmatch '^(y|yes)$') {
+            throw "SQL Server was not restarted, so Echo cannot reach it yet. Nothing was changed.`nRun install.cmd again when a restart is all right (add -RestartSqlServer to skip this question), or switch TCP/IP on yourself in SQL Server Configuration Manager and restart it."
+        }
+    }
+    Write-Host "  SQL Server $SqlServer has TCP/IP switched off; Echo needs it -- switching it on"
+    Set-ItemProperty -Path $i.TcpKey -Name Enabled -Value 1
+    Write-Host "  restarting SQL Server $SqlServer so the change takes effect (programs using it reconnect)"
+    # -Force stops the services that depend on it (SQL Server Agent, Full-Text) but never starts them
+    # again -- so note which were running and start those afterwards.
+    $dependents = @(Get-Service -Name $i.Service).DependentServices | Where-Object { $_.Status -eq 'Running' }
+    Restart-Service -Name $i.Service -Force
+    foreach ($d in $dependents) {
+        Write-Host "  starting $($d.DisplayName) again"
+        Start-Service -Name $d.Name
+    }
+    Wait-EchoSqlServer $SqlServer $SqlUser $SqlPassword
+    Write-Host "  TCP/IP is on for $SqlServer"
+}
+
+# Can we sign in to this SQL Server? Returns $null when yes, else the error text.
+function Test-EchoSqlServer([string]$SqlServer, [string]$SqlUser, [string]$SqlPassword) {
+    try { $c = New-EchoConnection -SqlServer $SqlServer -Database 'master' -SqlUser $SqlUser -SqlPassword $SqlPassword; $c.Close(); return $null }
+    catch { return $_.Exception.InnerException.Message + $(if (-not $_.Exception.InnerException) { $_.Exception.Message }) }
+}
+
+# Which SQL Server Echo uses (Story 5653: the first install at home failed because it assumed
+# "localhost", and this computer has only named instances). In order: -SqlServer when given; the
+# one the last install recorded; otherwise the RUNNING instances on this computer that answer -- one
+# is used as is, several are offered as a numbered choice. A stopped instance is never chosen or
+# started (Tony, 2026-10-22: a machine may have many instances; the database goes on a running one).
+# Stopped instances and ones that refuse the sign-in are named in the error, with what to do.
+function Select-EchoSqlServer([string]$SqlServer, [string]$Root, [string]$SqlUser, [string]$SqlPassword) {
+    $instances = @(Get-EchoLocalSqlInstances)
+    $describe = {
+        if ($instances.Count -eq 0) { return '  No SQL Server is installed on this computer. Install SQL Server Express, or name a server on another computer with -SqlServer.' }
+        ($instances | ForEach-Object {
+            $state = if ($_.Running) { 'running' } else { "stopped -- not used (to use it, start the service '$($_.Service)' first)" }
+            "  $($_.Server) -- $state"
+        }) -join "`n"
+    }
+    if ($SqlServer) {
+        $err = Test-EchoSqlServer $SqlServer $SqlUser $SqlPassword
+        if ($err) { throw "Echo cannot reach SQL Server '$SqlServer': $err`nSQL Servers on this computer:`n$(& $describe)`nRun install.cmd again with -SqlServer naming one of them (or leave -SqlServer off to choose)." }
+        return $SqlServer
+    }
+    $installJson = Join-Path $Root 'config\echo-install.json'
+    if (Test-Path $installJson) {
+        $prev = (Get-Content $installJson -Raw | ConvertFrom-Json).sqlServer
+        $prevLocal = if ($prev) { Get-EchoLocalInstanceFor $prev } else { $null }
+        if ($prev) {
+            # Story 5653: Echo's database and its kept settings are on $prev. If it is down, never
+            # move on to another server -- that would build a second, empty Echo there while the kept
+            # settings still point at the first.
+            if ($prevLocal -and -not $prevLocal.Running) {
+                throw "The last install put Echo's database on $prev, and that SQL Server is stopped. Nothing was changed.`nStart its service '$($prevLocal.Service)' (Services, or: net start `"$($prevLocal.Service)`") and run install.cmd again.`nTo move Echo to another SQL Server instead, run uninstall-echo.cmd first, then install.cmd."
+            }
+            $err = Test-EchoSqlServer $prev $SqlUser $SqlPassword
+            if ($err) {
+                throw "The last install put Echo's database on $prev, and it cannot be reached now: $err`nNothing was changed. Make sure that SQL Server is running and run install.cmd again.`nTo move Echo to another SQL Server instead, run uninstall-echo.cmd first, then install.cmd."
+            }
+            Write-Host "  using $prev (from the last install)"
+            return $prev
+        }
+    }
+    $ok = @(); $failed = @()
+    foreach ($i in ($instances | Where-Object { $_.Running })) {
+        $err = Test-EchoSqlServer $i.Server $SqlUser $SqlPassword
+        if ($err) { $failed += "  $($i.Server) -- would not let you in: $err" } else { $ok += $i }
+    }
+    if ($ok.Count -eq 1) {
+        Write-Host "  found SQL Server $($ok[0].Server) on this computer"
+        return $ok[0].Server
+    }
+    if ($ok.Count -gt 1) {
+        Write-Host '  More than one SQL Server is running on this computer. Which one should hold the Echo database?'
+        for ($n = 0; $n -lt $ok.Count; $n++) { Write-Host ("    {0}. {1}" -f ($n + 1), $ok[$n].Server) }
+        # A few tries only: with no keyboard (a scripted run) Read-Host answers empty forever.
+        for ($try = 0; $try -lt 5; $try++) {
+            $answer = Read-Host "  Type a number (1-$($ok.Count))"
+            $k = 0
+            if ([int]::TryParse($answer, [ref]$k) -and $k -ge 1 -and $k -le $ok.Count) { return $ok[$k - 1].Server }
+        }
+        throw "No SQL Server was chosen. Run it again and type a number, or name one with -SqlServer (for example -SqlServer $($ok[0].Server))."
+    }
+    $why = if ($failed) { "`n" + ($failed -join "`n") } else { '' }
+    throw "Echo found no running SQL Server it can use on this computer.`n$(& $describe)$why`nStart one, or name a server with -SqlServer (and -AdminSqlUser / -AdminSqlPassword if Windows sign-in is not allowed)."
 }

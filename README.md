@@ -18,15 +18,22 @@ and **git**. Nothing else is installed by hand.
    git clone https://github.com/TonyGlenBurnsGitHub2106/Echo.git C:\Echo
    ```
 
-2. Install it. In `C:\Echo`, run `install.cmd`, naming your SQL Server:
+2. Install it. In `C:\Echo`, right-click `install.cmd` and choose **Run as administrator** (or run it
+   from a Command Prompt opened as administrator). Without administrator rights it stops at once and
+   changes nothing:
 
    ```
-   install.cmd -SqlServer .\SQLEXPRESS
+   install.cmd
    ```
 
-   It finds Java, creates the Echo database, makes a SQL login for Echo with a random password,
+   It finds the SQL Server on this computer by itself (if more than one is running, it lists them
+   and asks you to pick one by number; a stopped one is never used). If that SQL Server has TCP/IP
+   switched off -- SQL Server Express ships that way, and Echo can only connect over TCP/IP -- it
+   asks, then switches it on and restarts that SQL Server (`-RestartSqlServer` says yes ahead of time). To use a particular one, or one on another computer, name
+   it: `install.cmd -SqlServer .\SQLEXPRESS`. It finds Java, creates the Echo database, makes a SQL login for Echo with a random password,
    writes Echo's settings (with fresh random keys), builds Echo, asks you for the password you want
-   to sign in with, and starts it. It is safe to run again.
+   to sign in with (at least 8 characters; a wrong one is simply asked for again, and pressing
+   Enter with nothing typed cancels), and starts it. It is safe to run again.
 
 3. Open `http://localhost:8770` and sign in as `tony` with that password.
 
@@ -38,6 +45,7 @@ Choices you may want on the `install.cmd` line:
 | `-AutoStart` | Start Echo every time you sign in to Windows. |
 | `-JavaHome C:\path\to\jdk-21` | Use this Java. Without it the installer picks the newest Java 21+ it finds (JAVA_HOME, the PATH, the registry, Program Files, `C:\Java`, `C:\JDK`, unzipped JDK folders), and if none qualifies it lists the versions it did find. |
 | `-AdminSqlUser sa -AdminSqlPassword ...` | You do not administer the SQL Server; use an account that may create a database. |
+| `-RestartSqlServer` | Restart SQL Server without asking if its TCP/IP must be switched on. |
 | `-Port 8771` | Something else already uses 8770. |
 | `-Bind 0.0.0.0` | Other computers should reach Echo too (it answers only this computer by default). |
 
@@ -48,6 +56,7 @@ Choices you may want on the `install.cmd` line:
 | `start-echo.cmd` / `stop-echo.cmd` | Start or stop Echo. |
 | `update-echo.cmd` | git pull, back up the database, update it, rebuild, restart. |
 | `backup-echo.cmd` | Back up the Echo database to a dated `.bak`. |
+| `uninstall-echo.cmd` | Take Echo off this computer: backs the database up, drops it and Echo's SQL login (kept if another Echo database still uses it), and moves `config\`, `logs\`, `target\`, `lib\` and `EchoFiles\` to the Recycle Bin. It drops only a database that holds Echo's own tables -- never Leonardo or Hearth. Run as administrator; asks you to type YES. `install.cmd` puts it back. |
 | `set-password.cmd` | A new password, or another sign-in (`-Username someone`). Also resets a forgotten one. |
 | `export-solution.cmd` / `import-solution.cmd` | Copy a whole solution from Leonardo (or another Echo) into this Echo. See Echo's Help, "Bringing a solution over from Leonardo". |
 

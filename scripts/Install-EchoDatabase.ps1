@@ -14,7 +14,8 @@
     module to install.
 
 .PARAMETER SqlServer
-    The SQL Server instance, e.g. localhost, .\SQLEXPRESS, MYPC\SQL2019. Default localhost.
+    The SQL Server instance, e.g. localhost, .\SQLEXPRESS, MYPC\SQL2019. Left out: the one the last install
+    recorded, else the SQL Server running on this computer (Story 5653).
 
 .PARAMETER Database
     Default Echo.
@@ -27,7 +28,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$SqlServer = 'localhost',
+    [string]$SqlServer,
     [string]$Database  = 'Echo',
     [string]$SqlUser,
     [string]$SqlPassword
@@ -36,6 +37,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $db   = Join-Path $root 'db'
+. (Join-Path $PSScriptRoot 'EchoCommon.ps1')
+Assert-EchoDatabaseName $Database
+if (-not $SqlServer) {
+    $SqlServer = Select-EchoSqlServer -Root $root -SqlUser $SqlUser -SqlPassword $SqlPassword
+}
 
 function New-EchoConnectionString([string]$catalog) {
     $b = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
@@ -80,7 +86,17 @@ try {
         # A fixed, case-insensitive collation: Echo's SQL is written for one, whatever the server's default.
         $cmd.CommandText = "CREATE DATABASE [$Database] COLLATE SQL_Latin1_General_CP1_CI_AS"
         [void]$cmd.ExecuteNonQuery()
+        # Story 5653: marked as Echo's before any table goes in, so a run that fails halfway can be
+        # re-run or uninstalled (both test for this mark or AppUser).
+        Set-EchoDatabaseMark $master $Database
     } else {
+        # Story 5653: bring up to date only an Echo database (or an empty one). Echo's procedures carry
+        # Leonardo's names, so run into Leonardo -- or any other app's database -- they would replace its own.
+        $tables = [int](Invoke-EchoScalar $master "SELECT COUNT(*) FROM [$Database].sys.tables WHERE is_ms_shipped = 0")
+        if ($tables -gt 0 -and -not (Test-EchoIsEchoDatabase $master $Database)) {
+            throw "The database $Database on $SqlServer already holds another program's tables, so it is not an Echo database. Nothing was changed. Choose another name with -Database."
+        }
+        Set-EchoDatabaseMark $master $Database   # an Echo database made before the mark existed gets it now
         Write-Host "  database exists -- bringing it up to date"
     }
 } finally { $master.Close() }
