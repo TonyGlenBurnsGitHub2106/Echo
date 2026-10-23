@@ -16,11 +16,16 @@ function Get-EchoJavaMajor([string]$JavaHome) {
 # Otherwise it looks at JAVA_HOME, every java.exe on the PATH, the registry keys the JDK installers
 # write, and the usual folders -- including unzipped JDKs in C:\Java, C:\JDK, C:\Tony\Dev\JDK
 # (Story 5653: the first run on RENAISSANCE missed its JDK 21, which is unzipped there, not installed).
+# Every folder BESIDE a Java it finds is looked at too (Story 5653: at work JAVA_HOME named a Zulu 17
+# in C:\dev\SNF\java and the Temurin 25 unzipped next to it was never seen). Echo is built from
+# source, so it must be a JDK (bin\javac.exe), not a JRE.
 function Find-EchoJava([string]$JavaHome) {
     if ($JavaHome) {
+        $JavaHome = $JavaHome.TrimEnd('\')
         $major = Get-EchoJavaMajor $JavaHome
-        if ($major -ge 21) { return [pscustomobject]@{ Home = $JavaHome; Exe = (Join-Path $JavaHome 'bin\java.exe'); Major = $major } }
-        throw "-JavaHome $JavaHome is not a Java 21 or newer (found version $major). Point it at the folder that holds bin\java.exe."
+        if ($major -lt 21) { throw "-JavaHome $JavaHome is not a Java 21 or newer (found version $major). Point it at the folder that holds bin\java.exe." }
+        if (-not (Test-Path (Join-Path $JavaHome 'bin\javac.exe'))) { throw "-JavaHome $JavaHome is a Java $major runtime (JRE) without bin\javac.exe; Echo is built from source and needs a JDK." }
+        return [pscustomobject]@{ Home = $JavaHome; Exe = (Join-Path $JavaHome 'bin\java.exe'); Major = $major }
     }
     $candidates = @()
     if ($env:JAVA_HOME) { $candidates += $env:JAVA_HOME }
@@ -40,19 +45,25 @@ function Find-EchoJava([string]$JavaHome) {
     foreach ($base in $bases) {
         if ($base -and (Test-Path $base)) { Get-ChildItem $base -Directory -ErrorAction SilentlyContinue | ForEach-Object { $candidates += $_.FullName } }
     }
+    # The neighbors of every Java found so far: JDKs tend to be unzipped side by side.
+    $parents = @($candidates | Where-Object { $_ } | ForEach-Object { Split-Path -Parent $_.TrimEnd('\') } | Where-Object { $_ } | Select-Object -Unique)
+    foreach ($parent in $parents) {
+        if (Test-Path $parent) { Get-ChildItem $parent -Directory -ErrorAction SilentlyContinue | ForEach-Object { $candidates += $_.FullName } }
+    }
     $seen = @()
     $best = $null
-    foreach ($jh in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+    foreach ($jh in ($candidates | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\') } | Sort-Object -Unique)) {
         $major = Get-EchoJavaMajor $jh
         if ($major -eq 0) { continue }
-        $seen += "$major ($jh)"
-        if ($major -ge 21 -and (-not $best -or $major -gt $best.Major)) {
+        $isJdk = Test-Path (Join-Path $jh 'bin\javac.exe')
+        $seen += "$major$(if (-not $isJdk) { ' runtime only, no javac' }) ($jh)"
+        if ($major -ge 21 -and $isJdk -and (-not $best -or $major -gt $best.Major)) {
             $best = [pscustomobject]@{ Home = $jh; Exe = (Join-Path $jh 'bin\java.exe'); Major = $major }
         }
     }
     if ($best) { return $best }
     $found = if ($seen) { ' Found only: ' + ($seen -join '; ') + '.' } else { '' }
-    throw "Echo needs Java 21 or newer and none was found.$found Install one (for example Eclipse Temurin 21), or pass -JavaHome C:\path\to\jdk."
+    throw "Echo needs a Java 21 or newer JDK and none was found.$found Install one (for example Eclipse Temurin 21 JDK), or pass -JavaHome C:\path\to\jdk (the folder that holds bin\javac.exe)."
 }
 
 function New-EchoConnection([string]$SqlServer, [string]$Database, [string]$SqlUser, [string]$SqlPassword) {
