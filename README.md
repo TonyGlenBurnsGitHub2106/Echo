@@ -43,7 +43,7 @@ Choices you may want on the `install.cmd` line:
 |---|---|
 | `-Auth Windows` | The SQL Server takes Windows sign-ins only (the installer notices and switches by itself). |
 | `-AutoStart` | Start Echo every time you sign in to Windows. |
-| `-JavaHome C:\path\to\jdk-21` | Use this Java. Without it the installer picks the newest Java 21+ it finds (JAVA_HOME, the PATH, the registry, Program Files, `C:\Java`, `C:\JDK`, unzipped JDK folders, and every folder beside a Java it finds), and if none qualifies it lists the versions it did find. It must be a JDK (with `bin\javac.exe`), since Echo is built from source. |
+| `-JavaHome C:\path\to\jdk-21` | Use this Java. Without it the installer picks the newest Java 21+ it finds (JAVA_HOME, the PATH, the registry, Program Files, `C:\Java`, `C:\JDK`, unzipped JDK folders, and every folder beside a Java it finds), and if none qualifies it lists the versions it did find and asks you to type the folder of one (Enter cancels). It must be a JDK (with `bin\javac.exe`), since Echo is built from source. |
 | `-AdminSqlUser sa -AdminSqlPassword ...` | You do not administer the SQL Server; use an account that may create a database. |
 | `-RestartSqlServer` | Restart SQL Server without asking if its TCP/IP must be switched on. |
 | `-Port 8771` | Something else already uses 8770. |

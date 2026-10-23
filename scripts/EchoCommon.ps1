@@ -63,6 +63,23 @@ function Find-EchoJava([string]$JavaHome) {
     }
     if ($best) { return $best }
     $found = if ($seen) { ' Found only: ' + ($seen -join '; ') + '.' } else { '' }
+    # Story 5653: when every search comes up empty, ask for the folder rather than stop, as long as
+    # someone is there to answer. Enter on its own cancels.
+    if ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+        Write-Host ''
+        Write-Host '  No Java 21 or newer JDK was found on this computer.' -ForegroundColor Yellow
+        foreach ($s in $seen) { Write-Host "    found: $s" }
+        while ($true) {
+            $typed = Read-Host '  Type the folder of a Java 21+ JDK (the one that holds bin\javac.exe), or press Enter to cancel'
+            $typed = ([string]$typed).Trim().Trim('"').TrimEnd('\')
+            if (-not $typed) { break }
+            if (-not (Test-Path (Join-Path $typed 'bin\java.exe'))) { Write-Host "  $typed has no bin\java.exe. Try again." -ForegroundColor Yellow; continue }
+            $major = Get-EchoJavaMajor $typed
+            if ($major -lt 21) { Write-Host "  $typed is Java $major; Echo needs 21 or newer. Try again." -ForegroundColor Yellow; continue }
+            if (-not (Test-Path (Join-Path $typed 'bin\javac.exe'))) { Write-Host "  $typed is a Java $major runtime without bin\javac.exe; Echo needs a JDK. Try again." -ForegroundColor Yellow; continue }
+            return [pscustomobject]@{ Home = $typed; Exe = (Join-Path $typed 'bin\java.exe'); Major = $major }
+        }
+    }
     throw "Echo needs a Java 21 or newer JDK and none was found.$found Install one (for example Eclipse Temurin 21 JDK), or pass -JavaHome C:\path\to\jdk (the folder that holds bin\javac.exe)."
 }
 
