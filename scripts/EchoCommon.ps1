@@ -181,7 +181,7 @@ function Invoke-EchoMaven([string]$Root, [string]$JavaHome, [string[]]$MavenArgs
 
 function Invoke-EchoBuild([string]$Root, [string]$JavaHome) {
     Write-Host '  building Echo (the first build downloads what it needs; give it a few minutes)'
-    Invoke-EchoMaven -Root $Root -JavaHome $JavaHome -MavenArgs @('-q', 'package', '-DskipTests')
+    Invoke-EchoMaven -Root $Root -JavaHome $JavaHome -MavenArgs @('-q', 'package', '-Dmaven.test.skip=true')   # Story 5653: the Spock specs are neither compiled nor run on install or update
     $jar = Join-Path $Root 'target\echo.jar'
     if (-not (Test-Path $jar)) { throw "The build finished but target\echo.jar is not there." }
     Write-Host "  built target\echo.jar"

@@ -18,3 +18,7 @@ lib/
 service/*.log
 
 .mvn/wrapper/maven-wrapper.jar
+
+# The spock-tests skill is a verbatim copy of the work (SNF) skill Rex supplied (Story 5653). It names
+# the employer's internal packages and classes, and this repo is public, so it stays on this machine only.
+.claude/skills/spock-tests/

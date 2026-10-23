@@ -65,6 +65,23 @@ where PowerShell asks for signed scripts.
 
 ---
 
+## Tests
+
+Echo is tested with Spock specifications (Groovy, in `src	est\groovy\com\echo`), written to the
+spock-tests rules: data tables with a `scenario` column, `||` before the expected results, nothing but
+plain values in `where:`, every spec extending `EchoSpockBaseSpec`. Installing and updating never compile
+or run them.
+
+| Suite | How to run | Needs |
+|---|---|---|
+| Unit and web specs (`*Spec`) | `test-echo.cmd` (or `test-echo.cmd -Test SolutionServiceSpec`) | nothing -- no database, no browser |
+| Database specs (`*ITSpec`) | `scripts\Test-EchoDatabase.ps1 -SqlServer <instance> -Port <port> -SqlUser <login> -SqlPassword <password>` | a SQL Server; it creates and uses only a throwaway database whose name starts with `EchoTest_` |
+| Browser specs (`*E2ESpec`) | `set ECHO_E2E_PASSWORD=...` then `mvnw -Pe2e test -Decho.e2e.user=<user>` | a running Echo and a sign-in made for testing; the first run downloads Chromium |
+
+A known bug is kept visible, not hidden: its spec is marked `@PendingFeature(reason='BUG: ...')`, so the
+suite stays green while the bug is open, and the spec fails loudly once the bug is fixed (remove the
+annotation then).
+
 ## Technical details
 
 > For developers and troubleshooting.

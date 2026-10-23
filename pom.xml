@@ -16,6 +16,8 @@
 	<properties>
 		<java.version>21</java.version>
 		<jjwt.version>0.12.6</jjwt.version>
+		<spock.version>2.4-groovy-5.0</spock.version>
+		<gmavenplus.version>4.2.1</gmavenplus.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -74,6 +76,24 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Story 5653: the tests are Spock specifications (Groovy), run on the JUnit Platform. -->
+		<dependency>
+			<groupId>org.spockframework</groupId>
+			<artifactId>spock-core</artifactId>
+			<version>${spock.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.spockframework</groupId>
+			<artifactId>spock-spring</artifactId>
+			<version>${spock.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -83,7 +103,136 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!-- Story 5653: compiles the Spock specifications in src/test/groovy. -->
+			<plugin>
+				<groupId>org.codehaus.gmavenplus</groupId>
+				<artifactId>gmavenplus-plugin</artifactId>
+				<version>${gmavenplus.version}</version>
+				<configuration>
+					<targetBytecode>21</targetBytecode>
+					<!-- Story 5653: the browser specs (src/test/groovy/com/echo/e2e) need Playwright, which
+					     only the e2e profile brings in, so the normal build leaves them out entirely. -->
+					<testSources>
+						<testSource>
+							<directory>${project.basedir}/src/test/groovy</directory>
+							<includes>
+								<include>**/*.groovy</include>
+							</includes>
+							<excludes>
+								<exclude>**/e2e/**</exclude>
+							</excludes>
+						</testSource>
+					</testSources>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>addTestSources</goal>
+							<goal>compileTests</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<includes>
+						<include>**/*Spec.class</include>
+						<include>**/*Test.class</include>
+						<include>**/*Tests.class</include>
+					</includes>
+					<!-- Story 5653: the database specs (*ITSpec) need a throwaway EchoTest_ database and run only
+					     with -Pdb-it; the browser specs (*E2ESpec, package e2e) need a running Echo and run only
+					     with -Pe2e. A plain mvnw test runs neither. -->
+					<excludes>
+						<exclude>**/*ITSpec.class</exclude>
+						<exclude>**/*E2ESpec.class</exclude>
+						<exclude>**/e2e/**</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Story 5653: mvnw -Pdb-it test runs ONLY the database integration specs (*ITSpec) against the
+		     database in -Decho.it.url / ECHO_IT_URL (scripts\Test-EchoDatabase.ps1 sets it). The specs
+		     refuse any database whose name does not start with EchoTest_. -->
+		<profile>
+			<id>db-it</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<includes combine.self="override">
+								<include>**/*ITSpec.class</include>
+							</includes>
+							<excludes combine.self="override">
+								<exclude>**/EchoDbITSpec.class</exclude>
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<!-- Story 5653: opt-in browser end-to-end tests (Playwright for Java, driven from Spock).
+		     Never part of the normal build or the installer. Run against a RUNNING Echo:
+		       set ECHO_E2E_PASSWORD=...   (environment, never -D: surefire writes -D values into its reports)
+		       mvnw -Pe2e test -Decho.e2e.user=NAME [-Decho.e2e.url=http://localhost:8770]
+		     The first run downloads Chromium into the ms-playwright cache. -->
+		<profile>
+			<id>e2e</id>
+			<properties>
+				<playwright.version>1.59.0</playwright.version>
+				<echo.e2e.url>http://localhost:8770</echo.e2e.url>
+				<echo.e2e.user></echo.e2e.user>
+			</properties>
+			<dependencies>
+				<dependency>
+					<groupId>com.microsoft.playwright</groupId>
+					<artifactId>playwright</artifactId>
+					<version>${playwright.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.gmavenplus</groupId>
+						<artifactId>gmavenplus-plugin</artifactId>
+						<configuration>
+							<testSources combine.self="override">
+								<testSource>
+									<directory>${project.basedir}/src/test/groovy</directory>
+									<includes>
+										<include>**/*.groovy</include>
+									</includes>
+								</testSource>
+							</testSources>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<includes combine.self="override">
+								<include>**/*E2ESpec.class</include>
+							</includes>
+							<excludes combine.self="override">
+								<exclude>**/*$*</exclude>
+							</excludes>
+							<systemPropertyVariables>
+								<echo.e2e.url>${echo.e2e.url}</echo.e2e.url>
+								<echo.e2e.user>${echo.e2e.user}</echo.e2e.user>
+							</systemPropertyVariables>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
