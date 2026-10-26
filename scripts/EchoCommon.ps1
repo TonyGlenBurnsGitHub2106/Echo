@@ -207,8 +207,18 @@ function Read-EchoInstall([string]$Root) {
 # The java.exe processes running this folder's echo.jar.
 function Get-EchoProcess([string]$Root) {
     $jar = (Join-Path $Root 'target\echo.jar').ToLower()
-    Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" |
-        Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($jar) }
+    $javas = @(Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'")
+    $found = @($javas | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($jar) })
+    if ($found.Count -gt 0) { return $found }
+    # Story 5653: an Echo started as administrator hides its command line from a plain window, so
+    # it looked "not running" and the build then failed on the locked echo.jar (work, 2026-10-26).
+    # Fall back to the Java listening on Echo's port.
+    $port = 0
+    try { $port = [int](Read-EchoInstall $Root).port } catch { }
+    if ($port -le 0) { return }
+    $owners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
+                    Select-Object -ExpandProperty OwningProcess -Unique)
+    $javas | Where-Object { $owners -contains $_.ProcessId }
 }
 
 # The SQL Server instances installed on THIS computer (registry), each with its service state and
