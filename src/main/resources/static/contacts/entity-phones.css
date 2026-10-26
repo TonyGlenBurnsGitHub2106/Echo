@@ -1,0 +1,43 @@
+/* entity-phones.css -- the organized Phones tab on record pages (2026-10-15).
+   The layout is the Files tab's (entity-files.css: .ef-band, .ef-card, .ef-seg, ...);
+   this adds only what a phone has that a file does not, and the card fold. */
+
+.ep-card .ef-name { font-size: 14px; cursor: pointer; }
+.ep-number {
+    flex: 0 0 auto; font-size: 14px; font-weight: 600; color: #0A66C2;
+    text-decoration: none; white-space: nowrap;
+}
+a.ep-number:hover { text-decoration: underline; }
+.ep-dates { color: #64748B; font-size: 12px; }
+.ep-card .ep-notes { white-space: pre-wrap; word-break: break-word; }
+
+/* Every phone card folds to its top line -- name, number and flag stay. */
+.ep-fold {
+    flex: 0 0 auto; border: 0; background: transparent; padding: 0 2px;
+    font: inherit; color: #475569; cursor: pointer; line-height: 1;
+}
+.ep-fold:focus-visible { outline: 2px solid #0A66C2; outline-offset: 2px; border-radius: 3px; }
+.ep-card.collapsed { padding-top: 8px; padding-bottom: 8px; }
+.ep-card.collapsed > .ef-meta,
+.ep-card.collapsed > .ep-notes,
+.ep-card.collapsed > .ed-card-actions { display: none; }
+
+/* On a narrow phone the number drops under the name instead of squeezing it. */
+@media (max-width: 480px) {
+    .ep-card .ef-top { flex-wrap: wrap; }
+    .ep-card .ep-number { order: 5; flex-basis: 100%; padding-left: 22px; }
+}
+
+/* ---- Arrange: drag the type groups AND the phones inside a group into order ----
+   The groups stay open (fold one with its caret) and each card shrinks to its grip,
+   name and number. */
+.ep-pane.ef-arranging .ef-band-body { display: block; }
+.ep-pane.ef-arranging .ef-caret { visibility: visible; }
+.ep-pane.ef-arranging .ef-band.collapsed .ef-band-body { display: none; }
+.ep-pane.ef-arranging .ep-card .ef-meta,
+.ep-pane.ef-arranging .ep-card .ep-notes,
+.ep-pane.ef-arranging .ep-card .ed-card-actions,
+.ep-pane.ef-arranging .ep-card .ep-fold,
+.ep-pane.ef-arranging .ep-card .ef-flag { display: none; }
+.ep-pane.ef-arranging .ep-card { padding-top: 6px; padding-bottom: 6px; }
+.ep-card.dragging { opacity: .55; outline: 2px dashed #2563EB; outline-offset: -2px; }

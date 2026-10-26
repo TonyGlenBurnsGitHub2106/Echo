@@ -1,0 +1,111 @@
+/* picasso-linked.css -- the Linked Entities window and its right-click menu.
+   Self-contained: pages that use it need no other stylesheet. Sits above the
+   record pages' own modals (ED modal ~1000-1500) and below Picasso Dialog. */
+
+.pl-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    background: rgba(17, 24, 39, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.pl-bg.open { display: flex; }
+
+.pl-modal {
+    background: #FFFFFF;
+    color: #111827;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    max-height: 85dvh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+}
+
+.pl-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px 4px;
+    flex: 0 0 auto;
+}
+.pl-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+
+.pl-sub {
+    padding: 0 18px 10px;
+    flex: 0 0 auto;
+    border-bottom: 1px solid #E5E7EB;
+}
+.pl-target { display: block; font-weight: 600; word-break: break-word; }
+.pl-count  { display: block; color: #6B7280; font-size: 13px; margin-top: 2px; }
+
+.pl-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 6px 18px 10px;
+}
+
+.pl-group { margin-top: 10px; }
+.pl-grouphead {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #4B5563;
+    padding: 4px 0;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.pl-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #F3F4F6;
+}
+.pl-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+    color: #111827;
+}
+a.pl-name { color: #1D4ED8; text-decoration: none; }
+a.pl-name:hover { text-decoration: underline; }
+
+.pl-empty { padding: 18px 0; color: #6B7280; }
+
+.pl-actions {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 18px 14px;
+    border-top: 1px solid #E5E7EB;
+}
+
+.pl-btn {
+    font: inherit;
+    font-size: 14px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid #D1D5DB;
+    background: #FFFFFF;
+    color: #111827;
+    cursor: pointer;
+}
+.pl-btn.primary { background: #1F2937; border-color: #1F2937; color: #FFFFFF; }
+.pl-btn.small   { padding: 4px 10px; font-size: 13px; flex: 0 0 auto; }
+.pl-btn[hidden] { display: none; }
+
+@media (max-width: 600px) {
+    .pl-bg { align-items: flex-end; padding: 0; }
+    .pl-modal { max-width: none; border-radius: 12px 12px 0 0; max-height: 90vh; max-height: 90dvh; }
+    .pl-actions .pl-btn { flex: 1 1 auto; }
+}

@@ -37,7 +37,6 @@ Date        Developer    Description
 10/01/2026  Felix        Story 5566: a new solution is a true entity -- its EntityID comes from stp_Entity_Create in
                          the same transaction as the insert (SET XACT_ABORT ON, so a failed insert rolls the new
                          entity back with it). An update never touches EntityID.
-10/21/2026  Felix        Story 5653 (Echo): Echo has no entities, so no EntityID is made; the column stays NULL.
 
 */
 
@@ -73,11 +72,19 @@ IF @prmSolutionID > 0 BEGIN
            ModifiedDate = GETDATE(), ModifiedBy = @prmModifiedBy
     WHERE  SolutionID = @prmSolutionID
 END ELSE BEGIN
+    DECLARE @entityTypeId INT, @entityId INT
+    SELECT @entityTypeId = EntityTypeID FROM dbo.tblEntityType WHERE EntityTable = 'Solution'
+    IF @entityTypeId IS NULL BEGIN RAISERROR('The Solution entity type is missing. Nothing was saved.', 16, 1) RETURN END
+
     BEGIN TRANSACTION
 
-    INSERT INTO dbo.Solution (SolutionName, SolutionDescription, SolutionStatusID, OwnerMemberID, StatusSummary,
+    EXEC dbo.stp_Entity_Create @prmEntityTypeID = @entityTypeId,
+                               @prmTempTypeDescription = 'Solution',
+                               @prmOutPutIdentity = @entityId OUTPUT
+
+    INSERT INTO dbo.Solution (EntityID, SolutionName, SolutionDescription, SolutionStatusID, OwnerMemberID, StatusSummary,
                               TargetDate, IsArchived, SortOrder, ModifiedBy, SolutionAlias)
-    VALUES (@prmSolutionName, @prmSolutionDescription, @statusId, @ownerId, NULLIF(LTRIM(RTRIM(ISNULL(@prmStatusSummary, ''))), ''),
+    VALUES (@entityId, @prmSolutionName, @prmSolutionDescription, @statusId, @ownerId, NULLIF(LTRIM(RTRIM(ISNULL(@prmStatusSummary, ''))), ''),
             @prmTargetDate, ISNULL(@prmIsArchived, 0),
             CASE WHEN ISNULL(@prmSortOrder, 0) > 0 THEN @prmSortOrder ELSE ISNULL((SELECT MAX(SortOrder) FROM dbo.Solution), 0) + 1 END,
             @prmModifiedBy, @prmSolutionAlias)

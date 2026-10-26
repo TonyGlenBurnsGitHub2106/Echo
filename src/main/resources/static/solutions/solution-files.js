@@ -61,8 +61,7 @@
     // The Leonardo Reader is offered only where its own renderer cannot be steered by the file's
     // content: PDFs, pictures and plain text. Markdown and web pages -- which an outside agent can
     // upload to a shared solution -- are read with View, drawn the safe way.
-    // Echo (Story 5653) has no Leonardo Reader, so it is never offered: View draws every file here.
-    var READER_EXT = {};
+    var READER_EXT = { pdf: 1, png: 1, jpg: 1, jpeg: 1, gif: 1, webp: 1, bmp: 1, txt: 1, log: 1, csv: 1 };
 
     // ---- state ---------------------------------------------------------------------------------
 
@@ -251,7 +250,7 @@
             function ready() { window.PicassoSplit.ensureViewState(VS).then(function () { resolve(true); }); }
             if (window.PicassoSplit) { ready(); return; }
             var sc = document.createElement('script');
-            sc.src = '/picasso-split.js?v=5';
+            sc.src = '/picasso-split.js?v=7';
             sc.onload = ready;
             sc.onerror = function () { resolve(false); };
             document.head.appendChild(sc);

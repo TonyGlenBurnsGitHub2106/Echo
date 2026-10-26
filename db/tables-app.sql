@@ -96,3 +96,19 @@ GO
 IF OBJECT_ID('dbo.DF_AppUser_LOG_IsInsertion') IS NULL
     ALTER TABLE dbo.AppUser_LOG ADD CONSTRAINT DF_AppUser_LOG_IsInsertion DEFAULT (0) FOR IsInsertion
 GO
+-- ---- EntityLoginSetupXRef_LOG (Story 5653, 2026-10-26) ----
+-- Leonardo's EntityLoginSetupXRef has no audit twin; every Echo table gets one (house rule).
+IF OBJECT_ID('dbo.EntityLoginSetupXRef_LOG') IS NULL
+CREATE TABLE dbo.EntityLoginSetupXRef_LOG (
+    EntityLoginSetupXRef_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_EntityLoginSetupXRef_LOG PRIMARY KEY CLUSTERED,
+    LogCreatedDate         DATETIME NOT NULL CONSTRAINT DF_EntityLoginSetupXRef_LOG_LCD DEFAULT (GETDATE()),
+    IsInsertion            BIT      NOT NULL CONSTRAINT DF_EntityLoginSetupXRef_LOG_INS DEFAULT (0),
+    DeletedDate            DATETIME NULL,
+    EntityLoginSetupXRefID INT      NULL,
+    EntityID               INT      NULL,
+    LoginSetupID           INT      NULL,
+    EffectiveDate          DATETIME NULL,
+    ThroughDate            DATETIME NULL,
+    CreatedDate            DATETIME NULL
+)
+GO

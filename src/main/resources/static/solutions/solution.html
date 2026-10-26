@@ -15,12 +15,15 @@
     <link rel="stylesheet" href="/picasso-select.css?v=5">
     <link rel="stylesheet" href="/picasso-picker.css?v=2">
     <link rel="stylesheet" href="/picasso-tags.css?v=2">
-    <!-- entity-detail.css carries the shared record-tab styles the Files tab draws with (ed-btn ...).
-         It comes BEFORE solutions.css so the solution page keeps its own body background. -->
+    <!-- The Web tab is the shared record Web tab (a solution is an entity). entity-detail.css
+         comes BEFORE solutions.css so the solution page keeps its own body background. -->
     <link rel="stylesheet" href="../contacts/entity-detail.css?v=23">
     <link rel="stylesheet" href="/picasso-quick-add.css?v=1">
     <link rel="stylesheet" href="/files/file-kit.css?v=6">
     <link rel="stylesheet" href="/contacts/entity-files.css?v=10">
+    <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
+    <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
+    <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
     <link rel="stylesheet" href="solutions.css?v=46">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
@@ -47,6 +50,7 @@
         <button type="button" class="sl-tab"        data-tab="grid"          data-testid="solution-tab-grid">Configuration II</button>
         <button type="button" class="sl-tab"        data-tab="files"         data-testid="solution-tab-files">Files</button>
         <button type="button" class="sl-tab"        data-tab="conversations" data-testid="solution-tab-conversations">Conversations <span class="badge" id="badgeConv"></span></button>
+        <button type="button" class="sl-tab"        data-tab="web"           data-testid="solution-tab-web">Web</button>
         <button type="button" class="sl-tab"        data-tab="search"        data-testid="solution-tab-search">Search</button>
     </div>
 
@@ -260,6 +264,9 @@
             <div id="pane-grid"          hidden data-testid="solution-pane-grid"></div>
             <div id="pane-files"         hidden data-testid="solution-pane-files"></div>
             <div id="pane-conversations" hidden data-testid="solution-pane-conversations"></div>
+            <!-- The shared record Web tab, drawn by LWED / entity-web.js (solution-web.js). It has its
+                 own Add / sort / search row, so this tab has no toolbar of its own. -->
+            <div id="pane-web"           hidden data-testid="solution-pane-web"><div class="ed-pane active" id="webPane" data-testid="solution-web-pane"><div class="sl-empty">Loading&hellip;</div></div></div>
             <div id="pane-search"        hidden data-testid="solution-pane-search"></div>
             <!-- Built on demand by solution-print.js and handed to the Print Menu; never shown. -->
             <div id="printArea" hidden data-testid="solution-print-area"></div>
@@ -835,16 +842,16 @@
 <script src="../auth.js?v=36"></script>
 <script src="/picasso-select.js?v=5"></script>
 <script src="/picasso-picker.js?v=4"></script>
-<script src="/picasso-view-state.js?v=3"></script>
+<script src="/picasso-view-state.js?v=4"></script>
 <script src="/picasso-tags.js?v=5"></script>
 <script src="solutions-common.js?v=13"></script>
-<script src="solution.js?v=35"></script>
+<script src="solution.js?v=37"></script>
 <script src="solution-items.js?v=21"></script>
 <script src="solution-log.js?v=9"></script>
 <script src="solution-notes.js?v=21"></script>
 <script src="solution-terms.js?v=1"></script>
 <script src="solution-conv.js?v=8"></script>
-<script src="solution-files.js?v=17"></script>
+<script src="solution-files.js?v=19"></script>
 <script src="solution-tests.js?v=15"></script>
 <script src="solution-config.js?v=9"></script>
 <script src="solution-config-grid.js?v=3"></script>
@@ -852,7 +859,15 @@
 <script src="solution-print.js?v=8"></script>
 <script src="/picasso-quick-add.js?v=2"></script>
 <script src="/picasso-context-menu.js?v=1"></script>
+<script src="/picasso-linked.js?v=5"></script>
+<script src="../contacts/entity-detail.js?v=125"></script>
+<!-- Story 5653 (Echo): switches off Pin and Needs attention, which live in Leonardo's Entity Manager. -->
+<script src="../contacts/entity-detail-echo.js?v=1"></script>
 <script src="/files/file-kit.js?v=8"></script>
 <script src="/picasso-groups.js?v=3"></script>
+<script src="/contacts/entity-web.js?v=4"></script>
+<script src="/contacts/entity-phones.js?v=2"></script>
+<script src="/contacts/entity-logins.js?v=3"></script>
+<script src="solution-web.js?v=3"></script>
 </body>
 </html>

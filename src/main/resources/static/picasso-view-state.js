@@ -36,6 +36,17 @@
    and keeps under 'picasso.deviceId'. It is an identity, not remembered
    state, so it is the one thing that has to live on the device itself.
    An installed PWA keeps its own storage, so it counts as its own device.
+
+   AUTOMATION NEVER SAVES (2026-10-22). A browser driven by Playwright -- the
+   nightly smoke, demo videos, a session's probe -- signs in as Tony, so every
+   tap it made was saved as his: the Gmail Client topic's Unread-then-All
+   turned his Unread filter into All every night, and 26 other choices (Think
+   Tank and checklist folds, Files tools, Health chart tabs ...) went the same
+   way. When navigator.webdriver is true the page still READS the server (so it
+   starts from Tony's real choices) and still remembers in its own cache for
+   the rest of that browser's life, but nothing is ever sent up. A probe that
+   must test the server save itself sets window.__LEO_VIEWSTATE_LIVE = true in
+   an init script. PicassoViewState.automated says which mode the page is in.
    ------------------------------------------------------------------------ */
 (function () {
     'use strict';
@@ -48,6 +59,7 @@
     var dirtySeq = {};           // key -> sequence number of its last set()
     var savedSeq = {};           // key -> sequence number the server has confirmed holding
     var seq = 0;
+    var AUTOMATED = !!(window.navigator && window.navigator.webdriver) && !window.__LEO_VIEWSTATE_LIVE;
 
     function cacheGet(key) {
         try { return window.localStorage ? window.localStorage.getItem(key) : null; }
@@ -77,7 +89,7 @@
         var batch = pending;
         pending = {};
         var keys = Object.keys(batch);
-        if (!keys.length || !api()) return;
+        if (!keys.length || !api() || AUTOMATED) return;   // automation keeps its taps to itself
         // The server takes at most 50 keys per save.
         for (var i = 0; i < keys.length; i += 50) {
             var part = {}, sent = {};
@@ -167,5 +179,5 @@
     /** 'gmailclient.' -> 'leo.device.<deviceId>.gmailclient.' -- a key (or prefix) for this user on this device. */
     function deviceKey(name) { return 'leo.device.' + deviceId() + '.' + (name || ''); }
 
-    window.PicassoViewState = { get: get, set: set, sync: sync, deviceId: deviceId, deviceKey: deviceKey };
+    window.PicassoViewState = { get: get, set: set, sync: sync, deviceId: deviceId, deviceKey: deviceKey, automated: AUTOMATED };
 })();

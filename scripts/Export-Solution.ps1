@@ -8,8 +8,9 @@
     both. Everything comes across exactly: projects and items at every depth, the log (with its
     numbers, authors and dates), notes with every version and step, terms, testing and QA
     checklists with their ticks, both Configuration tabs, file filing, conversations with every
-    message, and the files themselves. Not copied: who the solution is shared with (an agent's
-    key belongs to one Echo) and, from Leonardo, the records it hangs on.
+    message, the files themselves, and the Web tab's web addresses (with their types, Important
+    marks and order). Not copied: who the solution is shared with (an agent's key belongs to one
+    Echo), its logins, and, from Leonardo, the records it hangs on.
 
     The file holds the solution's whole content. Keep it somewhere private and remove it once it
     has been imported.
@@ -99,6 +100,35 @@ try {
             $missing += "$($f.SolutionFileID) $($f.OriginalFileName)"
         }
     }
+
+    # Story 5653: the solution's Web tab -- its web addresses, hung off its EntityID -- by value (name,
+    # address, types by name, notes, Important, order), since entity ids mean nothing in another database.
+    # Import-Solution.ps1 makes them again through Echo's own procedures. Logins are not exported.
+    $webAddresses = New-Object System.Collections.ArrayList
+    if ([int](Invoke-EchoScalar $c "SELECT CASE WHEN OBJECT_ID('dbo.tblEntityWebAddressXRef') IS NULL THEN 0 ELSE 1 END")) {
+        $cmd = $c.CreateCommand()
+        $cmd.CommandText = @'
+SELECT w.WebAddressName, w.WebAddress, at.WebAddressType, st.WebSiteType, w.Notes,
+       CAST(ISNULL(f.IsImportant, 0) AS BIT) AS IsImportant, q.SortOrder
+FROM   dbo.Solution s
+JOIN   dbo.tblEntityWebAddressXRef x ON x.EntityID = s.EntityID
+JOIN   dbo.tblWebAddress w            ON w.WebAddressID = x.WebAddressID
+LEFT JOIN dbo.tblWebAddressType at    ON at.WebAddressTypeID = w.WebAddressTypeID
+LEFT JOIN dbo.WebSiteType st          ON st.WebSiteTypeID = w.WebSiteTypeID
+LEFT JOIN dbo.EntityWebAddressFlag f  ON f.EntityWebAddressXRefID = x.EntityWebAddressXRefID
+LEFT JOIN dbo.EntityWebAddressSequence q ON q.EntityWebAddressXRefID = x.EntityWebAddressXRefID
+WHERE  s.SolutionID = @s
+ORDER BY CASE WHEN q.SortOrder IS NULL THEN 1 ELSE 0 END, q.SortOrder, x.EntityWebAddressXRefID
+'@
+        [void]$cmd.Parameters.AddWithValue('@s', $SolutionId)
+        $r = $cmd.ExecuteReader()
+        while ($r.Read()) {
+            $row = [ordered]@{}
+            for ($i = 0; $i -lt $r.FieldCount; $i++) { $row[$r.GetName($i)] = ConvertTo-JsonValue $r.GetValue($i) }
+            [void]$webAddresses.Add($row)
+        }
+        $r.Close()
+    }
 } finally { $c.Close() }
 
 $doc = [ordered]@{
@@ -109,8 +139,9 @@ $doc = [ordered]@{
     solutionName = $name
     tables       = $tables
     files        = $files
+    webAddresses = $webAddresses   # Story 5653
 }
 $json = $doc | ConvertTo-Json -Depth 6 -Compress
 [IO.File]::WriteAllText($OutFile, $json, (New-Object Text.UTF8Encoding($false)))
-Write-Host ("Exported '{0}' (solution {1}): {2} rows, {3} files, {4:N0} KB -> {5}" -f $name, $SolutionId, $total, $files.Count, ((Get-Item $OutFile).Length / 1KB), $OutFile) -ForegroundColor Green
+Write-Host ("Exported '{0}' (solution {1}): {2} rows, {3} files, {4} web addresses, {5:N0} KB -> {6}" -f $name, $SolutionId, $total, $files.Count, $webAddresses.Count, ((Get-Item $OutFile).Length / 1KB), $OutFile) -ForegroundColor Green
 if ($missing) { Write-Warning ("These files' bytes were not found, so only their rows were exported: " + ($missing -join '; ')) }

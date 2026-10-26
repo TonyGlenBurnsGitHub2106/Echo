@@ -16,8 +16,14 @@
     -SqlUser / -SqlPassword for such an account): keeping the ids needs more than Echo's own
     echo_app login may do. Echo may keep running.
 
+    -WebAddressesOnly (Story 5653, 2026-10-26): the solution is here already (copied before Echo had a
+    Web tab), so only its web addresses are added from the file -- one already on the solution is left
+    as it is. Nothing else is touched.
+
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\Import-Solution.ps1 -InFile C:\temp\claims.echo.json
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File scripts\Import-Solution.ps1 -InFile C:\temp\claims.echo.json -WebAddressesOnly
 #>
 [CmdletBinding()]
 param(
@@ -26,7 +32,8 @@ param(
     [string]$Database,
     [string]$SqlUser,
     [string]$SqlPassword,
-    [string]$FilesRoot
+    [string]$FilesRoot,
+    [switch]$WebAddressesOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,6 +82,70 @@ try {
             $r.Close()
         }
         return $have
+    }
+
+    # ---- Story 5653: the Web tab ----------------------------------------------------------------
+    # The solution is an entity here too (its Web tab hangs off the EntityID). Its web addresses come
+    # by value and are made again through Echo's own procedures, inside the import's transaction: an
+    # address Echo already has (they are shared and unique) is linked, one already on the solution is
+    # left alone, a website or address type Echo lacks is made by name, and the Important marks and
+    # the order are put back.
+    function Invoke-Rows([string]$sql, [hashtable]$params) {
+        $cmd = $c.CreateCommand(); $cmd.Transaction = $tran; $cmd.CommandText = $sql
+        foreach ($k in $params.Keys) { [void]$cmd.Parameters.AddWithValue($k, $(if ($null -eq $params[$k]) { [DBNull]::Value } else { $params[$k] })) }
+        $r = $cmd.ExecuteReader(); $out = @()
+        do { while ($r.Read()) { $row = @{}; for ($k = 0; $k -lt $r.FieldCount; $k++) { $row[$r.GetName($k)] = $r.GetValue($k) }; $out += , $row } } while ($r.NextResult())
+        $r.Close()
+        return , $out
+    }
+    # The solution's EntityID, made (type 222, as stp_Solution_Save does) when it has none yet.
+    function Get-SolutionEntity {
+        $rows = Invoke-Rows 'SELECT EntityID FROM dbo.Solution WHERE SolutionID = @s' @{ '@s' = $sid }
+        if ($rows.Count -eq 0) { throw "This Echo has no solution $sid -- import the whole solution first (without -WebAddressesOnly). Nothing was imported." }
+        if (-not ($rows[0]['EntityID'] -is [DBNull])) { return [int]$rows[0]['EntityID'] }
+        $made = Invoke-Rows 'DECLARE @e INT; EXEC dbo.stp_Entity_Create @prmEntityTypeID = 222, @prmTempTypeDescription = ''Solution'', @prmOutPutIdentity = @e OUTPUT; UPDATE dbo.Solution SET EntityID = @e WHERE SolutionID = @s; SELECT @e AS EntityID' @{ '@s' = $sid }
+        return [int]$made[0]['EntityID']
+    }
+    function Add-WebAddresses([int]$entityId) {
+        $list = @($doc['webAddresses'] | Where-Object { $_ })
+        $added = 0; $linked = 0; $kept = 0; $xrefs = @()
+        foreach ($w in $list) {
+            $existing = Invoke-Rows 'SELECT WebAddressID FROM dbo.tblWebAddress WHERE WebAddress = @u' @{ '@u' = [string]$w['WebAddress'] }
+            $xid = 0
+            if ($existing.Count -gt 0) {
+                $waId = [int]$existing[0]['WebAddressID']
+                $on = Invoke-Rows 'SELECT EntityWebAddressXRefID FROM dbo.tblEntityWebAddressXRef WHERE EntityID = @e AND WebAddressID = @w' @{ '@e' = $entityId; '@w' = $waId }
+                if ($on.Count -gt 0) { $kept++; $xrefs += [int]$on[0]['EntityWebAddressXRefID']; continue }
+                [void](Invoke-Rows 'EXEC dbo.stp_LW_EntityWebAddress_Link @prmParentEntityID = @e, @prmWebAddressID = @w' @{ '@e' = $entityId; '@w' = $waId })
+                $xid = [int](Invoke-Rows 'SELECT EntityWebAddressXRefID FROM dbo.tblEntityWebAddressXRef WHERE EntityID = @e AND WebAddressID = @w' @{ '@e' = $entityId; '@w' = $waId })[0]['EntityWebAddressXRefID']
+                $linked++
+            } else {
+                $siteType = if ($w['WebSiteType']) { [string]$w['WebSiteType'] } else { 'Business' }
+                $siteTypeId = [int](Invoke-Rows 'EXEC dbo.stp_WebSiteType_FindOrCreate @prmWebSiteType = @n' @{ '@n' = $siteType })[0]['WebSiteTypeID']
+                $addrType = if ($w['WebAddressType']) { [string]$w['WebAddressType'] } else { 'Website' }
+                $addrTypeId = [int](Invoke-Rows 'EXEC dbo.stp_TypeLookup_FindOrCreate @prmLookup = ''web-address-types'', @prmName = @n' @{ '@n' = $addrType })[0]['Id']
+                $saved = Invoke-Rows ('EXEC dbo.stp_LW_WebAddress_Save @prmEntityWebAddressXRefID = 0, @prmWebAddressID = 0, @prmParentEntityID = @e, ' +
+                                      '@prmWebAddressName = @n, @prmWebAddress = @u, @prmWebAddressTypeID = @at, @prmWebSiteTypeID = @st, @prmNotes = @notes') `
+                                     @{ '@e' = $entityId; '@n' = [string]$w['WebAddressName']; '@u' = [string]$w['WebAddress']; '@at' = $addrTypeId; '@st' = $siteTypeId; '@notes' = $w['Notes'] }
+                $xid = [int]$saved[0]['EntityWebAddressXRefID']
+                $added++
+            }
+            if ($w['IsImportant']) { [void](Invoke-Rows 'EXEC dbo.stp_EntityWebAddress_SetImportant @prmEntityID = @e, @prmXRefID = @x, @prmIsImportant = 1' @{ '@e' = $entityId; '@x' = $xid }) }
+            if ($null -ne $w['SortOrder']) { $xrefs += $xid }
+        }
+        if ($xrefs.Count -gt 1) { [void](Invoke-Rows 'EXEC dbo.stp_EntityWebAddress_Reorder @prmEntityID = @e, @prmXRefIDs = @ids' @{ '@e' = $entityId; '@ids' = ($xrefs -join ',') }) }
+        return [pscustomobject]@{ Total = $list.Count; Added = $added; Linked = $linked; Kept = $kept }
+    }
+
+    # ---- -WebAddressesOnly: the solution is here; add its web addresses and stop ------------------
+    if ($WebAddressesOnly) {
+        $tran = $c.BeginTransaction()
+        $entityId = Get-SolutionEntity
+        $web = Add-WebAddresses $entityId
+        $tran.Commit()
+        $tran = $null
+        Write-Host ("Web addresses for '{0}': {1} added, {2} linked (already in this Echo), {3} already on it." -f $doc['solutionName'], $web.Added, $web.Linked, $web.Kept) -ForegroundColor Green
+        return
     }
 
     # ---- 1. check everything first ---------------------------------------------------------------
@@ -143,7 +214,7 @@ try {
                 elseif ($col.DataType -eq [byte[]]) { $dr[$col.ColumnName] = [Convert]::FromBase64String([string]$v) }
                 else { $dr[$col.ColumnName] = $v }
             }
-            # What Echo does not have: the record a solution hangs on, Leonardo's file catalog, linked records.
+            # What Echo does not have: Leonardo's entity (Echo makes its own, step 3), Leonardo's file catalog, linked records.
             if ($p.Table -eq 'Solution') { $dr['EntityID'] = [DBNull]::Value }
             if ($p.Table -eq 'Conversation') { foreach ($n in 'LinkedEntityID', 'LinkedTaskID', 'LinkedChecklistID', 'LinkedStoryID') { if ($dt.Columns.Contains($n)) { $dr[$n] = [DBNull]::Value } } }
             if ($p.Table -eq 'SolutionFile') {
@@ -179,9 +250,14 @@ try {
         $count += $dt.Rows.Count
         Write-Host ("  {0,-34} {1,6} rows" -f $p.Table, $dt.Rows.Count)
     }
+    # ---- 3. Story 5653: the Web tab -------------------------------------------------------------
+    $entityId = Get-SolutionEntity
+    $web = Add-WebAddresses $entityId
+    if ($web.Total -gt 0) { Write-Host ("  {0,-34} {1,6} web addresses" -f 'Web tab', $web.Total) }
+
     $tran.Commit()
     $tran = $null
-    Write-Host "Imported '$($doc['solutionName'])': $count rows, $($written.Count) files. Open it from Solutions." -ForegroundColor Green
+    Write-Host "Imported '$($doc['solutionName'])': $count rows, $($web.Total) web addresses, $($written.Count) files. Open it from Solutions." -ForegroundColor Green
 } catch {
     if ($tran) { try { $tran.Rollback() } catch { } }
     # The rows did not land, so the files written for them are moved aside, never erased.

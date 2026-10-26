@@ -260,6 +260,15 @@ BEGIN
     WHERE  sc.SolutionID = @sid
 END
 
+-- Web: the solution's web addresses (house-only: through its EntityID)
+IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'web') AND @entityId IS NOT NULL
+INSERT INTO #hay (Source, Kind, ID, ParentID, ParentTitle, Title, Body, ItemDate, StatusName, ColorHex, IsClosed, Extra)
+SELECT 'web', 'web', x.EntityWebAddressXRefID, NULL, NULL, ISNULL(NULLIF(w.WebAddressName, ''), w.WebAddress),
+       ISNULL(w.WebAddress, '') + NCHAR(10) + ISNULL(w.Notes, ''), x.CreatedDate, NULL, NULL, 0, NULL
+FROM   dbo.tblEntityWebAddressXRef x
+JOIN   dbo.tblWebAddress w ON w.WebAddressID = x.WebAddressID
+WHERE  x.EntityID = @entityId
+
 -- ---- the match ---------------------------------------------------------------------------
 
 DECLARE @anyOr  BIT = CASE WHEN EXISTS (SELECT 1 FROM @or) THEN 1 ELSE 0 END
@@ -294,6 +303,5 @@ WHERE  (@oneSource IS NULL AND n.RowInSource <= @size)
 ORDER BY n.Source, n.RowInSource
 
 DROP TABLE #hay
-
 
 GO

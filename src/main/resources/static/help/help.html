@@ -45,7 +45,7 @@
     async function load() {
         var doc = document.getElementById('doc');
         try {
-            var r = await fetch('/help/Echo.md?v=4', { cache: 'no-store' });
+            var r = await fetch('/help/Echo.md?v=6', { cache: 'no-store' });
             var text = await r.text();
             doc.innerHTML = window.marked ? window.marked.parse(text, { gfm: true }) : '<pre></pre>';
             if (!window.marked) doc.firstChild.textContent = text;

@@ -1,0 +1,18 @@
+/* reader-echo.css -- Story 5653 (Echo).
+ *
+ * The Reader is LeonardoWeb's, copied unchanged so the two can be compared. Four of its actions write
+ * into Leonardo's Library, which Echo does not have, so they are hidden here (not deleted):
+ *   Save Excerpt         -> Leonardo's Research shelf
+ *   Send to Quotes       -> Leonardo's Quotes (on a selection and on a saved mark)
+ *   Define               -> Leonardo's dictionary
+ *   Send to Reading Nook -> the Reading Nook
+ * Everything else -- reading, find, contents, bookmarks, highlights, notes on them, the notebook and
+ * its Print, Listen, Research (it only opens Wikipedia / a web search) and the saved place -- works.
+ */
+[data-testid="reader-sel-excerpt"],
+[data-testid="reader-sel-quote"],
+[data-testid="reader-sel-define"],
+[data-testid="reader-mark-quote"],
+[data-testid="reader-notebook-save"] {
+    display: none !important;
+}

@@ -41,6 +41,7 @@ Date        Developer    Description
                          solution's own term types and categories.
 10/09/2026  Felix        Story 5611: also removes Configuration II -- cells and their other places, properties, groups,
                          column tags, columns, axis values and axes.
+2026-10-26  Felix        Story 5653 (Echo): no record links, notes or Leonardo Files here; unlinks the solution's web addresses (deleting any no other record uses) and logins.
 
 */
 
@@ -111,6 +112,21 @@ BEGIN TRY
     DELETE FROM dbo.SolutionProject      WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionConversation WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionApiClient    WHERE SolutionID = @prmSolutionID
+    -- Story 5653 (Echo): the solution's own web addresses and logins hang off its EntityID; unlink them
+    -- (Important / order marks first). An address no other record uses is deleted; logins stay.
+    IF @entityId IS NOT NULL BEGIN
+        DELETE f FROM dbo.EntityWebAddressFlag f
+        JOIN   dbo.tblEntityWebAddressXRef x ON x.EntityWebAddressXRefID = f.EntityWebAddressXRefID WHERE x.EntityID = @entityId
+        DELETE s FROM dbo.EntityWebAddressSequence s
+        JOIN   dbo.tblEntityWebAddressXRef x ON x.EntityWebAddressXRefID = s.EntityWebAddressXRefID WHERE x.EntityID = @entityId
+        DECLARE @addresses TABLE (WebAddressID INT PRIMARY KEY)
+        INSERT INTO @addresses (WebAddressID) SELECT DISTINCT WebAddressID FROM dbo.tblEntityWebAddressXRef WHERE EntityID = @entityId
+        DELETE FROM dbo.tblEntityWebAddressXRef WHERE EntityID = @entityId
+        -- as stp_LW_EntityWebAddress_Delete does for one: an address no other record uses goes too
+        DELETE w FROM dbo.tblWebAddress w JOIN @addresses a ON a.WebAddressID = w.WebAddressID
+        WHERE  NOT EXISTS (SELECT 1 FROM dbo.tblEntityWebAddressXRef x WHERE x.WebAddressID = w.WebAddressID)
+        DELETE FROM dbo.EntityLoginSetupXRef    WHERE EntityID = @entityId
+    END
     DELETE FROM dbo.Solution             WHERE SolutionID = @prmSolutionID
     SET @rows = @@ROWCOUNT
 

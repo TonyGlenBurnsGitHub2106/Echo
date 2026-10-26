@@ -1,0 +1,44 @@
+/* entity-logins.css -- the Logins tab on record pages (Story 5629).
+   Builds on entity-detail.css (.ed-card, .ed-btn) and entity-files.css (.ef-band,
+   the rolled-up tools row). */
+
+.el-foldall { margin-left: auto; min-width: 40px; }
+
+/* A login card folds to its head line; tapping the head toggles it. */
+.el-card-head { cursor: pointer; align-items: center; }
+.el-card-head .ef-caret { flex: 0 0 auto; }
+.el-card-head:focus-visible { outline: 2px solid #0A66C2; outline-offset: 2px; border-radius: 3px; }
+.el-card.collapsed { padding-top: 8px; padding-bottom: 8px; }
+.el-card.collapsed .head { margin-bottom: 0; }
+.el-card.collapsed > .body,
+.el-card.collapsed > .notes,
+.el-card.collapsed > .el-uses,
+.el-card.collapsed > .ed-card-actions { display: none; }
+
+/* From web addresses: a teal edge tells the two sections apart at a glance. */
+.el-band-web .ed-card { border-left: 3px solid #0F9D8A; }
+.el-band-web .ef-band-head { border-bottom-color: #B7E4DC; }
+
+.el-also {
+    flex: 0 0 auto;
+    font-size: 10px; font-weight: 600; color: #0B6E61;
+    background: #E3F5F1; border: 1px solid #B7E4DC;
+    padding: 1px 7px; border-radius: 10px;
+}
+
+/* The web addresses that use the login, as chips that open the site. */
+.el-uses {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E2E2E5;
+}
+.el-uses-label { font-size: 11px; color: #64748B; margin-right: 2px; }
+.el-chip {
+    display: inline-block; max-width: 100%;
+    font: 12px "Segoe UI", system-ui, sans-serif; color: #0A66C2;
+    background: #fff; border: 1px solid #C9D7E8; border-radius: 999px;
+    padding: 3px 10px; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+a.el-chip:hover { background: #ECF4FD; }
+
+.el-none { font-size: 12px; color: #888; font-style: italic; padding: 2px 0 6px; }

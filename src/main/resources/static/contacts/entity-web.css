@@ -1,0 +1,24 @@
+/* entity-web.css -- the organized Web tab on record pages (Story 3525).
+   The layout is the Files tab's (entity-files.css: .ef-band, .ef-card, .ef-seg, ...);
+   this adds only what a web address has that a file does not. */
+
+.ew-kind { color: #475569; }
+.ew-url { margin-top: 6px; font-size: 13px; word-break: break-all; }
+.ew-url a { color: #0A66C2; text-decoration: none; }
+.ew-url a:hover { text-decoration: underline; }
+.ew-card .ew-notes { white-space: pre-wrap; word-break: break-word; }
+.ew-card .ef-name { font-size: 14px; }
+
+/* ---- Arrange: drag the type groups AND the web addresses inside a group into order ----
+   The Files tab folds every group to its header while arranging; here the groups stay open
+   (fold one with its caret) and each card shrinks to its grip and name. */
+.ew-pane.ef-arranging .ef-band-body { display: block; }
+.ew-pane.ef-arranging .ef-caret { visibility: visible; }
+.ew-pane.ef-arranging .ef-band.collapsed .ef-band-body { display: none; }
+.ew-pane.ef-arranging .ew-card .ef-meta,
+.ew-pane.ef-arranging .ew-card .ew-url,
+.ew-pane.ef-arranging .ew-card .ew-notes,
+.ew-pane.ef-arranging .ew-card .ed-card-actions,
+.ew-pane.ef-arranging .ew-card .ef-flag { display: none; }
+.ew-pane.ef-arranging .ew-card { padding-top: 6px; padding-bottom: 6px; }
+.ew-card.dragging { opacity: .55; outline: 2px dashed #2563EB; outline-offset: -2px; }

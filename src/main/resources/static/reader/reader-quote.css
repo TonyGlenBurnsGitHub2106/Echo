@@ -1,0 +1,170 @@
+/* Leonardo Reader -- Send to Quotes sheet (Story 2429). ASCII-only.
+
+   The sheet is injected by reader-quote.js and shown over BOTH reading
+   surfaces, so it cannot borrow either page's variables: the standalone reader
+   themes itself with --accent / --muted, the Writing Filing Cabinet does not.
+   Everything here is therefore self-contained.
+
+   The dark face is driven off body.theme-dark ONLY, never off the device's
+   prefers-color-scheme. Only the standalone reader themes itself, and only it
+   sets that class; the Writing Filing Cabinet reader is a fixed cream page with
+   no dark mode at all, so honouring the device preference there would drop a
+   dark sheet onto a permanently light page.
+
+   It sits above every other sheet on EITHER page because it is opened FROM one
+   of them -- the Highlight sheet stays behind it and is still there when this
+   one closes. That means clearing the taller of the two stacks: the standalone
+   reader's sheets top out at 90, but the Writing Filing Cabinet's reader
+   overlay and its close button run to 1000 / 1090. Hence 2000 / 2001, which is
+   above both with room to spare. */
+
+.lq-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+}
+
+.lq-sheet {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: min(560px, 100%);
+    max-height: 88vh;
+    max-height: 88dvh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    color: #1b1b1b;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.35);
+    z-index: 2001;
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.lq-scrim[hidden], .lq-sheet[hidden] { display: none; }
+
+.lq-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e2e2;
+}
+
+.lq-title { margin: 0; font-size: 16px; font-weight: 700; }
+
+.lq-x, .lq-btn {
+    font: inherit;
+    padding: 8px 14px;
+    border: 1px solid #cfcfcf;
+    border-radius: 8px;
+    background: #f6f6f6;
+    color: inherit;
+    cursor: pointer;
+    min-height: 40px;
+}
+
+.lq-x:active, .lq-btn:active { transform: translateY(1px); }
+
+.lq-btn-primary {
+    background: #2f6fb0;
+    border-color: #2f6fb0;
+    color: #fff;
+    font-weight: 600;
+}
+
+.lq-btn[disabled] { opacity: 0.55; cursor: default; }
+
+.lq-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 16px;
+}
+
+.lq-foot {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #e2e2e2;
+}
+
+.lq-quote {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border-left: 3px solid #2f6fb0;
+    background: #f4f7fa;
+    font-style: italic;
+    max-height: 30vh;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.lq-label {
+    display: block;
+    margin: 14px 0 5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+}
+
+/* An input alone on its row runs the full width of the sheet, flush with the
+   content on either side of it. */
+.lq-field {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    padding: 10px 12px;
+    border: 1px solid #cfcfcf;
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+    min-height: 42px;
+}
+
+textarea.lq-field { resize: vertical; }
+
+.lq-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 14px;
+}
+
+.lq-msg {
+    margin: 12px 0 0;
+    min-height: 1em;
+    font-size: 13px;
+    color: #c0392b;
+}
+
+.lq-msg.is-ok { color: #587058; }
+
+/* The pickers are the shared Picasso controls; only their footprint inside this
+   sheet is set here, so picasso-picker.css / picasso-tags.css stay the source
+   of truth for how they look and behave. */
+.lq-sheet .picker-wrap, .lq-sheet .pt-wrap { position: relative; }
+
+/* ---- dark ------------------------------------------------------------- */
+
+body.theme-dark .lq-sheet { background: #232323; color: #ececec; }
+body.theme-dark .lq-head, body.theme-dark .lq-foot { border-color: #3a3a3a; }
+body.theme-dark .lq-label { color: #b3b3b3; }
+body.theme-dark .lq-x, body.theme-dark .lq-btn { background: #2d2d2d; border-color: #454545; }
+body.theme-dark .lq-btn-primary { background: #4a86c4; border-color: #4a86c4; color: #fff; }
+body.theme-dark .lq-field { background: #1c1c1c; border-color: #454545; }
+body.theme-dark .lq-quote { background: #2a2f34; border-left-color: #4a86c4; }
+body.theme-dark .lq-msg { color: #ff8a80; }
+body.theme-dark .lq-msg.is-ok { color: #9fbf9f; }
+
+@media print {
+    .lq-scrim, .lq-sheet { display: none; }
+}

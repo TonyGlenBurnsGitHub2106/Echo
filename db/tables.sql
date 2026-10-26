@@ -4480,3 +4480,1366 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'MailTriageRule_LOG')
         Disposition VARCHAR(10) NULL, IsProtected BIT NULL, GmailFilterID VARCHAR(100) NULL,
         FilterMode VARCHAR(10) NULL, Note NVARCHAR(500) NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
 GO
+-- ==== WEB TAB (Story 5653 parity, 2026-10-26) ====
+-- Scripted from Leonardo: the tables behind a record's Web tab -- entities, web addresses, website types,
+-- logins and the lookup registry -- each with its _LOG twin. FKs to tables Echo does not have are left out.
+-- ---- EntityLoginSetupXRef ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[EntityLoginSetupXRef]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[EntityLoginSetupXRef](
+	[EntityLoginSetupXRefID] [int] IDENTITY(1,1) NOT NULL,
+	[EntityID] [int] NOT NULL,
+	[LoginSetupID] [int] NOT NULL,
+	[EffectiveDate] [datetime] NULL,
+	[ThroughDate] [datetime] NULL,
+	[CreatedDate] [datetime] NULL,
+ CONSTRAINT [PK_EntityLoginSetupXRef] PRIMARY KEY CLUSTERED 
+(
+	[EntityLoginSetupXRefID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[EntityLoginSetupXRef]') AND name = N'UX_EntityLoginSetupXRef_EntityID_LoginSetupID')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_EntityLoginSetupXRef_EntityID_LoginSetupID] ON [dbo].[EntityLoginSetupXRef]
+(
+	[EntityID] ASC,
+	[LoginSetupID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+-- ---- EntityWebAddressFlag ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[EntityWebAddressFlag](
+	[EntityWebAddressXRefID] [int] NOT NULL,
+	[IsImportant] [bit] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_EntityWebAddressFlag] PRIMARY KEY CLUSTERED 
+(
+	[EntityWebAddressXRefID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressFlag]'), N'IsImportant', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressFlag] ADD  CONSTRAINT [DF_EntityWebAddressFlag_IsImportant]  DEFAULT ((0)) FOR [IsImportant]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressFlag]'), N'ModifiedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressFlag] ADD  CONSTRAINT [DF_EntityWebAddressFlag_ModifiedDate]  DEFAULT (getdate()) FOR [ModifiedDate]
+END
+
+GO
+-- ---- EntityWebAddressFlag_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[EntityWebAddressFlag_LOG](
+	[EntityWebAddressFlag_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[EntityWebAddressXRefID] [int] NULL,
+	[IsImportant] [bit] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_EntityWebAddressFlag_LOG] PRIMARY KEY CLUSTERED 
+(
+	[EntityWebAddressFlag_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressFlag_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressFlag_LOG] ADD  CONSTRAINT [DF_EntityWebAddressFlag_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressFlag_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressFlag_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressFlag_LOG] ADD  CONSTRAINT [DF_EntityWebAddressFlag_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- EntityWebAddressSequence ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[EntityWebAddressSequence]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[EntityWebAddressSequence](
+	[EntityWebAddressXRefID] [int] NOT NULL,
+	[SortOrder] [int] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_EntityWebAddressSequence] PRIMARY KEY CLUSTERED 
+(
+	[EntityWebAddressXRefID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressSequence]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressSequence]'), N'ModifiedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressSequence] ADD  CONSTRAINT [DF_EntityWebAddressSequence_ModifiedDate]  DEFAULT (getdate()) FOR [ModifiedDate]
+END
+
+GO
+-- ---- EntityWebAddressSequence_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[EntityWebAddressSequence_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[EntityWebAddressSequence_LOG](
+	[EntityWebAddressSequence_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[EntityWebAddressXRefID] [int] NULL,
+	[SortOrder] [int] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_EntityWebAddressSequence_LOG] PRIMARY KEY CLUSTERED 
+(
+	[EntityWebAddressSequence_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressSequence_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressSequence_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressSequence_LOG] ADD  CONSTRAINT [DF_EntityWebAddressSequence_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[EntityWebAddressSequence_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[EntityWebAddressSequence_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[EntityWebAddressSequence_LOG] ADD  CONSTRAINT [DF_EntityWebAddressSequence_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- LoginSecret ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LoginSecret]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LoginSecret](
+	[LoginSecretID] [int] IDENTITY(1,1) NOT NULL,
+	[LoginSetupID] [int] NOT NULL,
+	[PassCipher] [varbinary](max) NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_LoginSecret] PRIMARY KEY CLUSTERED 
+(
+	[LoginSecretID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[LoginSecret]') AND name = N'UX_LoginSecret_LoginSetupID')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_LoginSecret_LoginSetupID] ON [dbo].[LoginSecret]
+(
+	[LoginSetupID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSecret]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSecret]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSecret] ADD  CONSTRAINT [DF_LoginSecret_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- LoginSecret_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LoginSecret_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LoginSecret_LOG](
+	[LoginSecret_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[LoginSecretID] [int] NULL,
+	[LoginSetupID] [int] NULL,
+	[PassCipher] [varbinary](max) NULL,
+	[CreatedDate] [datetime] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_LoginSecret_LOG] PRIMARY KEY CLUSTERED 
+(
+	[LoginSecret_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSecret_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSecret_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSecret_LOG] ADD  CONSTRAINT [DF_LoginSecret_LOG_LogCreatedDate]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSecret_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSecret_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSecret_LOG] ADD  CONSTRAINT [DF_LoginSecret_LOG_IsInsertion]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- LoginSetup ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LoginSetup](
+	[LoginSetupID] [int] IDENTITY(1,1) NOT NULL,
+	[EffectiveDate] [datetime] NOT NULL,
+	[ThroughDate] [datetime] NULL,
+	[UserID] [int] NOT NULL,
+	[Pass] [varchar](50) NOT NULL,
+	[VendorID] [int] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[EntityID] [int] NOT NULL,
+	[Notes] [varchar](5500) NULL,
+	[LoginName] [varchar](50) NOT NULL,
+	[WebAddressID] [int] NULL,
+	[LoginUserName] [varchar](50) NOT NULL,
+ CONSTRAINT [PK_LoginSetup] PRIMARY KEY CLUSTERED 
+(
+	[LoginSetupID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup]') AND name = N'IX_EntityID')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityID] ON [dbo].[LoginSetup]
+(
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSetup]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSetup]'), N'LoginUserName', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSetup] ADD  CONSTRAINT [DF_LoginSetup_LoginUserName]  DEFAULT ('') FOR [LoginUserName]
+END
+
+GO
+-- ---- LoginSetup_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LoginSetup_LOG](
+	[LoginSetup_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[CreatedDate] [datetime] NULL,
+	[EffectiveDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[LoginSetupID] [int] NULL,
+	[Notes] [varchar](5500) NULL,
+	[Pass] [varchar](50) NULL,
+	[ThroughDate] [datetime] NULL,
+	[UserID] [int] NULL,
+	[VendorID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSetup_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSetup_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSetup_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- LoginSetup_UPDATED_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup_UPDATED_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LoginSetup_UPDATED_LOG](
+	[LoginSetup_UPDATED_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[CreatedDate] [datetime] NULL,
+	[EffectiveDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[LoginSetupID] [int] NULL,
+	[Notes] [varchar](5500) NULL,
+	[Pass] [varchar](50) NULL,
+	[ThroughDate] [datetime] NULL,
+	[UserID] [int] NULL,
+	[VendorID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LoginSetup_UPDATED_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LoginSetup_UPDATED_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LoginSetup_UPDATED_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- LookupReference ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LookupReference]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LookupReference](
+	[LookupReferenceID] [int] IDENTITY(1,1) NOT NULL,
+	[LookupKey] [varchar](60) NOT NULL,
+	[RefTable] [sysname] NOT NULL,
+	[RefColumn] [sysname] NOT NULL,
+	[RefKind] [varchar](10) NOT NULL,
+	[XrefOwnerColumn] [sysname] NULL,
+	[UsageNoun] [nvarchar](60) NOT NULL,
+	[SortOrder] [int] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_LookupReference] PRIMARY KEY CLUSTERED 
+(
+	[LookupReferenceID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[LookupReference]') AND name = N'UX_LookupReference_Target')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_LookupReference_Target] ON [dbo].[LookupReference]
+(
+	[LookupKey] ASC,
+	[RefTable] ASC,
+	[RefColumn] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupReference]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupReference]'), N'SortOrder', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupReference] ADD  CONSTRAINT [DF_LookupReference_SortOrder]  DEFAULT ((0)) FOR [SortOrder]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupReference]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupReference]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupReference] ADD  CONSTRAINT [DF_LookupReference_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_LookupReference_RefKind]') AND parent_object_id = OBJECT_ID(N'[dbo].[LookupReference]'))
+ALTER TABLE [dbo].[LookupReference]  WITH CHECK ADD  CONSTRAINT [CK_LookupReference_RefKind] CHECK  (([RefKind]='required' OR [RefKind]='nullable' OR [RefKind]='xref'))
+GO
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_LookupReference_RefKind]') AND parent_object_id = OBJECT_ID(N'[dbo].[LookupReference]'))
+ALTER TABLE [dbo].[LookupReference] CHECK CONSTRAINT [CK_LookupReference_RefKind]
+GO
+-- ---- LookupReference_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LookupReference_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LookupReference_LOG](
+	[LookupReference_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[LookupReferenceID] [int] NULL,
+	[LookupKey] [varchar](60) NULL,
+	[RefTable] [sysname] NULL,
+	[RefColumn] [sysname] NULL,
+	[RefKind] [varchar](10) NULL,
+	[XrefOwnerColumn] [sysname] NULL,
+	[UsageNoun] [nvarchar](60) NULL,
+	[SortOrder] [int] NULL,
+	[CreatedDate] [datetime] NULL,
+ CONSTRAINT [PK_LookupReference_LOG] PRIMARY KEY CLUSTERED 
+(
+	[LookupReference_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupReference_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupReference_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupReference_LOG] ADD  CONSTRAINT [DF_LookupReference_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupReference_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupReference_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupReference_LOG] ADD  CONSTRAINT [DF_LookupReference_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- LookupRegistry ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LookupRegistry]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LookupRegistry](
+	[LookupRegistryID] [int] IDENTITY(1,1) NOT NULL,
+	[LookupKey] [varchar](60) NOT NULL,
+	[LookupLabel] [nvarchar](100) NOT NULL,
+	[ShelfLabel] [nvarchar](100) NOT NULL,
+	[ItemNoun] [nvarchar](60) NOT NULL,
+	[TableName] [sysname] NOT NULL,
+	[IdColumn] [sysname] NULL,
+	[NameColumn] [sysname] NOT NULL,
+	[CodeColumn] [sysname] NULL,
+	[ProtectedCodes] [varchar](1000) NULL,
+	[ReservedNames] [nvarchar](500) NULL,
+	[PageUrl] [varchar](300) NULL,
+	[SortOrder] [int] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_LookupRegistry] PRIMARY KEY CLUSTERED 
+(
+	[LookupRegistryID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[LookupRegistry]') AND name = N'UX_LookupRegistry_LookupKey')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_LookupRegistry_LookupKey] ON [dbo].[LookupRegistry]
+(
+	[LookupKey] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupRegistry]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupRegistry]'), N'SortOrder', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupRegistry] ADD  CONSTRAINT [DF_LookupRegistry_SortOrder]  DEFAULT ((0)) FOR [SortOrder]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupRegistry]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupRegistry]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupRegistry] ADD  CONSTRAINT [DF_LookupRegistry_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- LookupRegistry_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LookupRegistry_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[LookupRegistry_LOG](
+	[LookupRegistry_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[LookupRegistryID] [int] NULL,
+	[LookupKey] [varchar](60) NULL,
+	[LookupLabel] [nvarchar](100) NULL,
+	[ShelfLabel] [nvarchar](100) NULL,
+	[ItemNoun] [nvarchar](60) NULL,
+	[TableName] [sysname] NULL,
+	[IdColumn] [sysname] NULL,
+	[NameColumn] [sysname] NULL,
+	[CodeColumn] [sysname] NULL,
+	[ProtectedCodes] [varchar](1000) NULL,
+	[ReservedNames] [nvarchar](500) NULL,
+	[PageUrl] [varchar](300) NULL,
+	[SortOrder] [int] NULL,
+	[CreatedDate] [datetime] NULL,
+ CONSTRAINT [PK_LookupRegistry_LOG] PRIMARY KEY CLUSTERED 
+(
+	[LookupRegistry_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupRegistry_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupRegistry_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupRegistry_LOG] ADD  CONSTRAINT [DF_LookupRegistry_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[LookupRegistry_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[LookupRegistry_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[LookupRegistry_LOG] ADD  CONSTRAINT [DF_LookupRegistry_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- tblEntity ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntity]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntity](
+	[EntityID] [int] IDENTITY(1,1) NOT NULL,
+	[EntityTypeID] [int] NOT NULL,
+	[TempTypeDescription] [varchar](500) NULL,
+	[CreatedDate] [datetime] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblEntity]') AND name = N'IX_EntityID')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityID] ON [dbo].[tblEntity]
+(
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntity]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntity]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntity] ADD  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- tblEntity_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntity_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntity_LOG](
+	[Entity_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[EntityTypeID] [int] NULL,
+	[TempTypeDescription] [varchar](500) NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntity_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntity_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntity_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblEntity_UPDATED_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntity_UPDATED_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntity_UPDATED_LOG](
+	[Entity_UPDATED_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[EntityTypeID] [int] NULL,
+	[TempTypeDescription] [varchar](500) NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntity_UPDATED_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntity_UPDATED_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntity_UPDATED_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblEntityType ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityType]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntityType](
+	[EntityTypeID] [int] IDENTITY(1,1) NOT NULL,
+	[EntityType] [varchar](500) NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[EntityTable] [varchar](50) NOT NULL,
+	[EntityIdentityColumnName] [varchar](50) NOT NULL,
+	[EntityCrossRefTable] [varchar](50) NULL,
+	[EntityCrossRefTableIdentityColumnName] [varchar](50) NULL,
+	[Notes] [varchar](5000) NULL,
+	[UserSearchable] [bit] NOT NULL,
+	[EntityDisplayColumnName] [varchar](50) NOT NULL,
+	[EntityIDRequiredToSave] [bit] NOT NULL,
+	[EntitySuppressList] [varchar](50) NULL,
+	[DeletedRowsArchived] [bit] NOT NULL,
+	[UpdatedRowsArchived] [bit] NOT NULL,
+	[EditFormName] [varchar](50) NULL,
+	[ListFormName] [varchar](50) NULL,
+	[XREFFormName] [varchar](50) NULL,
+	[EntityID] [int] NOT NULL,
+	[UserControlForEditName] [varchar](50) NULL,
+ CONSTRAINT [PK_EntityTypeID] PRIMARY KEY CLUSTERED 
+(
+	[EntityTypeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityType]') AND name = N'IX_EntityTable')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityTable] ON [dbo].[tblEntityType]
+(
+	[EntityTable] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityType]') AND name = N'IX_EntityType')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityType] ON [dbo].[tblEntityType]
+(
+	[EntityType] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntityType]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntityType]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntityType] ADD  CONSTRAINT [DF__tblEntity__Creat__39788055]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- tblEntityType_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityType_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntityType_LOG](
+	[EntityType_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[CreatedDate] [datetime] NULL,
+	[DeletedRowsArchived] [bit] NULL,
+	[EntityCrossRefTable] [varchar](50) NULL,
+	[EntityCrossRefTableIdentityColumnName] [varchar](50) NULL,
+	[EntityDisplayColumnName] [varchar](50) NULL,
+	[EntityIdentityColumnName] [varchar](50) NULL,
+	[EntityIDRequiredToSave] [bit] NULL,
+	[EntitySuppressList] [varchar](50) NULL,
+	[EntityTable] [varchar](50) NULL,
+	[EntityType] [varchar](500) NULL,
+	[EntityTypeID] [int] NULL,
+	[Notes] [varchar](5000) NULL,
+	[UserSearchable] [bit] NULL,
+	[UpdatedRowsArchived] [bit] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntityType_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntityType_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntityType_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblEntityWebAddressXRef ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntityWebAddressXRef](
+	[EntityWebAddressXRefID] [int] IDENTITY(1,1) NOT NULL,
+	[EntityID] [int] NOT NULL,
+	[WebAddressID] [int] NOT NULL,
+	[CreatedDate] [datetime] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef]') AND name = N'IX_EntityWebAddressID')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityWebAddressID] ON [dbo].[tblEntityWebAddressXRef]
+(
+	[EntityID] ASC,
+	[WebAddressID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntityWebAddressXRef] ADD  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- tblEntityWebAddressXRef_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblEntityWebAddressXRef_LOG](
+	[EntityWebAddressXRef_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[CreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[EntityWebAddressXRefID] [int] NULL,
+	[WebAddressID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblEntityWebAddressXRef_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblEntityWebAddressXRef_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblWebAddress ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblWebAddress](
+	[WebAddressID] [int] IDENTITY(1,1) NOT NULL,
+	[WebAddress] [varchar](900) NOT NULL,
+	[WebAddressTypeID] [int] NOT NULL,
+	[EntityID] [int] NOT NULL,
+	[Notes] [varchar](5000) NULL,
+	[WebAddressName] [varchar](500) NOT NULL,
+	[WebSiteTypeID] [int] NOT NULL,
+ CONSTRAINT [PK_tblWebAddress] PRIMARY KEY CLUSTERED 
+(
+	[WebAddressID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress]') AND name = N'IX_EntityID')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityID] ON [dbo].[tblWebAddress]
+(
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress]') AND name = N'IX_WebAddress')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_WebAddress] ON [dbo].[tblWebAddress]
+(
+	[WebAddress] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress]') AND name = N'IX_WebAddressName')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_WebAddressName] ON [dbo].[tblWebAddress]
+(
+	[WebAddressName] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+-- ---- tblWebAddress_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblWebAddress_LOG](
+	[WebAddress_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[Notes] [varchar](5000) NULL,
+	[WebAddress] [varchar](900) NULL,
+	[WebAddressID] [int] NULL,
+	[WebAddressName] [varchar](500) NULL,
+	[WebAddressTypeID] [int] NULL,
+	[WebSiteTypeID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblWebAddress_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblWebAddress_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblWebAddress_UPDATED_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddress_UPDATED_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblWebAddress_UPDATED_LOG](
+	[WebAddress_UPDATED_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[Notes] [varchar](5000) NULL,
+	[WebAddress] [varchar](900) NULL,
+	[WebAddressID] [int] NULL,
+	[WebAddressName] [varchar](500) NULL,
+	[WebAddressTypeID] [int] NULL,
+	[WebSiteTypeID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress_UPDATED_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblWebAddress_UPDATED_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblWebAddress_UPDATED_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- tblWebAddressType ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddressType]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblWebAddressType](
+	[WebAddressTypeID] [int] NOT NULL,
+	[WebAddressType] [varchar](50) NULL,
+ CONSTRAINT [PK_WebAddressTypeID] PRIMARY KEY CLUSTERED 
+(
+	[WebAddressTypeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+-- ---- tblWebAddressType_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[tblWebAddressType_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[tblWebAddressType_LOG](
+	[WebAddressType_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[WebAddressType] [varchar](50) NULL,
+	[WebAddressTypeID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddressType_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[tblWebAddressType_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[tblWebAddressType_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- WebSiteType ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[WebSiteType](
+	[WebSiteTypeID] [int] IDENTITY(1,1) NOT NULL,
+	[EntityID] [int] NOT NULL,
+	[WebSiteType] [varchar](50) NOT NULL,
+	[Notes] [varchar](6000) NULL,
+ CONSTRAINT [PK_WebSiteTypeID] PRIMARY KEY CLUSTERED 
+(
+	[WebSiteTypeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType]') AND name = N'ix_comp')
+CREATE NONCLUSTERED INDEX [ix_comp] ON [dbo].[WebSiteType]
+(
+	[WebSiteTypeID] ASC,
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType]') AND name = N'ix_comp2')
+CREATE NONCLUSTERED INDEX [ix_comp2] ON [dbo].[WebSiteType]
+(
+	[Notes] ASC,
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType]') AND name = N'IX_EntityID')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_EntityID] ON [dbo].[WebSiteType]
+(
+	[EntityID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType]') AND name = N'IX_WebSiteType')
+CREATE UNIQUE NONCLUSTERED INDEX [IX_WebSiteType] ON [dbo].[WebSiteType]
+(
+	[WebSiteType] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+-- ---- WebSiteType_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[WebSiteType_LOG](
+	[WebSiteType_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[Notes] [varchar](6000) NULL,
+	[WebSiteType] [varchar](50) NULL,
+	[WebSiteTypeID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[WebSiteType_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[WebSiteType_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[WebSiteType_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- WebSiteType_UPDATED_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteType_UPDATED_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[WebSiteType_UPDATED_LOG](
+	[WebSiteType_UPDATED_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NULL,
+	[EntityID] [int] NULL,
+	[Notes] [varchar](6000) NULL,
+	[WebSiteType] [varchar](50) NULL,
+	[WebSiteTypeID] [int] NULL
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[WebSiteType_UPDATED_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[WebSiteType_UPDATED_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[WebSiteType_UPDATED_LOG] ADD  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+-- ---- WebSiteTypeStyle ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[WebSiteTypeStyle](
+	[WebSiteTypeID] [int] NOT NULL,
+	[ColorHex] [varchar](7) NULL,
+	[SortOrder] [int] NULL,
+	[ModifiedDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_WebSiteTypeStyle] PRIMARY KEY CLUSTERED 
+(
+	[WebSiteTypeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[WebSiteTypeStyle]'), N'ModifiedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[WebSiteTypeStyle] ADD  CONSTRAINT [DF_WebSiteTypeStyle_ModifiedDate]  DEFAULT (getdate()) FOR [ModifiedDate]
+END
+
+GO
+-- ---- WebSiteTypeStyle_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[WebSiteTypeStyle_LOG](
+	[WebSiteTypeStyle_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[WebSiteTypeID] [int] NULL,
+	[ColorHex] [varchar](7) NULL,
+	[SortOrder] [int] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_WebSiteTypeStyle_LOG] PRIMARY KEY CLUSTERED 
+(
+	[WebSiteTypeStyle_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[WebSiteTypeStyle_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[WebSiteTypeStyle_LOG] ADD  CONSTRAINT [DF_WebSiteTypeStyle_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[WebSiteTypeStyle_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[WebSiteTypeStyle_LOG] ADD  CONSTRAINT [DF_WebSiteTypeStyle_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ==== FOREIGN KEYS (Web tab) ====
+-- SKIPPED FK FK_LoginSetup_tblUser -> tblUser
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblEntity_tblEntityType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblEntity]'))
+ALTER TABLE [dbo].[tblEntity]  WITH CHECK ADD  CONSTRAINT [FK_tblEntity_tblEntityType] FOREIGN KEY([EntityTypeID])
+REFERENCES [dbo].[tblEntityType] ([EntityTypeID])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblEntity_tblEntityType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblEntity]'))
+ALTER TABLE [dbo].[tblEntity] CHECK CONSTRAINT [FK_tblEntity_tblEntityType]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblWebAddress_tblWebAddressType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress]'))
+ALTER TABLE [dbo].[tblWebAddress]  WITH CHECK ADD  CONSTRAINT [FK_tblWebAddress_tblWebAddressType] FOREIGN KEY([WebAddressTypeID])
+REFERENCES [dbo].[tblWebAddressType] ([WebAddressTypeID])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblWebAddress_tblWebAddressType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress]'))
+ALTER TABLE [dbo].[tblWebAddress] CHECK CONSTRAINT [FK_tblWebAddress_tblWebAddressType]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblWebAddress_WebSiteType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress]'))
+ALTER TABLE [dbo].[tblWebAddress]  WITH CHECK ADD  CONSTRAINT [FK_tblWebAddress_WebSiteType] FOREIGN KEY([WebSiteTypeID])
+REFERENCES [dbo].[WebSiteType] ([WebSiteTypeID])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_tblWebAddress_WebSiteType]') AND parent_object_id = OBJECT_ID(N'[dbo].[tblWebAddress]'))
+ALTER TABLE [dbo].[tblWebAddress] CHECK CONSTRAINT [FK_tblWebAddress_WebSiteType]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_WebSiteTypeStyle_WebSiteType]') AND parent_object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle]'))
+ALTER TABLE [dbo].[WebSiteTypeStyle]  WITH CHECK ADD  CONSTRAINT [FK_WebSiteTypeStyle_WebSiteType] FOREIGN KEY([WebSiteTypeID])
+REFERENCES [dbo].[WebSiteType] ([WebSiteTypeID])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_WebSiteTypeStyle_WebSiteType]') AND parent_object_id = OBJECT_ID(N'[dbo].[WebSiteTypeStyle]'))
+ALTER TABLE [dbo].[WebSiteTypeStyle] CHECK CONSTRAINT [FK_WebSiteTypeStyle_WebSiteType]
+GO
+-- Story 5653 (Echo): Leonardo binds four old-style defaults (CREATE DEFAULT DF_GetDate / DF_IntZero /
+-- DF_BitTrue + sp_bindefault), which SMO does not script. Echo gives the same columns the same values as
+-- ordinary named default constraints.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup]') AND name = N'CreatedDate' AND default_object_id <> 0)
+    ALTER TABLE [dbo].[LoginSetup] ADD CONSTRAINT [DF_LoginSetup_CreatedDate] DEFAULT (GETDATE()) FOR [CreatedDate]
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[LoginSetup]') AND name = N'WebAddressID' AND default_object_id <> 0)
+    ALTER TABLE [dbo].[LoginSetup] ADD CONSTRAINT [DF_LoginSetup_WebAddressID] DEFAULT (0) FOR [WebAddressID]
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[EntityLoginSetupXRef]') AND name = N'CreatedDate' AND default_object_id <> 0)
+    ALTER TABLE [dbo].[EntityLoginSetupXRef] ADD CONSTRAINT [DF_EntityLoginSetupXRef_CreatedDate] DEFAULT (GETDATE()) FOR [CreatedDate]
+GO
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[tblEntityType]') AND name = N'DeletedRowsArchived' AND default_object_id <> 0)
+    ALTER TABLE [dbo].[tblEntityType] ADD CONSTRAINT [DF_tblEntityType_DeletedRowsArchived] DEFAULT (1) FOR [DeletedRowsArchived]
+GO
+-- ==== READER (Story 5653 parity, 2026-10-26) ====
+-- Scripted from Leonardo: what the Reader remembers -- highlights, notes on them, and the place
+-- you stopped -- each with its _LOG twin.
+-- ---- ReaderHighlight ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderHighlight](
+	[ReaderHighlightID] [int] IDENTITY(1,1) NOT NULL,
+	[DocKey] [nvarchar](450) NOT NULL,
+	[DocTitle] [nvarchar](400) NULL,
+	[ViewMode] [nvarchar](20) NOT NULL,
+	[PageNumber] [int] NULL,
+	[BlockIndex] [int] NOT NULL,
+	[StartOffset] [int] NOT NULL,
+	[EndOffset] [int] NOT NULL,
+	[SelectedText] [nvarchar](max) NOT NULL,
+	[ColorCode] [nvarchar](20) NOT NULL,
+	[ResearchProjectID] [int] NULL,
+	[ResearchNoteID] [int] NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderHighlight] PRIMARY KEY CLUSTERED 
+(
+	[ReaderHighlightID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND name = N'IX_ReaderHighlight_Doc')
+CREATE NONCLUSTERED INDEX [IX_ReaderHighlight_Doc] ON [dbo].[ReaderHighlight]
+(
+	[DocKey] ASC
+)
+INCLUDE ( 	[BlockIndex],
+	[StartOffset]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND name = N'IX_ReaderHighlight_Project')
+CREATE NONCLUSTERED INDEX [IX_ReaderHighlight_Project] ON [dbo].[ReaderHighlight]
+(
+	[ResearchProjectID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'ViewMode', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_ViewMode]  DEFAULT ('reader') FOR [ViewMode]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'BlockIndex', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_BlockIndex]  DEFAULT ((0)) FOR [BlockIndex]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'StartOffset', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_StartOffset]  DEFAULT ((0)) FOR [StartOffset]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'EndOffset', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_EndOffset]  DEFAULT ((0)) FOR [EndOffset]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'ColorCode', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_ColorCode]  DEFAULT ('yellow') FOR [ColorCode]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight] ADD  CONSTRAINT [DF_ReaderHighlight_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- ReaderHighlight_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderHighlight_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderHighlight_LOG](
+	[ReaderHighlight_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[ReaderHighlightID] [int] NULL,
+	[DocKey] [nvarchar](450) NULL,
+	[DocTitle] [nvarchar](400) NULL,
+	[ViewMode] [nvarchar](20) NULL,
+	[PageNumber] [int] NULL,
+	[BlockIndex] [int] NULL,
+	[StartOffset] [int] NULL,
+	[EndOffset] [int] NULL,
+	[SelectedText] [nvarchar](max) NULL,
+	[ColorCode] [nvarchar](20) NULL,
+	[ResearchProjectID] [int] NULL,
+	[ResearchNoteID] [int] NULL,
+	[CreatedDate] [datetime] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderHighlight_LOG] PRIMARY KEY CLUSTERED 
+(
+	[ReaderHighlight_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight_LOG] ADD  CONSTRAINT [DF_ReaderHighlight_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderHighlight_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderHighlight_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderHighlight_LOG] ADD  CONSTRAINT [DF_ReaderHighlight_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- ReaderMarkNote ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderMarkNote](
+	[ReaderMarkNoteID] [int] IDENTITY(1,1) NOT NULL,
+	[ReaderHighlightID] [int] NOT NULL,
+	[NoteText] [nvarchar](max) NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderMarkNote] PRIMARY KEY CLUSTERED 
+(
+	[ReaderMarkNoteID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote]') AND name = N'IX_ReaderMarkNote_Mark')
+CREATE NONCLUSTERED INDEX [IX_ReaderMarkNote_Mark] ON [dbo].[ReaderMarkNote]
+(
+	[ReaderHighlightID] ASC
+)
+INCLUDE ( 	[CreatedDate]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderMarkNote]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderMarkNote] ADD  CONSTRAINT [DF_ReaderMarkNote_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- ReaderMarkNote_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderMarkNote_LOG](
+	[ReaderMarkNote_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[ReaderMarkNoteID] [int] NULL,
+	[ReaderHighlightID] [int] NULL,
+	[NoteText] [nvarchar](max) NULL,
+	[CreatedDate] [datetime] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderMarkNote_LOG] PRIMARY KEY CLUSTERED 
+(
+	[ReaderMarkNote_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderMarkNote_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderMarkNote_LOG] ADD  CONSTRAINT [DF_ReaderMarkNote_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderMarkNote_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderMarkNote_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderMarkNote_LOG] ADD  CONSTRAINT [DF_ReaderMarkNote_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ---- ReaderPosition ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderPosition](
+	[ReaderPositionID] [int] IDENTITY(1,1) NOT NULL,
+	[DocKey] [nvarchar](450) NOT NULL,
+	[DocTitle] [nvarchar](400) NULL,
+	[ViewMode] [nvarchar](40) NULL,
+	[BlockIndex] [int] NOT NULL,
+	[CharOffset] [int] NOT NULL,
+	[PageNumber] [int] NULL,
+	[ScrollRatio] [decimal](9, 6) NOT NULL,
+	[PercentRead] [int] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderPosition] PRIMARY KEY CLUSTERED 
+(
+	[ReaderPositionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+SET ANSI_PADDING ON
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND name = N'UX_ReaderPosition_DocKey')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_ReaderPosition_DocKey] ON [dbo].[ReaderPosition]
+(
+	[DocKey] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition]'), N'BlockIndex', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition] ADD  CONSTRAINT [DF_ReaderPosition_BlockIndex]  DEFAULT ((0)) FOR [BlockIndex]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition]'), N'CharOffset', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition] ADD  CONSTRAINT [DF_ReaderPosition_CharOffset]  DEFAULT ((0)) FOR [CharOffset]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition]'), N'ScrollRatio', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition] ADD  CONSTRAINT [DF_ReaderPosition_ScrollRatio]  DEFAULT ((0)) FOR [ScrollRatio]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition]'), N'PercentRead', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition] ADD  CONSTRAINT [DF_ReaderPosition_PercentRead]  DEFAULT ((0)) FOR [PercentRead]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition]'), N'CreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition] ADD  CONSTRAINT [DF_ReaderPosition_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
+END
+
+GO
+-- ---- ReaderPosition_LOG ----
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReaderPosition_LOG]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReaderPosition_LOG](
+	[ReaderPosition_LOGID] [int] IDENTITY(1,1) NOT NULL,
+	[LogCreatedDate] [datetime] NOT NULL,
+	[IsInsertion] [bit] NOT NULL,
+	[DeletedDate] [datetime] NULL,
+	[ReaderPositionID] [int] NULL,
+	[DocKey] [nvarchar](450) NULL,
+	[DocTitle] [nvarchar](400) NULL,
+	[ViewMode] [nvarchar](40) NULL,
+	[BlockIndex] [int] NULL,
+	[CharOffset] [int] NULL,
+	[PageNumber] [int] NULL,
+	[ScrollRatio] [decimal](9, 6) NULL,
+	[PercentRead] [int] NULL,
+	[CreatedDate] [datetime] NULL,
+	[ModifiedDate] [datetime] NULL,
+ CONSTRAINT [PK_ReaderPosition_LOG] PRIMARY KEY CLUSTERED 
+(
+	[ReaderPosition_LOGID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition_LOG]'), N'LogCreatedDate', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition_LOG] ADD  CONSTRAINT [DF_ReaderPosition_LOG_LCD]  DEFAULT (getdate()) FOR [LogCreatedDate]
+END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID(N'[dbo].[ReaderPosition_LOG]') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(N'[dbo].[ReaderPosition_LOG]'), N'IsInsertion', 'ColumnId'))
+BEGIN
+ALTER TABLE [dbo].[ReaderPosition_LOG] ADD  CONSTRAINT [DF_ReaderPosition_LOG_INS]  DEFAULT ((0)) FOR [IsInsertion]
+END
+
+GO
+-- ==== FOREIGN KEYS (Reader) ====

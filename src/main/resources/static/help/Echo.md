@@ -36,7 +36,7 @@ run them in a command window):
 A solution you already keep in Leonardo can be copied into Echo whole -- every project and item,
 the log with its numbers, dates and authors, every note with all its versions and steps, the
 terms, the testing and QA checklists with their ticks, both Configuration tabs, the file filing,
-the conversations and the files themselves. Two steps:
+the conversations, the files themselves and the Web tab's web addresses. Two steps:
 
 1. **At home**, in the Echo folder, write the solution to one file (`-Alias` is the solution's short
    name, or use `-SolutionId`):
@@ -53,7 +53,15 @@ the conversations and the files themselves. Two steps:
 
 The import keeps every id, so it refuses -- and changes nothing -- if this Echo already has that
 solution (or anything else with the same ids). Who the solution is shared with is not copied: give
-the agent its own key in this Echo and share it again. The file holds the whole solution, so keep
+the agent its own key in this Echo and share it again. Logins on the Web tab are not copied either;
+add them again in Echo if you need them there.
+
+Copied a solution before Echo had a Web tab (before 10/26/2026)? Export it again at home, then at work
+add just its web addresses -- nothing else is touched, and one already there is left alone:
+
+```
+import-solution.cmd -InFile C:\temp\claims.echo.json -WebAddressesOnly
+``` The file holds the whole solution, so keep
 it private and remove it yourself once it is in. The same two commands also move a solution from
 one Echo to another (`-Database Echo` on the export).
 
@@ -91,11 +99,27 @@ session). Scripts use the service key, header `X-Echo-Key`.
 SMO), `db\tables-app.sql`, `db\functions`, `db\views`, `db\procs`, `db\triggers` (one file each),
 `db\seed.sql` (lookups with Leonardo's ids). Every script is idempotent;
 `scripts\Install-EchoDatabase.ps1` runs them in that order. The Leonardo-only columns
-`Solution.EntityID` and `SolutionFile.LeonardoFileID` are kept (always NULL) so every table matches
-Leonardo's one for one. Edited from Leonardo's copies: `stp_Solution_Save` (no entity),
-`stp_Solution_Delete` (no entity links), `stp_Solution_Search` (no web source),
+`SolutionFile.LeonardoFileID` is kept (always NULL) so every table matches Leonardo's one for one.
+Edited from Leonardo's copies: `stp_Solution_Delete` (no record links; unlinks the Web tab),
 `stp_SolutionFile_Save` (storage code `local`), `stp_FileCategory_List` / `_Delete` (count and clear
 `SolutionFileFiling`), the Quick Launch procs (`QuickLaunch`, not `LWQuickLaunch`).
+
+**The Web tab and the Reader (10/26/2026).** A solution is an entity in Echo too: `stp_Solution_Save`
+calls `stp_Entity_Create` (type 222) exactly as Leonardo's does, and an update gives older solutions
+theirs. Echoed from Leonardo with their names: `tblEntity`, `tblEntityType` (four types: 7, 55, 204,
+222), `tblWebAddress`, `tblWebAddressType`, `tblEntityWebAddressXRef`, `WebSiteType` /
+`WebSiteTypeStyle` (the general types, Leonardo's ids), `EntityWebAddressFlag` / `Sequence`,
+`LoginSetup`, `EntityLoginSetupXRef` (plus an Echo-only `_LOG`), `LoginSecret`, `LookupRegistry` /
+`Reference`, and `ReaderHighlight` / `ReaderMarkNote` / `ReaderPosition`, each with its `_LOG`; their
+procedures; the Java (`EntityWebAddress*`, `WebType*`, `EntityLogin*`, `LoginVault`, `Lookup*`,
+`Reader*`); the pages (`contacts\entity-detail.js`, `entity-web/logins/phones`, `reader\`,
+`picasso-tts.js`). Echo's own pieces: `GET /api/entity-browse?type=222` (`EntityBrowseController`,
+`stp_Solution_GetEntity`) answers a solution's EntityID to the Web tab; `EntityRecordErrors` gives the
+copied controllers Leonardo's error answers; `contacts\entity-detail-echo.js` switches off Pin / Needs
+attention; `reader\reader-echo.css` hides the four Library actions; logins' Owning User is an Echo
+sign-in (`AppUser`); `LoginVault` reads `echo.login.vault.key` (none is made, so a login is stored as
+Leonardo stores an unencrypted one). All of it is house-only: an agent's key is fenced to
+`/api/solutions/`.
 
 **Files.** `echo.files.path` (default `EchoFiles` beside the jar), `EchoFiles\<solutionId>\<random>-<name>`,
 StorageCode `local`; a removed file moves to `EchoFiles\trash`. Downloads are always attachments; a web
@@ -143,8 +167,11 @@ those rows plus each file's bytes (base64) to one JSON file (`format: echo-solut
 `Import-Solution.ps1` checks every id first, then writes everything in ONE transaction with
 `SqlBulkCopy` (KeepIdentity, CheckConstraints, FireTriggers -- so the `_LOG` rows are made) and
 reseeds each identity. A lookup row that exists with the same id must carry the same code or name.
-`Solution.EntityID`, `Conversation.Linked*` and `SolutionFile.LeonardoFileID` arrive NULL; files
-arrive as StorageCode `local`. A failed import moves the files it had written to `EchoFiles\trash`.
+`Conversation.Linked*` and `SolutionFile.LeonardoFileID` arrive NULL; files arrive as StorageCode
+`local`. The solution gets a new EntityID here, and its web addresses (exported by value: name,
+address, both types by name, notes, Important, order) are made again with Echo's procedures in the
+same transaction -- an address Echo already has is linked, not duplicated. A failed import moves the
+files it had written to `EchoFiles\trash`.
 
 **The Email Client (Story 5654).** Leonardo's Gmail Client echoed whole -- `GmailClient*` classes,
 `static/gmail-client/`, the `GmailClient*` and `MailTriageRule` tables and procs, all under Leonardo's
@@ -219,17 +246,21 @@ folded, in its database, so every browser you use sees the same menu.
 
 Main menu -> Solutions -> Solutions. Everything here works as it does in LeonardoWeb, tab for tab:
 Overview, Items, Log, Notes, Terms, Testing, QA, Configuration, Configuration II, Files,
-Conversations and Search, with Arrange, folding, the item tick, View and Edit on every record, and
-the printed report. See *Solutions* in Leonardo's help for the full walkthrough; it describes Echo's
+Conversations, Web and Search, with Arrange, folding, the item tick, View and Edit on every record,
+and the printed report. Open a PDF, a picture or a text file in the **Reader** from the Files tab
+(**Reader** on the file): reading view, search, contents, bookmarks, highlights with notes, the
+Notebook and its Print, and Listen -- and it remembers where you stopped. See *Solutions* in Leonardo's help for the full walkthrough; it describes Echo's
 Solutions too.
 
 What is different in Echo:
 
-- **No Web tab and no linked records.** Leonardo can hang a solution on a matter, a person or a
-  vendor; Echo has none of those.
+- **No linked records.** Leonardo can hang a solution on a matter, a person or a vendor; Echo has
+  none of those. The Web tab has no **Pin** (pins go to Leonardo's Needs attention).
 - **Files are kept in Echo's own files folder** on the computer Echo runs on (the Files tab says so).
   Removing a file moves it to a trash folder there; nothing is erased. There is no "from the
-  Reading Nook" or "from Leonardo Files", and no Reader -- **View** shows every file.
+  Reading Nook" or "from Leonardo Files".
+- **The Reader has no Library actions**: no Save Excerpt, Send to Quotes, Define or Send to Reading
+  Nook. Research (Wikipedia, a web search) is there.
 - **No quizzes.**
 
 ### The Email Client

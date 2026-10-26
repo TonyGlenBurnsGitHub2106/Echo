@@ -1,0 +1,834 @@
+/* Leonardo Reader -- LeonardoWeb experimental viewer (Story 2286, impl of
+   spike 2278). Self-contained client-side reader with vendored pdf.js.
+   ASCII-only. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Two things the phone was quietly taking over (spike Story 2403), each one
+     line to take back. Both are load-bearing -- do not "tidy" them away.
+
+     1. overscroll-behavior: Chrome on Android reloads the page when you drag
+        down at the top of a document. Mid-read that throws away your place and
+        makes the reader feel like a web page rather than a book.
+     2. text-size-adjust: Chrome on Android silently enlarges text it decides is
+        body copy, which fights the A- / A+ stepper -- the reader shrinks the
+        text and the phone puts it back. */
+  overscroll-behavior-y: contain;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Shell: the stage is the ONE scroller, so the top bar and the docked action bar
+   can never be scrolled off screen (Programming Review Checklist item 9535). */
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ---- Theme palettes ---- */
+body.theme-light { --bg: #f2f3f5; --panel: #ffffff; --ink: #1f2328; --muted: #616a75; --line: #d7dbe0; --accent: #2f6fd6; --bar: #ffffff; }
+body.theme-sepia { --bg: #efe6d3; --panel: #f7f0df; --ink: #3b3323; --muted: #6f6144; --line: #d8c9a6; --accent: #9a6b2f; --bar: #f3ead6; }
+body.theme-dark  { --bg: #14171b; --panel: #1c2026; --ink: #e6e9ee; --muted: #99a3af; --line: #2c333c; --accent: #6ea8fe; --bar: #1c2026; }
+
+body { background: var(--bg); color: var(--ink); }
+
+/* ---- Top bar ---- */
+.lr-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bar);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.lr-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  flex-wrap: wrap;
+}
+
+.lr-bar-title { padding-bottom: 2px; }
+
+.lr-brand {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.lr-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The whole header rolls up (reader.js wireHeaderRollup, view-state key
+   leo.reader.headerExpanded). It starts rolled up. The Collapse button (and the
+   name-and-title strip) rolls it; rolled, the header is gone and the Expand tab
+   on the top edge brings it back. An open find bar stays, since closing it is
+   its own Done button. */
+.lr-rollup-hit {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lr-collapse-btn { flex: 0 0 auto; }
+.lr-bar.rolled > .lr-bar-title,
+.lr-bar.rolled > .lr-controls { display: none; }
+.lr-bar.rolled { border-bottom: 0; box-shadow: none; }
+.lr-unroll {
+  position: fixed;
+  top: 0;
+  right: 12px;
+  z-index: 21;
+  padding: 6px 14px 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--bar);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+  cursor: pointer;
+}
+.lr-unroll[hidden] { display: none; }
+
+/* EXPAND OVER THE DOCK (2026-10-26, found building Echo, Story 5653). Rolled up, the header is gone and
+   the dock is the top of the page -- so the fixed Expand tab sat UNDER the dock (z 21 against 60) and
+   could not be tapped: the header could never come back in Reader view. The tab now sits above the
+   dock, and the dock keeps its right edge clear while the header is rolled so no dock button hides
+   under the tab. */
+.lr-unroll { z-index: 61; }
+.lr-bar.rolled ~ .lr-dock { padding-right: 120px; }
+
+/* The settings row is chrome, and chrome gives the screen back when it is not
+   wanted: it starts folded on every reader and remembers what you left it on
+   (reader.js, key lr.controls.open). The title row keeps the wedge, so the
+   whole toolbar is one tap away. */
+.lr-controls { border-top: 1px solid var(--line); display: none; }
+.lr-controls.open { display: flex; }
+
+.lr-settings-btn { margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
+.lr-settings-btn .lr-chev { font-size: 11px; color: var(--muted); transition: transform .15s; }
+.lr-settings-btn.open { border-color: var(--accent); }
+.lr-settings-btn.open .lr-chev { transform: rotate(180deg); }
+
+.lr-grp, .lr-seg { display: inline-flex; align-items: center; gap: 4px; }
+/* display:inline-flex would otherwise beat the [hidden] attribute the toolbar
+   uses to show only the groups that apply to the current view. */
+.lr-grp[hidden], .lr-seg[hidden] { display: none; }
+
+.lr-btn, .lr-seg-btn {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+  min-height: 34px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lr-btn:hover, .lr-seg-btn:hover { border-color: var(--accent); }
+.lr-btn:active, .lr-seg-btn:active { transform: translateY(1px); }
+
+.lr-seg { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; padding: 0; }
+.lr-seg-btn { border: none; border-right: 1px solid var(--line); border-radius: 0; }
+.lr-seg-btn:last-child { border-right: none; }
+.lr-seg-btn.is-active { background: var(--accent); color: #fff; }
+
+.lr-readout {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 74px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- Stage ---- */
+.lr-stage {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;   /* the scroller itself, not just the page */
+  padding: 16px 12px 48px;
+}
+
+.lr-status {
+  max-width: 720px;
+  margin: 24px auto;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+.lr-status.is-error { color: #c0392b; }
+body.theme-dark .lr-status.is-error { color: #ff8a80; }
+
+.lr-content { }
+
+/* ---- PDF fidelity: stacked page canvases ---- */
+.lr-pages { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+.lr-page {
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  border-radius: 2px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.lr-page-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: -8px;
+}
+
+/* ---- Reader / markdown / text: reflowed prose ---- */
+/* How the page is set (Story 2422). All four knobs are custom properties on the
+   document root, so a render that happens LATER inherits them with no code of
+   its own -- which is what keeps the Type sheet from having to know when a
+   document was re-rendered. */
+.lr-prose {
+  max-width: var(--reader-measure, 44rem);
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 28px clamp(16px, 4vw, 40px) 44px;
+  font-family: var(--reader-family, Georgia, "Iowan Old Style", "Times New Roman", serif);
+  font-size: var(--reader-font, 18px);
+  line-height: var(--reader-leading, 1.62);
+  color: var(--ink);
+}
+
+.lr-prose p { margin: 0 0 1em; }
+.lr-prose h1, .lr-prose h2, .lr-prose h3 { line-height: 1.25; margin: 1.4em 0 0.5em; }
+.lr-prose h1 { font-size: 1.6em; }
+.lr-prose h2 { font-size: 1.35em; }
+.lr-prose h3 { font-size: 1.15em; }
+.lr-prose ul, .lr-prose ol { margin: 0 0 1em; padding-left: 1.6em; }
+.lr-prose li { margin: 0.25em 0; }
+.lr-prose a { color: var(--accent); }
+.lr-prose hr { border: none; border-top: 1px solid var(--line); margin: 1.6em 0; }
+.lr-prose code {
+  font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+  background: rgba(127,127,127,0.14);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.lr-prose pre {
+  background: rgba(127,127,127,0.12);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.lr-prose pre code { background: none; padding: 0; }
+.lr-prose blockquote {
+  margin: 0 0 1em;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
+/* Plain-text: preserve line breaks but still reflow long lines */
+.lr-prose.lr-plain { white-space: pre-wrap; word-wrap: break-word; }
+
+/* ---- Image ---- */
+.lr-image-wrap { text-align: center; }
+.lr-image-wrap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  transform-origin: top center;
+}
+
+/* ---- Marking layer (Story 2307): highlights, docked action bar, sheets ----
+
+   The dock and the sheets set display:flex, which would otherwise beat the
+   [hidden] attribute -- hence the explicit hidden rules below. */
+
+.lr-dock[hidden], .lr-dock-idle[hidden], .lr-dock-ready[hidden], .lr-dock-hint[hidden], .lr-dock-nudge[hidden], .lr-dock-live[hidden],
+.lr-dock-dest[hidden], .lr-sheet[hidden], .lr-scrim[hidden], .lr-toast[hidden],
+.lr-findbar[hidden], .lr-progress[hidden], .lr-note-editor[hidden],
+.lr-printable[hidden], #lrMarkColorBlock[hidden] { display: none; }
+
+.lr-prose mark.lr-mark {
+  background: var(--hl-yellow);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.05em 0;
+  cursor: pointer;
+}
+.lr-prose mark.lr-mark.is-excerpt { box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* ---- Highlight colours (Story 2395) -------------------------------------
+
+   One place defines the palette. The tint that goes BEHIND text has to be
+   translucent enough to read through, so each colour is an rgba wash and the
+   dark theme uses a weaker one; the swatch the reader taps uses the solid ink
+   so the choice is unmistakable at a glance. Colour names match the ColorCode
+   stored on the highlight and the palette in reader-marks.js. */
+
+:root {
+  --hl-yellow: rgba(255, 214,   0, 0.42);
+  --hl-blue:   rgba( 64, 169, 255, 0.40);
+  --hl-pink:   rgba(255, 105, 180, 0.36);
+  --hl-orange: rgba(255, 149,   0, 0.40);
+  --hl-green:  rgba( 80, 200, 120, 0.40);
+  --hl-purple: rgba(160, 120, 255, 0.38);
+
+  --hl-ink-yellow: #ffd600;
+  --hl-ink-blue:   #40a9ff;
+  --hl-ink-pink:   #ff69b4;
+  --hl-ink-orange: #ff9500;
+  --hl-ink-green:  #50c878;
+  --hl-ink-purple: #a078ff;
+}
+
+body.theme-dark {
+  --hl-yellow: rgba(255, 214,   0, 0.26);
+  --hl-blue:   rgba( 64, 169, 255, 0.30);
+  --hl-pink:   rgba(255, 105, 180, 0.28);
+  --hl-orange: rgba(255, 149,   0, 0.28);
+  --hl-green:  rgba( 80, 200, 120, 0.28);
+  --hl-purple: rgba(160, 120, 255, 0.30);
+}
+
+.lr-prose mark.lr-mark.hl-yellow { background: var(--hl-yellow); }
+.lr-prose mark.lr-mark.hl-blue   { background: var(--hl-blue); }
+.lr-prose mark.lr-mark.hl-pink   { background: var(--hl-pink); }
+.lr-prose mark.lr-mark.hl-orange { background: var(--hl-orange); }
+.lr-prose mark.lr-mark.hl-green  { background: var(--hl-green); }
+.lr-prose mark.lr-mark.hl-purple { background: var(--hl-purple); }
+
+/* The colour strip. Buttons are 34px so a thumb can hit them on a phone. */
+.lr-swatch-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.lr-swatches { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+.lr-swatch {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--hl-ink-yellow);
+  cursor: pointer;
+}
+.lr-swatches.is-large .lr-swatch { width: 40px; height: 40px; }
+
+.lr-swatch.hl-yellow { background: var(--hl-ink-yellow); }
+.lr-swatch.hl-blue   { background: var(--hl-ink-blue); }
+.lr-swatch.hl-pink   { background: var(--hl-ink-pink); }
+.lr-swatch.hl-orange { background: var(--hl-ink-orange); }
+.lr-swatch.hl-green  { background: var(--hl-ink-green); }
+.lr-swatch.hl-purple { background: var(--hl-ink-purple); }
+
+.lr-swatch.is-on { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+
+.lr-sheet-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* The colour dot beside a row in the saved-highlight list. */
+.lr-mark-dot {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--hl-ink-yellow);
+}
+.lr-mark-dot.hl-yellow { background: var(--hl-ink-yellow); }
+.lr-mark-dot.hl-blue   { background: var(--hl-ink-blue); }
+.lr-mark-dot.hl-pink   { background: var(--hl-ink-pink); }
+.lr-mark-dot.hl-orange { background: var(--hl-ink-orange); }
+.lr-mark-dot.hl-green  { background: var(--hl-ink-green); }
+.lr-mark-dot.hl-purple { background: var(--hl-ink-purple); }
+
+/* Docked action bar.
+
+   A flex child of the body, so it can never collide with the phone's own
+   selection callout, which the OS always draws immediately above the selection.
+
+   THE DOCK'S FLOW HEIGHT NEVER CHANGES (2026-09-06). The idle row stays in
+   place whichever face is showing, and the live face is drawn as an absolutely
+   positioned panel hanging BELOW the dock. Before this, selecting text grew the
+   dock by a quote preview plus the colour strip plus the action row; the stage
+   below shrank by the same amount and the paragraph being selected slid up out
+   from under the reader's finger mid-drag -- which truncated the selection and
+   made it impossible to adjust afterwards. A dock that changes height while a
+   selection is being dragged is a dock that fights the selection. */
+/* The dock sits under the toolbar, ABOVE the text -- never at the bottom of
+   the screen. On a phone the bottom edge belongs to Chrome: its "tap to see
+   search results" sheet and the Android navigation bar draw over anything
+   docked there, and between them they buried the highlight colour strip at the
+   exact moment a passage was selected (Story 2425). */
+.lr-dock {
+  position: relative;   /* anchors the live panel -- see the note above */
+  flex: 0 0 auto;
+  /* Nothing in the dock is text to select, and a selection handle dragged over
+     it must not land in it (Story 5589). */
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bar);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+}
+
+.lr-dock-idle, .lr-dock-nudge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lr-dock-hint { font-size: 13px; color: var(--muted); }
+
+/* The one-tap stand-in for "let go" on a phone (2026-10-06). A full-size tap
+   target, but the negative margins tuck it into the dock's own 8px padding, so
+   the idle row stays the height of the hint it replaces and the text under the
+   dock never moves. */
+.lr-dock-ready { min-height: 33px; margin: -8px 0; }
+
+.lr-dock-dest {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* The live face overlays the top of the text instead of pushing it down. */
+.lr-dock-live {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bar);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.20);
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.lr-dock-quote {
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  max-height: 20vh;
+  overflow: auto;
+}
+
+.lr-dock-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lr-dock-spacer { flex: 1 1 auto; }
+
+/* Sheets */
+.lr-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0,0,0,0.42);
+}
+
+.lr-sheet {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(560px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 28px rgba(0,0,0,0.28);
+}
+
+.lr-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lr-sheet-title { margin: 0; font-size: 16px; font-weight: 700; }
+
+.lr-sheet-x {
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 10px;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.lr-sheet-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px;
+}
+
+.lr-sheet-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+
+.lr-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.lr-field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0 4px;
+}
+
+.lr-field {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  min-height: 40px;
+}
+
+textarea.lr-field { resize: vertical; }
+
+.lr-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+  font-size: 14px;
+}
+.lr-check input { width: 20px; height: 20px; }
+
+.lr-quote {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 30vh;
+  overflow: auto;
+}
+
+.lr-sheet-msg { margin: 12px 0 0; font-size: 13px; color: #c0392b; min-height: 1em; }
+body.theme-dark .lr-sheet-msg { color: #ff8a80; }
+.lr-sheet-msg.is-ok { color: var(--muted); }
+
+.lr-sheet-note { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+
+.lr-linkrow { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Saved-highlight list */
+.lr-mark-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.lr-mark-row:last-child { border-bottom: none; }
+
+.lr-mark-text {
+  flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 1.45;
+  background: none;
+  border: none;
+  color: var(--ink);
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.lr-mark-where { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.lr-mark-drop {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 9px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.lr-def-word { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+.lr-def-phon { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.lr-def-pos { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; margin: 12px 0 4px; }
+.lr-def-list { margin: 0; padding-left: 1.3em; font-size: 14px; line-height: 1.5; }
+.lr-def-empty { font-size: 14px; color: var(--muted); }
+
+/* Toast */
+.lr-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 90;
+  max-width: 90vw;
+  padding: 10px 16px;
+  background: rgba(20,23,27,0.94);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+@media print {
+  .lr-dock, .lr-scrim, .lr-sheet, .lr-toast { display: none; }
+  .lr-bar, .lr-unroll { display: none; }
+  .lr-stage { overflow: visible; padding: 0; }
+  .lr-prose { border: none; border-radius: 0; max-width: 100%; }
+  .lr-page { box-shadow: none; }
+}
+
+
+/* ==== Kindle parity (Story 2422) ======================================== */
+
+/* ---- Search inside the document ---- */
+.lr-findbar { border-top: 1px solid var(--line); }
+
+.lr-find-input {
+  flex: 1 1 160px;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-height: 34px;
+}
+
+/* The tint on a match. Deliberately NOT one of the highlight colours -- a
+   search hit is transient and must never be mistaken for something saved. */
+.lr-prose span.lr-find-hit {
+  background: rgba(127, 127, 127, 0.30);
+  border-radius: 2px;
+}
+.lr-prose span.lr-find-hit.is-current {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---- How far through you are ----
+   The strip lives inside the Settings row, so it takes a full line of its own
+   there and gives the reading surface the space its old standalone strip used
+   to occupy. */
+.lr-progress {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 0;
+  background: transparent;
+}
+
+.lr-progress-track {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.lr-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.lr-progress-text {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* How long is left is hidden by default; tapping the strip shows it
+   (Story 2427). The affordance is a caret drawn with BORDERS rather than a
+   glyph -- no character above 0x7F goes anywhere near a source file, and
+   nothing here can be mangled into mojibake. It points right when the time is
+   put away and down when it is on show. The strip itself is the button, so it
+   takes the pointer cursor and a focus ring. */
+.lr-progress {
+  cursor: pointer;
+}
+.lr-progress:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lr-progress .lr-progress-more {
+  flex: 0 0 auto;
+  width: 0; height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--muted);
+  opacity: 0.65;
+}
+.lr-progress.is-time-shown .lr-progress-more {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--muted);
+  border-bottom: 0;
+}
+
+/* ---- Contents ---- */
+.lr-toc-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+  min-height: 40px;
+  cursor: pointer;
+}
+.lr-toc-row:last-child { border-bottom: none; }
+
+/* Nesting depth reads as indent; four levels is as deep as any outline needs. */
+.lr-toc-l0 { padding-left: 0; font-weight: 700; }
+.lr-toc-l1 { padding-left: 14px; }
+.lr-toc-l2 { padding-left: 28px; color: var(--muted); }
+.lr-toc-l3 { padding-left: 42px; color: var(--muted); }
+
+.lr-toc-label { flex: 1 1 auto; }
+.lr-toc-where { flex: 0 0 auto; font-size: 11px; color: var(--muted); }
+
+/* ---- Bookmarks ---- */
+/* A bookmark has no colour, so its dot is drawn rather than tinted. */
+.lr-mark-dot.is-bookmark {
+  background: var(--accent);
+  border-color: var(--accent);
+  border-radius: 2px 2px 0 0;
+  height: 16px;
+}
+
+/* ---- Notes on a mark ---- */
+/* A highlight that carries a note is underlined, so the two read differently
+   at a glance without spending a second colour on it. */
+.lr-prose mark.lr-mark.is-noted { text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.lr-note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.lr-note-row:last-child { border-bottom: none; }
+
+.lr-note-body {
+  flex: 1 1 auto;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lr-note-editor { display: block; margin: 10px 0 4px; }
+
+/* A note shown under its mark in the notebook. */
+.lr-mark-note {
+  margin: 0 0 8px 24px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+/* ---- The notebook, staged for the print menu ---- */
+/* Present in the DOM because printThisPage prints a selector, never shown. */
+.lr-printable { display: none; }

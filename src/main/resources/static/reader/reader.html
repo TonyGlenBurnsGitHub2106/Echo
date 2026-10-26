@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=6, user-scalable=yes">
+  <title>Echo Reader</title>
+  <link rel="icon" href="data:,">
+  <meta name="theme-color" content="#2A2A2A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Echo Reader">
+  <link rel="stylesheet" href="/picasso-select.css?v=5">
+  <link rel="stylesheet" href="/picasso-picker.css?v=2">
+  <link rel="stylesheet" href="/picasso-tags.css?v=2">
+  <link rel="stylesheet" href="reader-quote.css?v=1">
+  <link rel="stylesheet" href="reader.css?v=17">
+  <!-- Story 5653 (Echo): hides the four actions that write into Leonardo's Library. -->
+  <link rel="stylesheet" href="reader-echo.css?v=1">
+  <link rel="stylesheet" href="/reading-nook/nook-reader.css?v=3">
+</head>
+<body class="theme-light ql-no-pin">
+
+  <header class="lr-bar" id="lrBar">
+    <div class="lr-bar-row lr-bar-title">
+      <!-- The header starts rolled up. Collapse (or a tap on the name or the
+           title) rolls it away (reader.js wireHeaderRollup); the Expand tab on
+           the top edge brings it back. -->
+      <button type="button" class="lr-rollup-hit" id="lrRollupBtn" data-testid="reader-header-rollup"
+              title="Collapse the header" aria-expanded="true">
+        <span class="lr-brand">Echo Reader</span>
+        <span class="lr-title" id="lrTitle" data-testid="reader-title"></span>
+      </button>
+      <button type="button" class="lr-btn lr-collapse-btn" id="lrCollapseBtn" data-testid="reader-header-collapse"
+              title="Collapse the header">Collapse <span aria-hidden="true">&#9652;</span></button>
+      <button type="button" class="lr-btn lr-settings-btn" id="lrSettingsBtn"
+              data-testid="reader-settings-toggle" aria-expanded="false" aria-controls="lrControls"
+              title="Show or hide the reading settings">Settings <span class="lr-chev">&#9662;</span></button>
+    </div>
+
+    <div class="lr-bar-row lr-controls" id="lrControls">
+
+      <!-- PDF: view-mode toggle -->
+      <div class="lr-seg" data-group="mode" hidden>
+        <button type="button" class="lr-seg-btn is-active" data-mode="fidelity" data-testid="reader-mode-fidelity">Fidelity</button>
+        <button type="button" class="lr-seg-btn" data-mode="reader" data-testid="reader-mode-reader">Reader</button>
+      </div>
+
+      <!-- Zoom (PDF fidelity + image) -->
+      <div class="lr-grp" data-group="zoom" hidden>
+        <button type="button" class="lr-btn" data-act="zoom-out" title="Zoom out" data-testid="reader-zoom-out">Zoom -</button>
+        <span class="lr-readout" id="lrZoomReadout">100%</span>
+        <button type="button" class="lr-btn" data-act="zoom-in" title="Zoom in" data-testid="reader-zoom-in">Zoom +</button>
+      </div>
+
+      <!-- Page nav (PDF fidelity) -->
+      <div class="lr-grp" data-group="page" hidden>
+        <button type="button" class="lr-btn" data-act="page-prev" title="Previous page" data-testid="reader-page-prev">Prev</button>
+        <span class="lr-readout" id="lrPageReadout">Page 1 / 1</span>
+        <button type="button" class="lr-btn" data-act="page-next" title="Next page" data-testid="reader-page-next">Next</button>
+      </div>
+
+      <!-- Font stepper (reader / md / txt). The stepper stays on the bar because
+           text size is the control reached for most; everything else about how
+           the page is set lives one tap away in Type. -->
+      <div class="lr-grp" data-group="font" hidden>
+        <button type="button" class="lr-btn" data-act="font-down" title="Smaller text" data-testid="reader-font-down">A-</button>
+        <button type="button" class="lr-btn" data-act="font-up" title="Larger text" data-testid="reader-font-up">A+</button>
+        <button type="button" class="lr-btn" data-act="type" title="Typeface, spacing and margins" data-testid="reader-type">Type</button>
+      </div>
+
+      <!-- Getting around the document (reflowed views + PDF fidelity) -->
+      <div class="lr-grp" data-group="find" hidden>
+        <button type="button" class="lr-btn" data-act="contents" title="Contents and where you are" data-testid="reader-contents">Contents</button>
+        <button type="button" class="lr-btn" data-act="find" title="Search inside this document" data-testid="reader-find">Search</button>
+      </div>
+
+      <!-- Listen: read the document aloud (Story 5648) -->
+      <div class="lr-grp" data-group="listen" hidden>
+        <button type="button" class="lr-btn" data-act="listen" title="Read this document aloud" data-testid="reader-listen">Listen</button>
+      </div>
+
+      <!-- Marks (reflowed views only) -->
+      <div class="lr-grp" data-group="marks" hidden>
+        <button type="button" class="lr-btn" data-act="bookmark" title="Bookmark this spot" data-testid="reader-bookmark">Bookmark</button>
+        <button type="button" class="lr-btn" data-act="marks-list" title="Bookmarks, highlights and notes" data-testid="reader-marks-list">Notebook</button>
+      </div>
+
+      <!-- Theme -->
+      <div class="lr-seg" data-group="theme">
+        <button type="button" class="lr-seg-btn is-active" data-theme="light" data-testid="reader-theme-light">Light</button>
+        <button type="button" class="lr-seg-btn" data-theme="sepia" data-testid="reader-theme-sepia">Sepia</button>
+        <button type="button" class="lr-seg-btn" data-theme="dark" data-testid="reader-theme-dark">Dark</button>
+      </div>
+
+      <!-- How far through the document you are. It lives inside Settings rather
+           than on a strip of its own: while you are reading, the words should
+           have the page, and the one number worth seeing is one tap away with
+           the rest of the chrome. -->
+      <div class="lr-progress" id="lrProgress" hidden data-testid="reader-progress">
+        <div class="lr-progress-track"><div class="lr-progress-fill" id="lrProgressFill"></div></div>
+        <div class="lr-progress-text" id="lrProgressText" data-testid="reader-progress-text"></div>
+      </div>
+    </div>
+
+    <!-- Search inside the document. Its own row so opening it never reshuffles
+         the toolbar, and it closes back to nothing when it is not in use. -->
+    <div class="lr-bar-row lr-findbar" id="lrFindBar" hidden data-testid="reader-findbar">
+      <input type="search" class="lr-find-input" id="lrFindInput" placeholder="Search this document"
+             autocomplete="off" autocorrect="off" spellcheck="false" data-testid="reader-find-input">
+      <span class="lr-readout" id="lrFindCount" data-testid="reader-find-count"></span>
+      <button type="button" class="lr-btn" data-act="find-prev" title="Previous match" data-testid="reader-find-prev">Prev</button>
+      <button type="button" class="lr-btn" data-act="find-next" title="Next match" data-testid="reader-find-next">Next</button>
+      <button type="button" class="lr-btn" data-act="find-close" title="Close search" data-testid="reader-find-close">Done</button>
+    </div>
+  </header>
+
+  <!-- The rolled-up header: one small tab on the top edge that brings it back. -->
+  <button type="button" class="lr-unroll" id="lrUnrollBtn" hidden data-testid="reader-header-unroll"
+          title="Expand the header">Expand <span aria-hidden="true">&#9662;</span></button>
+
+  <!-- Docked action bar. Pinned to the bottom edge so it can never collide with
+       the phone's own selection callout, and always on screen so the actions are
+       discoverable before anything is selected. -->
+  <div class="lr-dock" id="lrDock" hidden data-testid="reader-dock">
+
+    <!-- Nothing selected yet -->
+    <div class="lr-dock-idle" id="lrDockIdle" data-testid="reader-dock-idle">
+      <span class="lr-dock-hint" id="lrDockHint">Select text to highlight or save an excerpt</span>
+      <!-- Selected but not yet let go of (a phone never reports lifting a
+           selection handle): one tap brings the colours, never the panel unasked -->
+      <button type="button" class="lr-btn lr-btn-primary lr-dock-ready" id="lrDockReady" hidden data-testid="reader-dock-ready">Highlight or save</button>
+      <span class="lr-dock-dest" id="lrDockDest" hidden data-testid="reader-dock-dest"></span>
+    </div>
+
+    <!-- Fidelity view: marking needs the reflowed text, so offer the way there -->
+    <div class="lr-dock-nudge" id="lrDockNudge" hidden data-testid="reader-dock-nudge">
+      <span class="lr-dock-hint">Switch to Reader view to highlight and save excerpts</span>
+      <button type="button" class="lr-btn lr-btn-primary" id="lrDockToReader" data-testid="reader-dock-to-reader">Reader view</button>
+    </div>
+
+    <!-- Something is selected -->
+    <div class="lr-dock-live" id="lrDockLive" hidden data-testid="reader-dock-live">
+      <p class="lr-dock-quote" id="lrDockQuote" data-testid="reader-dock-quote"></p>
+      <!-- Kindle-style colour strip: one tap both picks the colour and saves
+           the highlight, so choosing a colour is never a second step. -->
+      <div class="lr-swatch-row" data-testid="reader-sel-colors">
+        <span class="lr-dock-hint">Highlight</span>
+        <div class="lr-swatches" id="lrDockColors" data-testid="reader-sel-swatches"></div>
+      </div>
+      <div class="lr-dock-acts">
+        <button type="button" class="lr-btn lr-btn-primary" data-sel-act="excerpt" data-testid="reader-sel-excerpt">Save Excerpt</button>
+        <button type="button" class="lr-btn" data-sel-act="quote" data-testid="reader-sel-quote">Send to Quotes</button>
+        <button type="button" class="lr-btn" data-sel-act="define" data-testid="reader-sel-define">Define</button>
+        <button type="button" class="lr-btn" data-sel-act="research" data-testid="reader-sel-research">Research</button>
+        <span class="lr-dock-spacer"></span>
+        <button type="button" class="lr-btn" data-sel-act="clear" data-testid="reader-sel-clear">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="lr-stage" id="lrStage">
+    <div class="lr-status" id="lrStatus" data-testid="reader-status">Loading...</div>
+    <div class="lr-content" id="lrContent" data-testid="reader-content"></div>
+  </main>
+
+  <div class="lr-scrim" id="lrScrim" hidden data-testid="reader-scrim"></div>
+
+  <!-- Save the selection to a research project as an excerpt -->
+  <section class="lr-sheet" id="lrExcerptSheet" hidden aria-label="Save excerpt" data-testid="reader-excerpt-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title">Save Excerpt</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrExcerptSheet" data-testid="reader-excerpt-close">Close</button>
+    </header>
+    <div class="lr-sheet-body">
+      <blockquote class="lr-quote" id="lrExcerptText" data-testid="reader-excerpt-text"></blockquote>
+
+      <label class="lr-field-label" for="lrExProject">Research project</label>
+      <select class="lr-field" id="lrExProject" data-testid="reader-excerpt-project"></select>
+
+      <label class="lr-field-label" for="lrExSource">Source</label>
+      <select class="lr-field" id="lrExSource" data-testid="reader-excerpt-source"></select>
+
+      <label class="lr-field-label" for="lrExTheme">Theme</label>
+      <select class="lr-field" id="lrExTheme" data-testid="reader-excerpt-theme"></select>
+
+      <label class="lr-field-label" for="lrExStance">Stance</label>
+      <select class="lr-field" id="lrExStance" data-testid="reader-excerpt-stance">
+        <option value="">Not stated</option>
+        <option value="Supports">Supports</option>
+        <option value="Complicates">Complicates</option>
+        <option value="Against">Against</option>
+        <option value="Neutral">Neutral</option>
+      </select>
+
+      <label class="lr-field-label" for="lrExCommentary">Your comment</label>
+      <textarea class="lr-field" id="lrExCommentary" rows="3" data-testid="reader-excerpt-commentary"></textarea>
+
+      <label class="lr-check">
+        <input type="checkbox" id="lrExKeyPoint" data-testid="reader-excerpt-keypoint">
+        <span>Mark as a key point</span>
+      </label>
+
+      <p class="lr-sheet-msg" id="lrExcerptMsg" data-testid="reader-excerpt-msg"></p>
+    </div>
+    <footer class="lr-sheet-foot">
+      <button type="button" class="lr-btn" data-sheet-close="lrExcerptSheet" data-testid="reader-excerpt-cancel">Cancel</button>
+      <button type="button" class="lr-btn lr-btn-primary" id="lrExcerptSave" data-testid="reader-excerpt-save">Save</button>
+    </footer>
+  </section>
+
+  <!-- Word lookup -->
+  <section class="lr-sheet" id="lrDefineSheet" hidden aria-label="Definition" data-testid="reader-define-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title" id="lrDefineTitle">Definition</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrDefineSheet" data-testid="reader-define-close">Close</button>
+    </header>
+    <div class="lr-sheet-body" id="lrDefineBody" data-testid="reader-define-body"></div>
+  </section>
+
+  <!-- Research the term online -->
+  <section class="lr-sheet" id="lrResearchSheet" hidden aria-label="Research this term" data-testid="reader-research-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title" id="lrResearchTitle">Research</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrResearchSheet" data-testid="reader-research-close">Close</button>
+    </header>
+    <div class="lr-sheet-body">
+      <p class="lr-sheet-note">Opens a new tab with this term.</p>
+      <div class="lr-linkrow">
+        <button type="button" class="lr-btn" data-research-site="wikipedia" data-testid="reader-research-wikipedia">Wikipedia</button>
+        <button type="button" class="lr-btn" data-research-site="web" data-testid="reader-research-web">Web search</button>
+        <button type="button" class="lr-btn" data-research-site="scholar" data-testid="reader-research-scholar">Scholar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- One saved mark, tapped in the text: recolour it or take it away -->
+  <section class="lr-sheet" id="lrMarkSheet" hidden aria-label="Highlight" data-testid="reader-mark-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title">Highlight</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrMarkSheet" data-testid="reader-mark-close">Close</button>
+    </header>
+    <div class="lr-sheet-body">
+      <blockquote class="lr-quote" id="lrMarkText" data-testid="reader-mark-text"></blockquote>
+      <div id="lrMarkColorBlock">
+        <p class="lr-field-label">Colour</p>
+        <div class="lr-swatches is-large" id="lrMarkColors" data-testid="reader-mark-swatches"></div>
+      </div>
+
+      <!-- Notes on this mark. A note is its own record, so writing, rewriting
+           or throwing one away never disturbs the passage it belongs to. -->
+      <p class="lr-field-label">Notes</p>
+      <div id="lrMarkNotes" data-testid="reader-mark-notes"></div>
+      <div class="lr-note-editor" id="lrNoteEditor" hidden data-testid="reader-note-editor">
+        <textarea class="lr-field" id="lrNoteInput" rows="3" placeholder="What is worth remembering here"
+                  data-testid="reader-note-input"></textarea>
+        <div class="lr-sheet-acts">
+          <button type="button" class="lr-btn" id="lrNoteCancel" data-testid="reader-note-cancel">Cancel</button>
+          <button type="button" class="lr-btn lr-btn-primary" id="lrNoteSave" data-testid="reader-note-save">Save note</button>
+        </div>
+      </div>
+
+      <div class="lr-sheet-acts">
+        <button type="button" class="lr-btn" id="lrNoteAdd" data-testid="reader-note-add">Add a note</button>
+        <button type="button" class="lr-btn" id="lrMarkCopy" data-testid="reader-mark-copy">Copy</button>
+        <button type="button" class="lr-btn" id="lrMarkQuote" data-testid="reader-mark-quote">Send to Quotes</button>
+        <button type="button" class="lr-btn" id="lrMarkRemove" data-testid="reader-mark-remove">Remove</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Everything marked in this document: bookmarks, highlights and their notes -->
+  <section class="lr-sheet" id="lrMarksSheet" hidden aria-label="Notebook" data-testid="reader-marks-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title">Notebook</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrMarksSheet" data-testid="reader-marks-close">Close</button>
+    </header>
+    <div class="lr-sheet-body" id="lrMarksBody" data-testid="reader-marks-body"></div>
+    <footer class="lr-sheet-foot">
+      <button type="button" class="lr-btn" id="lrNotebookPrint" data-testid="reader-notebook-print">Print</button>
+      <button type="button" class="lr-btn lr-btn-primary" id="lrNotebookSave" data-testid="reader-notebook-save">Send to Reading Nook</button>
+    </footer>
+  </section>
+
+  <!-- How the page is set: typeface, spacing, margins, screen. Everything here
+       is a per-device display preference, so it is kept on the device and never
+       written to the database. -->
+  <section class="lr-sheet" id="lrTypeSheet" hidden aria-label="Type" data-testid="reader-type-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title">Type</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrTypeSheet" data-testid="reader-type-close">Close</button>
+    </header>
+    <div class="lr-sheet-body">
+      <p class="lr-field-label">Text size</p>
+      <div class="lr-grp">
+        <button type="button" class="lr-btn" data-act="font-down" data-testid="reader-type-smaller">A-</button>
+        <span class="lr-readout" id="lrFontReadout" data-testid="reader-type-size">18 px</span>
+        <button type="button" class="lr-btn" data-act="font-up" data-testid="reader-type-larger">A+</button>
+      </div>
+
+      <p class="lr-field-label">Typeface</p>
+      <div class="lr-seg" id="lrTypeFamily" data-testid="reader-type-family">
+        <button type="button" class="lr-seg-btn" data-family="serif" data-testid="reader-family-serif">Serif</button>
+        <button type="button" class="lr-seg-btn" data-family="sans" data-testid="reader-family-sans">Sans</button>
+        <button type="button" class="lr-seg-btn" data-family="mono" data-testid="reader-family-mono">Mono</button>
+      </div>
+
+      <p class="lr-field-label">Line spacing</p>
+      <div class="lr-seg" id="lrTypeLeading" data-testid="reader-type-leading">
+        <button type="button" class="lr-seg-btn" data-leading="1.35" data-testid="reader-leading-tight">Tight</button>
+        <button type="button" class="lr-seg-btn" data-leading="1.62" data-testid="reader-leading-normal">Normal</button>
+        <button type="button" class="lr-seg-btn" data-leading="1.95" data-testid="reader-leading-loose">Loose</button>
+      </div>
+
+      <p class="lr-field-label">Margins</p>
+      <div class="lr-seg" id="lrTypeMeasure" data-testid="reader-type-measure">
+        <button type="button" class="lr-seg-btn" data-measure="56" data-testid="reader-measure-narrow">Narrow</button>
+        <button type="button" class="lr-seg-btn" data-measure="44" data-testid="reader-measure-normal">Normal</button>
+        <button type="button" class="lr-seg-btn" data-measure="32" data-testid="reader-measure-wide">Wide</button>
+      </div>
+
+      <label class="lr-check">
+        <input type="checkbox" id="lrKeepAwake" data-testid="reader-keep-awake">
+        <span>Keep the screen awake while reading</span>
+      </label>
+      <p class="lr-sheet-note" id="lrKeepAwakeNote"></p>
+    </div>
+  </section>
+
+  <!-- Contents: where you are, where to jump to, and the way back to the top -->
+  <section class="lr-sheet" id="lrContentsSheet" hidden aria-label="Contents" data-testid="reader-contents-sheet">
+    <header class="lr-sheet-head">
+      <h2 class="lr-sheet-title">Contents</h2>
+      <button type="button" class="lr-sheet-x" data-sheet-close="lrContentsSheet" data-testid="reader-contents-close">Close</button>
+    </header>
+    <div class="lr-sheet-body">
+      <p class="lr-sheet-note" id="lrPlaceNote" data-testid="reader-place-note"></p>
+      <div class="lr-linkrow">
+        <button type="button" class="lr-btn" id="lrStartOver" data-testid="reader-start-over">Start from the beginning</button>
+      </div>
+      <div id="lrContentsBody" data-testid="reader-contents-body"></div>
+    </div>
+  </section>
+
+  <!-- The notebook, staged as a document for the Leonardo print menu. Never
+       shown on screen -- the list the reader sees is made of buttons, which
+       would print as controls rather than as something to read. -->
+  <div class="lr-printable" id="lrNotebookPrintable" hidden aria-hidden="true"></div>
+
+  <div class="lr-toast" id="lrToast" hidden data-testid="reader-toast"></div>
+
+  <script src="/auth.js?v=36"></script>
+  <script src="/picasso-utils.js?v=63"></script>
+  <script src="/picasso-select.js?v=5"></script>
+  <script src="/picasso-picker.js?v=4"></script>
+  <script src="/picasso-tags.js?v=5"></script>
+  <script src="/picasso-view-state.js?v=4"></script>
+  <script src="pdf.min.js?v=1"></script>
+  <script src="reader-place.js?v=3"></script>
+  <script src="reader-find.js?v=2"></script>
+  <script src="reader-quote.js?v=1"></script>
+  <script src="reader-marks.js?v=15"></script>
+  <script src="/picasso-tts.js?v=3"></script>
+  <script src="/reading-nook/nook-reader.js?v=13"></script>
+  <script src="reader.js?v=18"></script>
+</body>
+</html>

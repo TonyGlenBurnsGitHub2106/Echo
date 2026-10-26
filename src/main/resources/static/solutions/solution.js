@@ -130,7 +130,7 @@
         Array.prototype.forEach.call(document.querySelectorAll('.sl-tab'), function (t) {
             t.classList.toggle('active', t.getAttribute('data-tab') === name);
         });
-        ['overview', 'items', 'log', 'notes', 'terms', 'tests', 'qa', 'config', 'grid', 'files', 'conversations', 'search'].forEach(function (n) {
+        ['overview', 'items', 'log', 'notes', 'terms', 'tests', 'qa', 'config', 'grid', 'files', 'conversations', 'web', 'search'].forEach(function (n) {
             $('pane-' + n).hidden = n !== name;
             // The Web tab (the shared record Web tab) carries its own tool row, so it has no toolbar here.
             if ($('toolbar-' + n)) $('toolbar-' + n).hidden = n !== name;
@@ -642,6 +642,12 @@
     }
 
     (async function () {
+        // Every tab script loads AFTER this one (and picasso-groups.js after them): start once the page has
+        // run them all, or a fast load reaches the tabs' init() before they are there (2026-10-26:
+        // "PicassoGroupState.create" of undefined on the Search tab).
+        if (document.readyState === 'loading') {
+            await new Promise(function (go) { document.addEventListener('DOMContentLoaded', go, { once: true }); });
+        }
         await window.LWAuth.ensureAuth();
         wire();
         var link = await resolveDeepLink();

@@ -258,7 +258,7 @@
         if (vs()) return sync();
         return new Promise(function (resolve) {
             var s = document.createElement('script');
-            s.src = '/picasso-view-state.js?v=3';
+            s.src = '/picasso-view-state.js?v=4';
             s.onload = function () { sync().then(resolve); };
             s.onerror = function () { resolve(false); };
             document.head.appendChild(s);
