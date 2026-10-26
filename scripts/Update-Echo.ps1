@@ -67,7 +67,17 @@ if (Test-Path $statePath) {
     } catch [System.ArgumentException] { }
 }
 
+# Windows can hold a jar for a moment after its Java has gone; try a move for a few seconds.
+function Move-EchoFile([string]$From, [string]$To) {
+    for ($try = 1; ; $try++) {
+        try { Move-Item -Path $From -Destination $To -ErrorAction Stop; return }
+        catch { if ($try -ge 20) { throw "Could not move $From to $To -- $($_.Exception.Message)" }; Start-Sleep -Milliseconds 500 }
+    }
+}
+
 $transcribing = $false
+$echoStopped = $false
+$previous = $null
 if ($AdminSqlPassword) { $logName = '' }   # never write a password into a log
 else { Start-Transcript -Path (Join-Path $logDir $logName) | Out-Null; $transcribing = $true }
 Write-UpdateState 'running' 'Updating Echo.'
@@ -95,6 +105,7 @@ try {
         & (Join-Path $PSScriptRoot 'Install-EchoDatabase.ps1') @sql
         Write-Host '== build and restart'
         & (Join-Path $PSScriptRoot 'Stop-Echo.ps1')
+        $echoStopped = $true
         Invoke-EchoBuild -Root $root -JavaHome $info.javaHome
         & (Join-Path $PSScriptRoot 'Start-Echo.ps1')
         Write-UpdateState 'done' 'Echo was built from source and restarted.'
@@ -120,16 +131,16 @@ try {
 
             Write-Host '== restart'
             & (Join-Path $PSScriptRoot 'Stop-Echo.ps1')
-            $previous = $null
+            $echoStopped = $true
             if ($download) {
                 if (Test-Path $jar) {
                     $prevDir = Join-Path $root 'target\previous'
                     New-Item -ItemType Directory -Force $prevDir | Out-Null
                     $previous = Join-Path $prevDir "echo-$stamp.jar"
-                    Move-Item -Path $jar -Destination $previous
+                    Move-EchoFile $jar $previous
                     Write-Host "  the old program is kept as $previous"
                 }
-                Move-Item -Path $download -Destination $jar
+                Move-EchoFile $download $jar
             }
             $started = $true
             try { & (Join-Path $PSScriptRoot 'Start-Echo.ps1') } catch { Write-Host "  $($_.Exception.Message)" -ForegroundColor Red; $started = $false }
@@ -140,8 +151,9 @@ try {
             if (-not $started -and $previous) {
                 Write-Host '== the new Echo did not start; putting the old one back' -ForegroundColor Yellow
                 & (Join-Path $PSScriptRoot 'Stop-Echo.ps1')
-                Move-Item -Path $jar -Destination (Join-Path (Split-Path $previous) "echo-$($release.Tag)-did-not-start-$stamp.jar")
-                Move-Item -Path $previous -Destination $jar
+                Move-EchoFile $jar (Join-Path (Split-Path $previous) "echo-$($release.Tag)-did-not-start-$stamp.jar")
+                Move-EchoFile $previous $jar
+                $previous = $null
                 & (Join-Path $PSScriptRoot 'Start-Echo.ps1')
                 throw "Release $($release.Tag) did not start, so the program you had is back and running. See logs\echo.log."
             }
@@ -153,7 +165,18 @@ try {
     }
 } catch {
     Write-Host "Update failed: $($_.Exception.Message)" -ForegroundColor Red
-    Write-UpdateState 'failed' $_.Exception.Message
+    $why = $_.Exception.Message
+    # Never leave Echo down: if this run stopped it and it is not running, start what is there
+    # (the old program, put back first if it was already moved aside).
+    if ($echoStopped -and @(Get-EchoProcess $root).Count -eq 0) {
+        try {
+            if (-not (Test-Path $jar) -and $previous -and (Test-Path $previous)) { Move-EchoFile $previous $jar }
+            Write-Host '== starting Echo again' -ForegroundColor Yellow
+            & (Join-Path $PSScriptRoot 'Start-Echo.ps1')
+            $why += ' Echo was started again.'
+        } catch { $why += " Echo could not be started again ($($_.Exception.Message)) -- run start-echo.cmd." }
+    }
+    Write-UpdateState 'failed' $why
     $exitCode = 1
 } finally {
     if ($transcribing) { Stop-Transcript | Out-Null }
