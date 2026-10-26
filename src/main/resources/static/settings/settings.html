@@ -29,6 +29,14 @@
         .st-about td { padding: 3px 14px 3px 0; vertical-align: top; }
         .st-about td:first-child { color: #666; white-space: nowrap; }
         .st-fold-all { margin: 0 0 10px; }
+        /* Story 5653: Update Echo */
+        .st-update-state { margin: 0 0 10px; }
+        .st-update-state.ok { color: #1E7B34; }
+        .st-update-state.bad { color: #C00000; }
+        .st-update-log { display: none; margin: 10px 0 0; max-height: 320px; overflow: auto; background: #F6F6F7;
+                         border: 1px solid #E0E0E2; border-radius: 4px; padding: 8px 10px; font: 9pt Consolas, monospace;
+                         white-space: pre-wrap; word-break: break-word; }
+        .st-update-log.shown { display: block; }
     </style>
 </head>
 <body>
@@ -63,6 +71,18 @@
                 <div class="st-body">
                     <p style="margin:0 0 10px">Ends every Echo session you have open, in every browser on every computer, this one included.</p>
                     <button type="button" class="sl-btn" id="btnEverywhere" data-testid="settings-signout-everywhere">Sign out everywhere</button>
+                </div>
+            </div>
+
+            <div class="st-card" data-card="update" data-testid="settings-update-card">
+                <h2>Update Echo <span class="chev">&#9662;</span></h2>
+                <div class="st-body">
+                    <p style="margin:0 0 10px">Gets the newest Echo from GitHub, backs up the database, updates it and restarts Echo.
+                        Echo is unavailable for a minute or so; this page waits and shows how it went. Nothing is compiled on this computer.</p>
+                    <div class="st-update-state" id="updState" data-testid="settings-update-state">Loading&hellip;</div>
+                    <button type="button" class="sl-btn primary" id="btnUpdate" data-testid="settings-update">Update Echo</button>
+                    <button type="button" class="sl-btn" id="btnUpdateLog" data-testid="settings-update-log-toggle" style="display:none">Show the log</button>
+                    <pre class="st-update-log" id="updLog" data-testid="settings-update-log"></pre>
                 </div>
             </div>
 
@@ -147,10 +167,72 @@
         var r = await window.LWAuth.apiGet('/api/system/about');
         if (!r || !r.ok || !r.data) { $('aboutTable').innerHTML = '<tr><td>' + esc(window.LWAuth.errorText(r, 'About Echo failed')) + '</td></tr>'; return; }
         var d = r.data;
-        var rows = [['Version', d.version], ['Running for', d.uptime], ['Database', d.database + (d.databaseUp ? '' : ' (not answering)')],
+        var rows = [['Version', d.version], ['Release', d.release], ['Running for', d.uptime], ['Database', d.database + (d.databaseUp ? '' : ' (not answering)')],
                     ['Files are kept in', d.filesFolder], ['Java', d.java]];
         $('aboutTable').innerHTML = rows.map(function (x) { return '<tr><td>' + esc(x[0]) + '</td><td>' + esc(x[1]) + '</td></tr>'; }).join('');
     }
+
+    // ---- update Echo (Story 5653) ---------------------------------------------------------------
+    var FINAL = { done: 1, failed: 1, uptodate: 1 };
+    function paintUpdate(d) {
+        var el = $('updState');
+        var cur = d && d.current && d.current.tag ? 'Running release ' + d.current.tag + ' (installed ' + d.current.installed + ').'
+                                                  : 'Running a copy built on this computer.';
+        var last = '';
+        if (d && d.state === 'running' || d && d.state === 'starting') last = ' Updating now\u2026';
+        else if (d && d.state && d.state !== 'none') last = ' Last update (' + String(d.finished || d.started || '').replace('T', ' ') + '): ' + d.message;
+        el.textContent = cur + last;
+        el.className = 'st-update-state' + (d && d.state === 'failed' ? ' bad' : (d && (d.state === 'done' || d.state === 'uptodate') ? ' ok' : ''));
+        var lines = (d && d.logTail) || [];
+        $('updLog').textContent = lines.join('\n');
+        $('btnUpdateLog').style.display = lines.length ? '' : 'none';
+        $('btnUpdate').disabled = !!(d && d.running);
+    }
+    async function loadUpdate() {
+        var r = await window.LWAuth.apiGet('/api/system/update/status');
+        if (r && r.ok) paintUpdate(r.data); else $('updState').textContent = window.LWAuth.errorText(r, 'Reading the update status failed');
+        return r;
+    }
+    $('btnUpdateLog').addEventListener('click', function () {
+        var shown = $('updLog').classList.toggle('shown');
+        this.textContent = shown ? 'Hide the log' : 'Show the log';
+    });
+    function pause(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+    async function waitForUpdate() {
+        var deadline = Date.now() + 20 * 60 * 1000;
+        var wentDown = false;
+        while (Date.now() < deadline) {
+            await pause(3000);
+            var up = false;
+            try { up = (await fetch('/api/system/health', { cache: 'no-store' })).ok; } catch (e) { up = false; }
+            if (!up) { wentDown = true; $('updState').textContent = 'Echo is restarting\u2026 this page will pick up when it is back.'; continue; }
+            var r = await window.LWAuth.apiGet('/api/system/update/status');
+            if (!r || !r.ok || !r.data) continue;
+            paintUpdate(r.data);
+            if (FINAL[r.data.state] && !r.data.running) return r.data;
+        }
+        return { state: 'failed', message: 'Echo has not reported back after 20 minutes' + (wentDown ? '' : ' (it never restarted)') + '. Check logs\\update-*.log in the Echo folder.' };
+    }
+    $('btnUpdate').addEventListener('click', async function () {
+        var yes = await window.Picasso.yesNo('Update Echo now? It gets the newest Echo from GitHub, backs up the database, updates it and restarts. '
+            + 'Echo is unavailable for a minute or so; this page waits and tells you how it went.', { title: 'Update Echo' });
+        if (!yes) return;
+        var btn = this;
+        btn.disabled = true;
+        var r = await window.LWAuth.apiPost('/api/system/update', null, 'POST');
+        if (!r || !r.ok) {
+            btn.disabled = false;
+            await window.Picasso.error(window.LWAuth.errorText(r, 'Starting the update failed'), { title: 'Update Echo' });
+            return;
+        }
+        paintUpdate(r.data);
+        var d = await waitForUpdate();
+        paintUpdate(d);
+        $('btnUpdate').disabled = false;
+        loadAbout();
+        if (d.state === 'failed') await window.Picasso.error(d.message, { title: 'Update Echo' });
+        else await window.Picasso.message(d.message, { title: 'Update Echo' });
+    });
 
     $('btnPrint').addEventListener('click', function (e) {
         e.preventDefault();
@@ -163,6 +245,7 @@
         applyFolds();
         if (VS) { try { await VS.sync(PREFIX); } catch (e) { /* the cache holds */ } applyFolds(); }
         loadAbout();
+        loadUpdate();
     })();
 })();
 </script>

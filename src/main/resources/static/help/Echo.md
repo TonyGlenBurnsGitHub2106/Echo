@@ -23,7 +23,7 @@ run them in a command window):
 | `install.cmd` | Installs Echo, start to finish. **Run it as administrator** (right-click -> Run as administrator); otherwise it stops and changes nothing. Finds the running SQL Server on this computer by itself (asks which one if several are running), and, if that SQL Server's TCP/IP is off, asks before switching it on and restarting SQL Server (other programs using it are disconnected for a moment; add `-RestartSqlServer` to say yes ahead of time). If the SQL Server the last install used is stopped, it stops and says so rather than use another. At the end it asks for your sign-in password; pressing Enter with nothing typed stops the install there, keeps what is done and does not start Echo -- run it again to finish. Safe to run again: a run over an existing install says so in yellow at the start, keeps your settings and sign-in, and so asks for no password. Each run is written to `logs\install-<date>.log`. |
 | `start-echo.cmd` | Starts Echo in the background. |
 | `stop-echo.cmd` | Stops it. |
-| `update-echo.cmd` | Gets the newest Echo, backs up the database, updates it, rebuilds and restarts. |
+| `update-echo.cmd` | Gets the newest Echo, backs up the database, updates it and restarts -- the same as **Settings -> Update Echo**. Nothing is compiled: it downloads the finished program. If the new Echo does not start, the one you had is put back. |
 | `backup-echo.cmd` | Backs up the Echo database to a dated file. |
 | `uninstall-echo.cmd` | Takes Echo off the computer again: backs up the database, removes it and Echo's SQL login (kept if another Echo database on that SQL Server still uses it), and moves Echo's settings, logs and files to the Recycle Bin. Run it as administrator; it asks you to type YES first. Run `install.cmd` to put it back. |
 | `set-password.cmd` | Sets a new password (or creates another sign-in). Also how a forgotten password is reset. A password too short or typed differently twice is asked for again; Enter with nothing typed cancels. |
@@ -296,7 +296,11 @@ Main menu -> Echo -> Settings:
 - **Change your password.** Type the current one and the new one twice. Every other browser you are
   signed in to is signed out; this one stays signed in.
 - **Sign out everywhere.** Ends every Echo session in every browser, this one included.
-- **About Echo.** The version, how long it has been running, the database it uses, and the folder
-  that holds its files.
+- **Update Echo.** One button brings Echo up to date: it gets the newest Echo, backs up the
+  database, updates it and restarts. Echo is away for a minute or so; the page waits, then says how
+  it went (**Show the log** has the details). If Echo was already up to date it says so and changes
+  nothing. If the new Echo will not start, the one you had is put back and started.
+- **About Echo.** The version, the release it is running, how long it has been running, the
+  database it uses, and the folder that holds its files.
 
 </details>

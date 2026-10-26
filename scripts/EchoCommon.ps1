@@ -450,3 +450,75 @@ function Select-EchoSqlServer([string]$SqlServer, [string]$Root, [string]$SqlUse
     $why = if ($failed) { "`n" + ($failed -join "`n") } else { '' }
     throw "Echo found no running SQL Server it can use on this computer.`n$(& $describe)$why`nStart one, or name a server with -SqlServer (and -AdminSqlUser / -AdminSqlPassword if Windows sign-in is not allowed)."
 }
+
+# ---- Releases (Story 5653: update from the built program on GitHub, no compiling) ----------------
+# tools\Publish-EchoRelease.ps1 (on the development computer) builds Echo and posts target\echo.jar
+# as a GitHub release whose notes carry "commit: <sha>" and "sha256: <hash>". update-echo.cmd and
+# Settings -> Update Echo download the newest one, check the hash, and swap it in.
+
+# owner/name of the GitHub repository this folder was cloned from.
+function Get-EchoGitHubRepo([string]$Root) {
+    $url = [string](& git -C $Root remote get-url origin)
+    if ($LASTEXITCODE -ne 0 -or -not $url) { throw 'This Echo folder has no git origin, so it cannot find its releases.' }
+    if ($url.Trim() -match 'github\.com[/:]([^/]+)/([^/]+?)(\.git)?/?$') { return "$($Matches[1])/$($Matches[2])" }
+    throw "The git origin is not a GitHub repository: $url"
+}
+
+# TLS 1.2 for Windows PowerShell 5.1, and the Windows sign-in for a company proxy.
+function Set-EchoWebDefaults {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    if ([Net.WebRequest]::DefaultWebProxy) { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials }
+}
+
+# The newest published release: Tag, Commit, Sha256 and the echo.jar download address.
+function Get-EchoLatestRelease([string]$Repo) {
+    Set-EchoWebDefaults
+    $r = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -TimeoutSec 30 `
+            -Headers @{ 'User-Agent' = 'Echo-Update'; 'Accept' = 'application/vnd.github+json' }
+    $asset = @($r.assets | Where-Object { $_.name -eq 'echo.jar' }) | Select-Object -First 1
+    if (-not $asset) { throw "Release $($r.tag_name) has no echo.jar on it." }
+    $body = [string]$r.body
+    $sha = if ($body -match 'sha256:\s*([0-9a-fA-F]{64})') { $Matches[1].ToLower() } else { '' }
+    if (-not $sha) { throw "Release $($r.tag_name) does not say the echo.jar hash (sha256), so it cannot be checked. Publish it again with tools\Publish-EchoRelease.ps1." }
+    $commit = if ($body -match 'commit:\s*([0-9a-fA-F]{40})') { $Matches[1].ToLower() } else { [string]$r.target_commitish }
+    return [pscustomobject]@{ Tag = [string]$r.tag_name; Commit = $commit; Sha256 = $sha
+                              Url = [string]$asset.browser_download_url; Size = [long]$asset.size }
+}
+
+function Get-EchoFileSha256([string]$Path) {
+    if (-not (Test-Path $Path)) { return '' }
+    return (Get-FileHash -Path $Path -Algorithm SHA256).Hash.ToLower()
+}
+
+# The release this folder is running, from config\echo-release.json (null when it was built here).
+function Read-EchoRelease([string]$Root) {
+    $p = Join-Path $Root 'config\echo-release.json'
+    if (-not (Test-Path $p)) { return $null }
+    return Get-Content $p -Raw | ConvertFrom-Json
+}
+
+function Write-EchoRelease([string]$Root, $Release) {
+    $o = [ordered]@{ tag = [string]$Release.Tag; commit = [string]$Release.Commit; sha256 = [string]$Release.Sha256
+                     installed = (Get-Date).ToString('yyyy-MM-dd HH:mm') }
+    [IO.File]::WriteAllText((Join-Path $Root 'config\echo-release.json'), ($o | ConvertTo-Json))
+}
+
+# Downloads the release's echo.jar into target\download and checks its hash. Never overwrites a
+# file: a download already there with the right hash is reused, otherwise a new name is used.
+function Get-EchoReleaseJar([string]$Root, $Release) {
+    Set-EchoWebDefaults
+    $dir = Join-Path $Root 'target\download'
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    $path = Join-Path $dir "echo-$($Release.Tag).jar"
+    if ((Get-EchoFileSha256 $path) -eq $Release.Sha256) { Write-Host "  already downloaded: $path"; return $path }
+    if (Test-Path $path) { $path = Join-Path $dir ("echo-$($Release.Tag)-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.jar') }
+    Write-Host ("  downloading echo.jar from release {0} ({1:N1} MB)" -f $Release.Tag, ($Release.Size / 1MB))
+    $old = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'   # PowerShell 5.1's progress bar slows a download to a crawl
+    try { Invoke-WebRequest -Uri $Release.Url -OutFile $path -UseBasicParsing -TimeoutSec 600 -Headers @{ 'User-Agent' = 'Echo-Update' } }
+    finally { $ProgressPreference = $old }
+    $got = Get-EchoFileSha256 $path
+    if ($got -ne $Release.Sha256) { throw "The downloaded echo.jar does not match the release's hash (got $got). Nothing was changed; the bad download is $path." }
+    Write-Host '  download checked (sha256 matches)'
+    return $path
+}

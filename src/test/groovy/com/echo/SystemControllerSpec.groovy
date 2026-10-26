@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import spock.lang.Unroll
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -18,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SystemControllerSpec extends EchoWebSpec {
 
     @SpringBean DataSource ds = Mock()
+    @SpringBean EchoUpdater updater = Mock()
 
     def "config should answer the idle minutes when nobody is signed in"() {
 
@@ -91,5 +93,79 @@ class SystemControllerSpec extends EchoWebSpec {
         mvc.perform(get('/api/system/about'))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath('$.error').value('Not signed in'))
+    }
+
+    // ---- Story 5653: Update Echo ---------------------------------------------------------------
+
+    def "about should name the running release when one was installed"() {
+
+        given:
+        ds.getConnection() >> { throw new SQLException('down') }
+        updater.currentRelease() >> [tag: 'build-20261026-1500']
+
+        expect:
+        mvc.perform(asUser(get('/api/system/about')))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$.release').value('build-20261026-1500'))
+    }
+
+    def "about should say built on this computer when no release was installed"() {
+
+        given:
+        ds.getConnection() >> { throw new SQLException('down') }
+        updater.currentRelease() >> [:]
+
+        expect:
+        mvc.perform(asUser(get('/api/system/about')))
+            .andExpect(jsonPath('$.release').value('built on this computer'))
+    }
+
+    def "update should answer 202 with the status when the update starts"() {
+
+        when:
+        def result = mvc.perform(asUser(post('/api/system/update')))
+
+        then:
+        1 * updater.start() >> [state: 'starting', running: true]
+        result.andExpect(status().isAccepted())
+            .andExpect(jsonPath('$.state').value('starting'))
+    }
+
+    def "update should answer 409 with the reason when the update is refused"() {
+
+        given:
+        updater.start() >> { throw new EchoUpdater.UpdateRefusedException('An update is already running. Wait for it to finish.') }
+
+        expect:
+        mvc.perform(asUser(post('/api/system/update')))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath('$.error').value('An update is already running. Wait for it to finish.'))
+    }
+
+    def "update should answer 401 and start nothing when nobody is signed in"() {
+
+        when:
+        def result = mvc.perform(post('/api/system/update'))
+
+        then:
+        0 * updater.start()
+        result.andExpect(status().isUnauthorized())
+    }
+
+    def "update status should answer what the updater reports"() {
+
+        given:
+        updater.status() >> [state: 'done', message: 'Echo is updated.']
+
+        expect:
+        mvc.perform(asUser(get('/api/system/update/status')))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$.state').value('done'))
+    }
+
+    def "update status should answer 401 when nobody is signed in"() {
+
+        expect:
+        mvc.perform(get('/api/system/update/status')).andExpect(status().isUnauthorized())
     }
 }

@@ -54,7 +54,7 @@ Choices you may want on the `install.cmd` line:
 | File | What it does |
 |---|---|
 | `start-echo.cmd` / `stop-echo.cmd` | Start or stop Echo. |
-| `update-echo.cmd` | git pull, back up the database, update it, rebuild, restart. |
+| `update-echo.cmd` | git pull, download the newest Echo release (no compiling), back up the database, update it, restart. If the new program does not start, the old one is put back. `-Build` compiles from source instead. Settings -> Update Echo does the same from the browser. |
 | `backup-echo.cmd` | Back up the Echo database to a dated `.bak`. |
 | `uninstall-echo.cmd` | Take Echo off this computer: backs the database up, drops it and Echo's SQL login (kept if another Echo database still uses it), and moves `config\`, `logs\`, `target\`, `lib\` and `EchoFiles\` to the Recycle Bin. It drops only a database that holds Echo's own tables -- never Leonardo or Hearth. Run as administrator; asks you to type YES. `install.cmd` puts it back. |
 | `set-password.cmd` | A new password, or another sign-in (`-Username someone`). Also resets a forgotten one. |
@@ -63,6 +63,13 @@ Choices you may want on the `install.cmd` line:
 **The Email Client needs classic Outlook open** on the same computer (Story 5654): Echo reads and sends
 through it and never stores a password. `tools\Test-OutlookBridge.ps1` tests the bridge without Outlook.
 
+**Updates come from GitHub releases** (Story 5653). On the development computer, after a change is
+committed and pushed, `tools\Publish-EchoRelease.ps1` builds that exact commit in a folder of its own and
+posts `echo.jar` as a release (its notes carry the commit and the jar's sha256). `update-echo.cmd` and
+Settings -> Update Echo download the newest release, check the hash, and swap it in; the program that was
+running is kept in `target\previous\`, downloads in `target\download\`, and the release in use is recorded
+in `config\echo-release.json`. Each update writes `logs\update-<date>.log` and `logs\update-state.json`.
+
 Every `.cmd` starts its PowerShell script with `-ExecutionPolicy Bypass`, so the scripts run even
 where PowerShell asks for signed scripts.
 
@@ -70,7 +77,7 @@ where PowerShell asks for signed scripts.
 
 ## Tests
 
-Echo is tested with Spock specifications (Groovy, in `src	est\groovy\com\echo`), written to the
+Echo is tested with Spock specifications (Groovy, in `src\test\groovy\com\echo`), written to the
 spock-tests rules: data tables with a `scenario` column, `||` before the expected results, nothing but
 plain values in `where:`, every spec extending `EchoSpockBaseSpec`. Installing and updating never compile
 or run them.
