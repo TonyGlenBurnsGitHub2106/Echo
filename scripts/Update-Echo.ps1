@@ -67,6 +67,17 @@ if (Test-Path $statePath) {
     } catch [System.ArgumentException] { }
 }
 
+# Story 5653: check before anything changes that this window may stop Echo (Tony, 2026-10-26:
+# "The script should tell me that I am not running as admin, not fail because I did not.").
+$lockedBy = Get-EchoProcessNeedingAdmin $root
+if ($lockedBy) {
+    Write-Host ''
+    Write-Host "Echo is running as administrator (process $lockedBy), and this window is not." -ForegroundColor Yellow
+    Write-Host 'Nothing was changed. Close this window, right-click update-echo.cmd and choose' -ForegroundColor Yellow
+    Write-Host '"Run as administrator".' -ForegroundColor Yellow
+    exit 2
+}
+
 # Windows can hold a jar for a moment after its Java has gone; try a move for a few seconds.
 function Move-EchoFile([string]$From, [string]$To) {
     for ($try = 1; ; $try++) {
@@ -114,9 +125,8 @@ try {
         $release = Get-EchoLatestRelease (Get-EchoGitHubRepo $root)
         $releaseTag = $release.Tag
         Write-Host "  release $($release.Tag)"
-        if ($isClone -and $release.Commit -and $release.Commit -ne $after) {
-            Write-Host '  note: that release was built from a different commit than the scripts just pulled.' -ForegroundColor Yellow
-        }
+        # Story 5653: no warning when the release's commit differs from the pulled one -- a change to the
+        # scripts alone needs no new release, so that is normal, and the yellow line only alarmed Tony.
         $sameProgram = (Get-EchoFileSha256 $jar) -eq $release.Sha256
         if ($sameProgram -and -not $pulledSomething -and -not $Force) {
             if (-not (Read-EchoRelease $root)) { Write-EchoRelease $root $release }

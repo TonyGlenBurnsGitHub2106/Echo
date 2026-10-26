@@ -221,6 +221,36 @@ function Get-EchoProcess([string]$Root) {
     $javas | Where-Object { $owners -contains $_.ProcessId }
 }
 
+# Story 5653: the id of a running Echo this window is not allowed to stop (it was started as
+# administrator and this window was not), else $null. Scripts that stop Echo ask this FIRST, so they
+# say "run as administrator" before changing anything instead of failing half way.
+function Get-EchoProcessNeedingAdmin([string]$Root) {
+    $me = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if ($me.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $null }
+    # Ask Windows for exactly the right Stop-Process needs (PROCESS_TERMINATE = 1). Process.Handle is
+    # no test: it opens processes this window still may not end.
+    if (-not ('EchoProcessRights' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class EchoProcessRights {
+    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+    public static bool CanTerminate(int pid) {
+        IntPtr h = OpenProcess(1, false, pid);
+        if (h == IntPtr.Zero) return false;
+        CloseHandle(h);
+        return true;
+    }
+}
+'@
+    }
+    foreach ($p in @(Get-EchoProcess $Root)) {
+        if (-not [EchoProcessRights]::CanTerminate([int]$p.ProcessId)) { return $p.ProcessId }
+    }
+    return $null
+}
+
 # The SQL Server instances installed on THIS computer (registry), each with its service state and
 # whether TCP/IP is switched on. Name MSSQLSERVER is the default instance (Server = localhost).
 function Get-EchoLocalSqlInstances {

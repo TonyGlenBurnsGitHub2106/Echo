@@ -13,6 +13,13 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'EchoCommon.ps1')
 
+$lockedBy = Get-EchoProcessNeedingAdmin $root
+if ($lockedBy) {
+    # Story 5653: say so up front rather than fail on Stop-Process.
+    Write-Host "Echo is running as administrator (process $lockedBy), and this window is not. Nothing was changed." -ForegroundColor Yellow
+    Write-Host 'Right-click the .cmd and choose "Run as administrator".' -ForegroundColor Yellow
+    exit 2
+}
 $procs = @(Get-EchoProcess $root)
 if ($procs.Count -eq 0) { Write-Host 'Echo is not running.'; return }
 foreach ($p in $procs) {
