@@ -59,7 +59,10 @@ $sha = Get-EchoFileSha256 $jar
 Write-Host ("  echo.jar {0:N1} MB, sha256 {1}" -f ((Get-Item $jar).Length / 1MB), $sha)
 
 # ---- 3. the release ---------------------------------------------------------------------------
-$cred = "protocol=https`nhost=github.com`n`n" | & git credential fill
+# Windows PowerShell's pipe to a native program garbles the request; feed it from a file instead.
+$ask = Join-Path $work 'credential-request.txt'
+[IO.File]::WriteAllText($ask, "protocol=https`nhost=github.com`n`n")
+$cred = & cmd /c "git credential fill < `"$ask`""
 $token = (@($cred | Where-Object { $_ -like 'password=*' }) | Select-Object -First 1) -replace '^password=', ''
 if (-not $token) { throw 'Git Credential Manager has no GitHub sign-in for github.com.' }
 Set-EchoWebDefaults
