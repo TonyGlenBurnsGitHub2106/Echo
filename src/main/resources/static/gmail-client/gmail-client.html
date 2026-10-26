@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<!-- Story 5654: Echo's Email Client -- Leonardo's Gmail Client page, echoed, over Outlook.
+     Echo's own additions are gmail-client-echo.css / gmail-client-echo.js. -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>Email Client &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3C3C3C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/picasso-base.css?v=6">
+    <link rel="stylesheet" href="/files/file-kit.css?v=6">
+    <link rel="stylesheet" href="/picasso-select.css?v=5">
+    <link rel="stylesheet" href="/picasso-split.css?v=3">
+    <link rel="stylesheet" href="/picasso-tags.css?v=2">
+    <link rel="stylesheet" href="/gmail-client/gmail-client.css?v=1">
+    <link rel="stylesheet" href="/gmail-client/gmail-client-echo.css?v=1">
+</head>
+<body>
+
+<div class="page-shell gc-page" data-testid="gmail-client-page">
+    <div class="ct-header">
+        <h1 data-testid="page-title">Email Client</h1>
+        <!-- Story 5654: the whitelist and blacklist live in Echo (never Outlook rules); Lists opens them. -->
+        <button type="button" class="gc-xlink" id="btnLists" title="Whitelist and blacklist: whose mail shows, and whose never comes in"
+                data-testid="gmail-client-to-lists">Lists</button>
+        <button type="button" class="gc-fold" id="btnFold" aria-expanded="true" aria-label="Fold the header"
+                title="Fold the header" data-testid="gmail-client-header-fold">&#9650;</button>
+        <button type="button" class="gc-theme-btn" id="btnTheme" aria-haspopup="true" title="Choose how the Email Client looks"
+                data-testid="gmail-client-theme-btn"><span class="gc-theme-dot" aria-hidden="true"></span>Theme</button>
+        <button type="button" id="btnPrint" data-testid="gmail-client-print">Print</button>
+    </div>
+
+    <div class="gc-bar" data-testid="gmail-client-bar">
+        <div class="gc-status" id="status" data-testid="gmail-client-status">Loading</div>
+        <div class="gc-bar-btns">
+            <button type="button" class="gc-btn primary" id="btnCheck" hidden data-testid="gmail-client-check-btn">Check mail</button>
+            <button type="button" class="gc-btn" id="btnCompose" hidden data-testid="gmail-client-compose-btn">New message</button>
+            <!-- All / Unread sit up here as their own group (twice the gap). There is no Read-only choice. -->
+            <div class="gc-seg gc-readseg" id="readSeg" role="group" aria-label="Show" data-testid="gmail-client-read-filter">
+                <button type="button" data-read="all" data-testid="gmail-client-read-all">All</button>
+                <button type="button" data-read="unread" data-testid="gmail-client-read-unread">Unread</button>
+            </div>
+            <!-- On the Sent tab (Story 5596) All / Unread give way to All sent / No reply yet. -->
+            <div class="gc-seg gc-readseg" id="replySeg" role="group" aria-label="Show sent mail" hidden data-testid="gmail-client-reply-filter">
+                <button type="button" data-reply="all" data-testid="gmail-client-reply-all-sent">All sent</button>
+                <button type="button" data-reply="waiting" data-testid="gmail-client-reply-waiting">No reply yet</button>
+            </div>
+        </div>
+        <div class="gc-note" id="note" hidden data-testid="gmail-client-note"></div>
+    </div>
+
+    <div class="gc-search" data-testid="gmail-client-searchbar">
+        <input type="search" id="search" placeholder="Search all mail, or from:greg has:attachment" autocomplete="off" data-testid="gmail-client-search">
+        <button type="button" class="gc-btn gc-tipsbtn" id="btnSearchTips" aria-label="Search tips" title="Search tips: from:, has:attachment and more"
+                data-testid="gmail-client-search-tips">Tips</button>
+        <button type="button" class="gc-btn" id="btnCustom" data-testid="gmail-client-custom-btn">Custom search</button>
+    </div>
+    <div class="gc-filter" id="filterLine" hidden data-testid="gmail-client-filter-line">
+        <span id="filterText"></span>
+        <button type="button" class="gc-link" id="btnClearFilter" data-testid="gmail-client-filter-clear">Clear</button>
+    </div>
+
+    <div class="gc-tabs-row">
+        <div class="gc-tabs" id="tabs" role="tablist" data-testid="gmail-client-tabs"></div>
+        <button type="button" class="gc-btn gc-manage" id="btnInboxes" data-testid="gmail-client-inboxes-btn">Inboxes</button>
+    </div>
+
+    <!-- The list's own tools: how far back, select, mark all. Select mode swaps in the selection bar. -->
+    <div class="gc-tools" id="tools" data-testid="gmail-client-tools">
+        <!-- How far back: a preset, or a number of days typed in. Remembered on every device. -->
+        <div class="gc-range" id="rangeWrap" data-testid="gmail-client-range">
+            <select id="rangeSel" aria-label="How far back" data-testid="gmail-client-range-select">
+                <option value="any">Any time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
+                <option value="days">Days back</option>
+            </select>
+            <input type="number" id="rangeDays" min="1" max="3650" step="1" inputmode="numeric" placeholder="Days"
+                   aria-label="Days to go back" data-voice-skip="true" data-testid="gmail-client-range-days">
+        </div>
+        <!-- Story 5608 QA: show only mail with one or more flags. Opens the chip row below. -->
+        <button type="button" class="gc-btn gc-flagfilter-btn" id="btnFlagFilter" aria-expanded="false" aria-controls="flagFilterRow"
+                title="Show only mail with the flags you pick" data-testid="gmail-client-flag-filter-btn">Flags</button>
+        <div class="gc-tools-right">
+            <button type="button" class="gc-viewbtn" id="btnLayout" hidden aria-label="Put the list on top"
+                    title="Put the list on top" data-testid="gmail-client-layout-toggle">&#11026;</button>
+            <button type="button" class="gc-viewbtn gc-convbtn" id="btnThreads" aria-pressed="false" aria-label="Conversations"
+                    title="Conversations: one row per back-and-forth" data-testid="gmail-client-threads-toggle">&#128172;</button>
+            <button type="button" class="gc-viewbtn" id="btnView" aria-pressed="false" aria-label="Preview view"
+                    title="Preview view" data-testid="gmail-client-view-toggle">&#9703;</button>
+            <button type="button" class="gc-btn" id="btnSelect" data-testid="gmail-client-select-btn">Select</button>
+            <div class="gc-menu-wrap">
+                <button type="button" class="gc-btn" id="btnMarkAll" aria-haspopup="true" aria-expanded="false"
+                        data-testid="gmail-client-markall-btn">Mark all</button>
+                <div class="gc-menu" id="markAllMenu" hidden data-testid="gmail-client-markall-menu">
+                    <button type="button" data-mark="read" data-testid="gmail-client-markall-read">Mark all read</button>
+                    <button type="button" data-mark="unread" data-testid="gmail-client-markall-unread">Mark all unread</button>
+                </div>
+            </div>
+            <div class="gc-menu-wrap gc-more-wrap">
+                <button type="button" class="gc-btn" id="btnMoreMenu" aria-haspopup="true" aria-expanded="false"
+                        data-testid="gmail-client-more-btn">More</button>
+                <div class="gc-menu" id="moreMenu" hidden data-testid="gmail-client-more-menu">
+                    <button type="button" data-more="flags" data-testid="gmail-client-more-flags">Flags</button>
+                    <button type="button" data-more="colors" title="Colors" aria-label="Colors" data-testid="gmail-client-more-colors"><span class="gc-color-icon" aria-hidden="true">&#127912;</span></button>
+                    <button type="button" data-more="tips" data-testid="gmail-client-more-tips">Search tips</button>
+                    <button type="button" data-more="lists" data-testid="gmail-client-more-lists">Whitelist and blacklist</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- The flag filter: mail with ANY of these flags shows, on every inbox tab. -->
+    <div class="gc-flagfilter" id="flagFilterRow" hidden data-testid="gmail-client-flag-filter">
+        <span class="gc-flagfilter-label">Only flagged</span>
+        <div class="pt-wrap gc-flagtags gc-ff-tags">
+            <div class="pt-box"><span class="pt-chips" id="ffChips"></span><input class="pt-input" id="ffInput" type="text" autocomplete="off"
+                aria-label="Flags to show" data-voice-skip="true" data-testid="gmail-client-flag-filter-input"></div>
+            <div class="pt-dropdown" id="ffDrop" data-testid="gmail-client-flag-filter-options"></div>
+        </div>
+        <button type="button" class="gc-link" id="btnFlagFilterClear" data-testid="gmail-client-flag-filter-clear">Clear</button>
+    </div>
+    <div class="gc-selbar" id="selbar" hidden data-testid="gmail-client-selbar">
+        <label class="gc-selall"><input type="checkbox" id="selAll" data-testid="gmail-client-select-all"> <span id="selCount">0 selected</span></label>
+        <div class="gc-selbar-btns">
+            <button type="button" class="gc-btn" data-bulk="read" data-testid="gmail-client-sel-read">Read</button>
+            <button type="button" class="gc-btn" data-bulk="unread" data-testid="gmail-client-sel-unread">Unread</button>
+            <button type="button" class="gc-btn" data-bulk="followup" data-testid="gmail-client-sel-followup">Follow up</button>
+            <button type="button" class="gc-btn" data-bulk="flag" data-testid="gmail-client-sel-flag">Flag</button>
+            <button type="button" class="gc-btn danger" data-bulk="delete" data-testid="gmail-client-sel-delete">Delete</button>
+            <button type="button" class="gc-btn" data-bulk="cancel" data-testid="gmail-client-sel-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- The list, and (preview view, wide screens) the selected message beside it. -->
+    <div class="gc-split" id="split" data-testid="gmail-client-split">
+    <div class="gc-body" id="body" data-testid="gmail-client-body">
+        <div class="gc-list" id="list" data-testid="gmail-client-list"></div>
+        <div class="gc-more" id="more" hidden>
+            <button type="button" class="gc-btn" id="btnMore" data-testid="gmail-client-more">Load more</button>
+            <button type="button" class="gc-btn" id="btnMoreAll" data-testid="gmail-client-more-all">Load all</button>
+        </div>
+        <div class="gc-reach" id="reach" hidden data-testid="gmail-client-reach">
+            <span id="reachText"></span>
+            <button type="button" class="gc-btn" id="btnOlder" data-testid="gmail-client-older">Read 30 more days</button>
+        </div>
+    </div>
+    <!-- The drag bar, the minimize button and the strip are added by picasso-split.js (the Bay Window). -->
+    <div class="gc-preview" id="preview" hidden data-testid="gmail-client-preview">
+        <div class="gc-pv-head" id="pvHead" data-testid="gmail-client-preview-head"></div>
+        <div class="gc-pv-body" id="pvBody" data-testid="gmail-client-preview-body"></div>
+    </div>
+    </div>
+</div>
+
+<!-- Quick view: one message on sepia paper, nothing else. -->
+<div class="gc-modal gc-sepia" id="quick" hidden data-testid="gmail-client-quickview">
+    <div class="gc-dialog gc-sepia-dialog">
+        <div class="gc-sepia-head">
+            <h3 id="qSubject" data-testid="gmail-client-quickview-subject"></h3>
+            <a class="gc-btn" id="qGmail" target="_blank" rel="noopener" hidden
+               data-testid="gmail-client-quickview-gmail">View in Gmail</a>
+            <button type="button" class="gc-btn" id="qListen" title="Read this message aloud" data-testid="gmail-client-quickview-listen">&#127911; Listen</button>
+            <button type="button" class="gc-btn" id="qClose" data-testid="gmail-client-quickview-close">Close</button>
+        </div>
+        <div class="gc-sepia-meta" id="qMeta" data-testid="gmail-client-quickview-meta"></div>
+        <div class="gc-sepia-body" id="qBody" data-testid="gmail-client-quickview-body"></div>
+    </div>
+</div>
+
+<!-- Reading one message: a full-screen sheet over the list (no empty side pane). -->
+<div class="gc-reader" id="reader" hidden data-testid="gmail-client-reader">
+    <div class="gc-reader-top">
+        <button type="button" class="gc-btn" id="btnClose" data-testid="gmail-client-reader-close">Close</button>
+        <button type="button" class="gc-btn gc-step" id="btnNewer" aria-label="Newer message" title="Newer message"
+                data-testid="gmail-client-newer">&#9650;</button>
+        <button type="button" class="gc-btn gc-step" id="btnOlderMsg" aria-label="Older message" title="Older message"
+                data-testid="gmail-client-older-msg">&#9660;</button>
+        <button type="button" class="gc-fold gc-actions-fold" id="btnActionsFold" aria-expanded="true" aria-controls="readerActions"
+                data-testid="gmail-client-actions-fold"><span>Actions</span> <span class="gc-actions-arrow" aria-hidden="true">&#9650;</span></button>
+        <div class="gc-reader-actions" id="readerActions" data-testid="gmail-client-reader-actions">
+            <button type="button" class="gc-btn" id="btnListen" title="Read this message aloud" data-testid="gmail-client-listen">&#127911; Listen</button>
+            <button type="button" class="gc-btn" id="btnReply" data-testid="gmail-client-reply">Reply</button>
+            <button type="button" class="gc-btn" id="btnReplyAll" data-testid="gmail-client-reply-all">Reply all</button>
+            <button type="button" class="gc-btn" id="btnWriteAgain" hidden title="Write to the same people again, in the same conversation"
+                    data-testid="gmail-client-write-again">Write again</button>
+            <button type="button" class="gc-btn" id="btnForward" data-testid="gmail-client-forward">Forward</button>
+            <button type="button" class="gc-btn" id="btnFollowUp" data-testid="gmail-client-followup">Follow up</button>
+            <button type="button" class="gc-btn" id="btnUnread" data-testid="gmail-client-unread">Mark unread</button>
+            <a class="gc-btn" id="btnInGmail" target="_blank" rel="noopener" hidden
+               data-testid="gmail-client-in-gmail">View in Gmail</a>
+            <button type="button" class="gc-btn danger" id="btnDelete" data-testid="gmail-client-delete">Delete</button>
+        </div>
+    </div>
+    <div class="gc-reader-head" id="rHead" data-testid="gmail-client-reader-head">
+        <div class="gc-reader-title">
+            <h2 id="rSubject" data-testid="gmail-client-reader-subject"></h2>
+            <button type="button" class="gc-fold dark" id="btnHeadFold" aria-expanded="true" aria-label="Fold the message details"
+                    title="Fold the message details" data-testid="gmail-client-reader-fold">&#9650;</button>
+        </div>
+        <div class="gc-fu-chip" id="rFollowUp" hidden data-testid="gmail-client-reader-followup"></div>
+        <div class="gc-reader-meta" id="rMeta" data-testid="gmail-client-reader-meta"></div>
+        <label class="gc-inbox-pick" data-testid="gmail-client-reader-inbox">
+            <span>Inbox for <b id="rSender"></b><span id="rSenderNote" class="gc-sender-note"></span></span>
+            <select id="rInbox" data-ps-add="New inbox" data-testid="gmail-client-reader-inbox-select"></select>
+            <button type="button" class="gc-link" id="rLevel" hidden data-testid="gmail-client-reader-inbox-level"></button>
+            <button type="button" class="gc-link" id="rColor" title="Give this sender a color" aria-label="Give this sender a color" data-testid="gmail-client-reader-color"><span class="gc-color-icon" aria-hidden="true">&#127912;</span></button>
+        </label>
+        <div class="gc-reader-row" id="rFlagsRow" data-testid="gmail-client-reader-flags">
+            <span class="gc-row-label">Flags</span>
+            <div class="pt-wrap gc-flagtags">
+                <div class="pt-box"><span class="pt-chips" id="rFlagChips"></span>
+                    <input class="pt-input" type="text" id="rFlagInput" autocomplete="off" data-testid="gmail-client-reader-flag-input"></div>
+                <div class="pt-dropdown" id="rFlagDrop" data-testid="gmail-client-reader-flag-suggestions"></div>
+            </div>
+        </div>
+        <div class="gc-reader-row" id="rLinksRow" data-testid="gmail-client-reader-links">
+            <span class="gc-row-label">Linked to</span>
+            <span class="gc-link-chips" id="rLinks"></span>
+            <button type="button" class="gc-link" id="rLinkAdd" data-testid="gmail-client-reader-link-add">Link to a record</button>
+        </div>
+    </div>
+    <div class="gc-reader-body" id="rBody" data-testid="gmail-client-reader-body"></div>
+</div>
+
+<!-- Reply / reply all / forward / new message (Story 5575): themed, with address suggestions -->
+<div class="gc-modal gc-cmodal" id="compose" hidden data-testid="gmail-client-compose">
+    <div class="gc-cdialog" id="cDialog" data-theme="classic" role="dialog" aria-labelledby="cTitle">
+        <div class="gc-chead">
+            <h3 id="cTitle">New message</h3>
+            <div class="gc-themes" id="cThemes" role="group" aria-label="Theme" data-testid="gmail-client-compose-themes"></div>
+            <button type="button" class="gc-cicon" id="cFull" aria-pressed="false" aria-label="Full screen" title="Full screen"
+                    data-testid="gmail-client-compose-full">&#8689;</button>
+            <button type="button" class="gc-cicon" id="cX" aria-label="Close (kept as a draft)" title="Close (kept as a draft)"
+                    data-testid="gmail-client-compose-close">&times;</button>
+        </div>
+        <div class="gc-cbodywrap">
+            <div class="gc-creply" id="cReply" hidden data-testid="gmail-client-compose-replying">
+                <span id="cReplyText"></span>
+                <button type="button" class="gc-link" id="cShowOrig" data-testid="gmail-client-compose-show-original">Show the original</button>
+                <pre class="gc-corig" id="cOrig" hidden data-testid="gmail-client-compose-original"></pre>
+            </div>
+            <div class="gc-cfield" id="cToFixedRow" hidden><span class="gc-clabel">To</span><span class="gc-cfixed" id="cToFixed"
+                  data-testid="gmail-client-compose-to-fixed"></span></div>
+            <div class="gc-cfield" id="cToRow" data-testid="gmail-client-compose-to-row">
+                <span class="gc-clabel">To</span>
+                <div class="pt-wrap gc-cchips">
+                    <div class="pt-box"><span class="pt-chips" id="cToChips"></span>
+                        <input class="pt-input" type="text" id="cTo" autocomplete="off" data-testid="gmail-client-compose-to"></div>
+                    <div class="pt-dropdown" id="cToDrop" data-testid="gmail-client-compose-to-suggestions"></div>
+                </div>
+                <button type="button" class="gc-link gc-ccbtn" id="cShowCc" data-testid="gmail-client-compose-show-cc">Cc Bcc</button>
+            </div>
+            <div class="gc-cfield" hidden id="cCcRow" data-testid="gmail-client-compose-cc-row">
+                <span class="gc-clabel">Cc</span>
+                <div class="pt-wrap gc-cchips">
+                    <div class="pt-box"><span class="pt-chips" id="cCcChips"></span>
+                        <input class="pt-input" type="text" id="cCc" autocomplete="off" data-testid="gmail-client-compose-cc"></div>
+                    <div class="pt-dropdown" id="cCcDrop" data-testid="gmail-client-compose-cc-suggestions"></div>
+                </div>
+            </div>
+            <div class="gc-cfield" hidden id="cBccRow" data-testid="gmail-client-compose-bcc-row">
+                <span class="gc-clabel">Bcc</span>
+                <div class="pt-wrap gc-cchips">
+                    <div class="pt-box"><span class="pt-chips" id="cBccChips"></span>
+                        <input class="pt-input" type="text" id="cBcc" autocomplete="off" data-testid="gmail-client-compose-bcc"></div>
+                    <div class="pt-dropdown" id="cBccDrop" data-testid="gmail-client-compose-bcc-suggestions"></div>
+                </div>
+            </div>
+            <div class="gc-cfield"><span class="gc-clabel">Subject</span>
+                <input type="text" class="gc-cinput" id="cSubject" autocomplete="off" data-testid="gmail-client-compose-subject"></div>
+            <textarea class="gc-cbody" id="cBody" placeholder="Write your message" data-testid="gmail-client-compose-body"></textarea>
+            <div class="gc-cattach" id="cAttachRow" data-testid="gmail-client-compose-attachments">
+                <div class="gc-menu-wrap">
+                    <button type="button" class="gc-btn" id="cAttach" aria-haspopup="true" aria-expanded="false"
+                            data-testid="gmail-client-compose-attach">&#128206; Attach</button>
+                    <div class="gc-menu gc-menu-up" id="cAttachMenu" hidden data-testid="gmail-client-compose-attach-menu">
+                        <button type="button" data-attach="device" data-testid="gmail-client-compose-attach-device">From this device</button>
+                        <button type="button" data-attach="nook" data-testid="gmail-client-compose-attach-nook">From the Reading Nook</button>
+                    </div>
+                </div>
+                <span class="gc-cfiles" id="cFiles" data-testid="gmail-client-compose-files"></span>
+                <input type="file" id="cFileInput" multiple hidden data-voice-skip="true" data-testid="gmail-client-compose-file-input">
+            </div>
+            <label class="gc-ccheck" id="cOrigRow" hidden data-testid="gmail-client-compose-include-original-row">
+                <input type="checkbox" id="cIncludeOrig" data-testid="gmail-client-compose-include-original"> <span id="cOrigText"></span></label>
+            <div class="gc-csig">
+                <label class="gc-ccheck"><input type="checkbox" id="cSigOn" data-testid="gmail-client-compose-sig-on"> Add my signature</label>
+                <button type="button" class="gc-link" id="cSigEdit" data-testid="gmail-client-compose-sig-edit">Edit signature</button>
+            </div>
+            <div class="gc-csigedit" id="cSigEditor" hidden data-testid="gmail-client-compose-sig-editor">
+                <textarea id="cSig" rows="3" placeholder="Your signature, for example your name and phone" data-testid="gmail-client-compose-sig"></textarea>
+                <button type="button" class="gc-btn" id="cSigSave" data-testid="gmail-client-compose-sig-save">Save</button>
+            </div>
+            <div class="gc-hint" id="cHint"></div>
+            <div class="gc-dialog-err" id="cErr" hidden data-testid="gmail-client-compose-error"></div>
+        </div>
+        <div class="gc-cfoot">
+            <span class="gc-cmeta"><span id="cCount" data-testid="gmail-client-compose-count"></span><span id="cDraft"
+                  data-testid="gmail-client-compose-draft"></span></span>
+            <button type="button" class="gc-link gc-cdiscard" id="cDiscard" data-testid="gmail-client-compose-discard">Discard</button>
+            <button type="button" class="gc-btn" id="cCancel" title="Keep it as a draft, here and in Outlook&#39;s Drafts, and close"
+                    data-testid="gmail-client-compose-cancel">Save</button>
+            <button type="button" class="gc-btn primary gc-csend" id="cSend" data-testid="gmail-client-compose-send">Send</button>
+        </div>
+    </div>
+</div>
+
+<!-- Follow up: one message or the selected ones -->
+<div class="gc-modal" id="followup" hidden data-testid="gmail-client-followup-dialog">
+    <div class="gc-dialog">
+        <h3 id="fTitle">Follow up</h3>
+        <div class="gc-quick" id="fQuick" data-testid="gmail-client-fu-quick">
+            <button type="button" class="gc-btn" data-days="0" data-testid="gmail-client-fu-today">Today</button>
+            <button type="button" class="gc-btn" data-days="1" data-testid="gmail-client-fu-tomorrow">Tomorrow</button>
+            <button type="button" class="gc-btn" data-days="3" data-testid="gmail-client-fu-3days">In 3 days</button>
+            <button type="button" class="gc-btn" data-days="7" data-testid="gmail-client-fu-week">Next week</button>
+        </div>
+        <label>On<input type="date" id="fDate" data-testid="gmail-client-fu-date"></label>
+        <label>Note<input type="text" id="fNote" maxlength="300" autocomplete="off" placeholder="What to do, if anything"
+                          data-testid="gmail-client-fu-note"></label>
+        <div class="gc-dialog-err" id="fErr" hidden data-testid="gmail-client-fu-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="fCancel" data-testid="gmail-client-fu-cancel">Cancel</button>
+            <button type="button" class="gc-btn" id="fDone" hidden data-testid="gmail-client-fu-done">Mark done</button>
+            <button type="button" class="gc-btn primary" id="fSave" data-testid="gmail-client-fu-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom search -->
+<div class="gc-modal" id="custom" hidden data-testid="gmail-client-custom">
+    <div class="gc-dialog">
+        <h3>Custom search</h3>
+        <label>From<input type="text" id="sFrom" autocomplete="off" placeholder="A name, address or domain" data-testid="gmail-client-custom-from"></label>
+        <label>To or Cc<input type="text" id="sTo" autocomplete="off" data-testid="gmail-client-custom-to"></label>
+        <label>Subject has<input type="text" id="sSubject" autocomplete="off" data-testid="gmail-client-custom-subject"></label>
+        <label>Has the words<input type="text" id="sWords" autocomplete="off" placeholder="In the subject or the preview" data-testid="gmail-client-custom-words"></label>
+        <label>Inbox<select id="sInbox" data-testid="gmail-client-custom-inbox"></select></label>
+        <div class="gc-dates">
+            <label>On or after<input type="date" id="sAfter" data-testid="gmail-client-custom-after"></label>
+            <label>On or before<input type="date" id="sBefore" data-testid="gmail-client-custom-before"></label>
+        </div>
+        <label class="gc-check"><input type="checkbox" id="sUnread" data-testid="gmail-client-custom-unread"> Unread only</label>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="sCancel" data-testid="gmail-client-custom-cancel">Cancel</button>
+            <button type="button" class="gc-btn" id="sReset" data-testid="gmail-client-custom-reset">Clear</button>
+            <button type="button" class="gc-btn primary" id="sGo" data-testid="gmail-client-custom-go">Search</button>
+        </div>
+    </div>
+</div>
+
+<!-- Inboxes: add, rename, delete -->
+<div class="gc-modal" id="inboxes" hidden data-testid="gmail-client-inboxes">
+    <div class="gc-dialog">
+        <div class="gc-dialog-title">
+            <h3>Inboxes</h3>
+            <button type="button" class="gc-arrange" id="btnArrange" hidden aria-pressed="false" aria-label="Arrange the inboxes"
+                    title="Arrange: drag the inboxes into the order of their tabs" data-testid="gmail-client-inbox-arrange">&#8645;</button>
+        </div>
+        <div class="gc-hint">An inbox shows the mail of every sender you put in it. Put a sender in an inbox from any
+            of its messages. Senders in no inbox show under Unclassified.</div>
+        <div id="inboxList" data-testid="gmail-client-inbox-list"></div>
+        <div class="gc-add-inbox">
+            <input type="text" id="newInbox" placeholder="New inbox, for example Legal" autocomplete="off" data-testid="gmail-client-new-inbox">
+            <button type="button" class="gc-btn primary" id="btnAddInbox" data-testid="gmail-client-new-inbox-save">Save</button>
+        </div>
+        <div class="gc-dialog-err" id="iErr" hidden data-testid="gmail-client-inbox-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="iClose" data-testid="gmail-client-inboxes-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Link an email to a record (Story 5608): find a contact, vendor, matter... -->
+<div class="gc-modal" id="links" hidden data-testid="gmail-client-link-dialog">
+    <div class="gc-dialog">
+        <h3>Link to a record</h3>
+        <input type="search" id="lkSearch" autocomplete="off" placeholder="A name: a contact, vendor, matter, call log"
+               data-testid="gmail-client-link-search">
+        <div id="lkList" class="gc-sender-list" data-testid="gmail-client-link-results"></div>
+        <div class="gc-dialog-err" id="lkErr" hidden data-testid="gmail-client-link-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="lkCancel" data-testid="gmail-client-link-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Flag the selected messages (Story 5608) -->
+<div class="gc-modal" id="flagSel" hidden data-testid="gmail-client-flagsel">
+    <div class="gc-dialog">
+        <h3 id="fsTitle">Flag</h3>
+        <div class="gc-flagpick" id="fsFlags" data-testid="gmail-client-flagsel-flags"></div>
+        <label>Flag<input type="text" id="fsName" maxlength="60" autocomplete="off" placeholder="Tap a flag above, or type a new one"
+                          data-testid="gmail-client-flagsel-name"></label>
+        <div class="gc-dialog-err" id="fsErr" hidden data-testid="gmail-client-flagsel-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="fsCancel" data-testid="gmail-client-flagsel-cancel">Cancel</button>
+            <button type="button" class="gc-btn" id="fsRemove" data-testid="gmail-client-flagsel-remove">Take it off</button>
+            <button type="button" class="gc-btn primary" id="fsAdd" data-testid="gmail-client-flagsel-add">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Attach from the Reading Nook (Story 5608) -->
+<div class="gc-modal" id="nookPick" hidden data-testid="gmail-client-nook-picker">
+    <div class="gc-dialog">
+        <h3>Attach from the Reading Nook</h3>
+        <input type="search" id="npSearch" autocomplete="off" placeholder="Part of a file name" data-testid="gmail-client-nook-search">
+        <div id="npList" class="gc-sender-list" data-testid="gmail-client-nook-results"></div>
+        <div class="gc-dialog-err" id="npErr" hidden data-testid="gmail-client-nook-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="npClose" data-testid="gmail-client-nook-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Who is in an inbox: opened from an inbox's sender count -->
+<div class="gc-modal" id="senders" hidden data-testid="gmail-client-senders">
+    <div class="gc-dialog">
+        <div class="gc-dialog-title"><h3 id="sdTitle">Senders</h3></div>
+        <div class="gc-hint" id="sdHint"></div>
+        <div id="sdList" class="gc-sender-list" data-testid="gmail-client-sender-list"></div>
+        <div class="gc-dialog-err" id="sdErr" hidden data-testid="gmail-client-senders-error"></div>
+        <div class="gc-dialog-btns">
+            <button type="button" class="gc-btn" id="sdClose" data-testid="gmail-client-senders-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="/picasso-utils.js?v=63"></script>
+<script src="/auth.js?v=36"></script>
+<script src="/files/file-kit.js?v=8"></script>
+<script src="/picasso-select.js?v=5"></script>
+<script src="/picasso-view-state.js?v=3"></script>
+<script src="/picasso-split.js?v=6"></script>
+<script src="/picasso-tags.js?v=5"></script>
+<script src="/gmail-client/gmail-client-look.js?v=1"></script>
+<script src="/gmail-client/gmail-client-echo.js?v=1"></script>
+<script src="/gmail-client/gmail-client.js?v=1"></script>
+</body>
+</html>

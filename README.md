@@ -60,6 +60,9 @@ Choices you may want on the `install.cmd` line:
 | `set-password.cmd` | A new password, or another sign-in (`-Username someone`). Also resets a forgotten one. |
 | `export-solution.cmd` / `import-solution.cmd` | Copy a whole solution from Leonardo (or another Echo) into this Echo. See Echo's Help, "Bringing a solution over from Leonardo". |
 
+**The Email Client needs classic Outlook open** on the same computer (Story 5654): Echo reads and sends
+through it and never stores a password. `tools\Test-OutlookBridge.ps1` tests the bridge without Outlook.
+
 Every `.cmd` starts its PowerShell script with `-ExecutionPolicy Bypass`, so the scripts run even
 where PowerShell asks for signed scripts.
 

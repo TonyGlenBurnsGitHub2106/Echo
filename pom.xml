@@ -66,6 +66,13 @@
 			<artifactId>openhtmltopdf-pdfbox</artifactId>
 			<version>1.0.10</version>
 		</dependency>
+		<!-- Story 5654: the Email Client cleans incoming HTML mail the way Leonardo's Gmail Client does
+		     (EmailHtmlSanitizer). Same library, same version as LeonardoWeb. MIT license; added with Tony's yes. -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.18.1</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

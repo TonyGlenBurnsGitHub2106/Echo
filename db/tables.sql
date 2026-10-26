@@ -4054,3 +4054,429 @@ GO
 IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ConversationMessage_Conversation]') AND parent_object_id = OBJECT_ID(N'[dbo].[ConversationMessage]'))
 ALTER TABLE [dbo].[ConversationMessage] CHECK CONSTRAINT [FK_ConversationMessage_Conversation]
 GO
+-- ============================================================================================
+-- Story 5654: Email Client (echoed from Leonardo's Gmail Client)
+--
+-- Echo's email client is a copy of Leonardo's Gmail Client whose mail source is Microsoft Outlook
+-- (the desktop app, through COM) instead of Gmail. These tables keep Leonardo's names and columns
+-- (so rows can be compared and copied) and come from Leonardo's Schema_GmailClient.sql,
+-- Schema_GmailClientMessageBody.sql, Schema_GmailClientSent.sql, Schema_GmailClientFollowUp.sql,
+-- Schema_GmailClientFlag.sql, Schema_GmailClientColor.sql, Schema_GmailClientDraft.sql and
+-- Schema_MailTriage.sql (MailTriageRule only). Their audit triggers are in db\triggers.
+--
+-- Deliberate Echo differences (each marked Story 5654 where it is made):
+--   - every column that holds an Outlook EntryID is VARCHAR(400), not VARCHAR(64):
+--     GmailClientMessage.GmailID, GmailClientSentMessage.GmailID, GmailClientDraft.GmailDraftID
+--     and GmailClientDraft.GmailMessageID, and the same columns in their _LOG tables.
+--     ThreadID stays VARCHAR(64) (an Outlook ConversationID is 32 hex characters).
+--   - GmailClientMessage.EntityID is kept but always NULL (Echo has no Leonardo entities).
+--   - MailTriageRule is created with Schema_MailTriage_Junk.sql's CHECK constraints
+--     (Disposition white | black | junk, FilterMode trash | archive | spam).
+--   - Not echoed: MailTriagePending, MailTriageRun, MailTriageAccount, EntityGmailClient*XRef.
+--
+-- Idempotent: a table that exists is left alone with its rows.
+-- ============================================================================================
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- ---- GmailClientInbox (Leonardo Schema_GmailClient.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientInbox')
+BEGIN
+    CREATE TABLE dbo.GmailClientInbox (
+        GmailClientInboxID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientInbox PRIMARY KEY CLUSTERED,
+        InboxName          NVARCHAR(60)      NOT NULL,
+        SortOrder          INT               NOT NULL CONSTRAINT DF_GmailClientInbox_SortOrder DEFAULT (0),
+        CreatedDate        DATETIME          NOT NULL CONSTRAINT DF_GmailClientInbox_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate       DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_GmailClientInbox_InboxName ON dbo.GmailClientInbox (InboxName);
+END;
+GO
+-- ---- GmailClientInbox_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientInbox_LOG')
+    CREATE TABLE dbo.GmailClientInbox_LOG (
+        GmailClientInbox_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientInbox_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientInbox_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientInbox_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientInboxID INT NULL, InboxName NVARCHAR(60) NULL, SortOrder INT NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientSenderInbox (Leonardo Schema_GmailClient.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSenderInbox')
+BEGIN
+    CREATE TABLE dbo.GmailClientSenderInbox (
+        GmailClientSenderInboxID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientSenderInbox PRIMARY KEY CLUSTERED,
+        SenderKey                NVARCHAR(254)     NOT NULL,
+        GmailClientInboxID       INT               NULL
+            CONSTRAINT FK_GmailClientSenderInbox_Inbox REFERENCES dbo.GmailClientInbox (GmailClientInboxID),
+        CreatedDate              DATETIME          NOT NULL CONSTRAINT DF_GmailClientSenderInbox_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate             DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_GmailClientSenderInbox_SenderKey ON dbo.GmailClientSenderInbox (SenderKey);
+    CREATE INDEX IX_GmailClientSenderInbox_Inbox ON dbo.GmailClientSenderInbox (GmailClientInboxID, SenderKey);
+END;
+GO
+-- ---- GmailClientSenderInbox_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSenderInbox_LOG')
+    CREATE TABLE dbo.GmailClientSenderInbox_LOG (
+        GmailClientSenderInbox_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientSenderInbox_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientSenderInbox_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientSenderInbox_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientSenderInboxID INT NULL, SenderKey NVARCHAR(254) NULL, GmailClientInboxID INT NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientMessage (Leonardo Schema_GmailClient.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessage')
+BEGIN
+    CREATE TABLE dbo.GmailClientMessage (
+        GmailClientMessageID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientMessage PRIMARY KEY CLUSTERED,
+        GmailID              VARCHAR(400)      NOT NULL,   -- Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        ThreadID             VARCHAR(64)       NULL,
+        SenderKey            NVARCHAR(254)     NULL,      -- NULL when the From header has no usable address
+        FromHeader           NVARCHAR(320)     NULL,
+        ToHeader             NVARCHAR(1000)    NULL,
+        CcHeader             NVARCHAR(1000)    NULL,
+        Subject              NVARCHAR(500)     NULL,
+        Snippet              NVARCHAR(500)     NULL,
+        MessageIDHeader      NVARCHAR(500)     NULL,      -- the RFC 822 Message-ID, for replies
+        ReceivedDate         DATETIME          NOT NULL,
+        IsRead               BIT               NOT NULL CONSTRAINT DF_GmailClientMessage_IsRead DEFAULT (0),
+        IsHidden             BIT               NOT NULL CONSTRAINT DF_GmailClientMessage_IsHidden DEFAULT (0),
+        HiddenDate           DATETIME          NULL,
+        EntityID             INT               NULL,      -- Story 5608: the message as a Leonardo entity. Story 5654: always NULL in Echo (no entities); kept so rows compare with Leonardo's
+        CreatedDate          DATETIME          NOT NULL CONSTRAINT DF_GmailClientMessage_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate         DATETIME          NULL
+    );
+    -- Story 5654: a unique index on VARCHAR(400) is fine (under the 900-byte key limit).
+    CREATE UNIQUE INDEX UX_GmailClientMessage_GmailID ON dbo.GmailClientMessage (GmailID);
+    CREATE INDEX IX_GmailClientMessage_List ON dbo.GmailClientMessage (IsHidden, ReceivedDate DESC) INCLUDE (SenderKey);
+    CREATE INDEX IX_GmailClientMessage_Sender ON dbo.GmailClientMessage (SenderKey, IsHidden, ReceivedDate DESC);
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_GmailClientMessage_EntityID' AND object_id = OBJECT_ID('dbo.GmailClientMessage'))
+    CREATE UNIQUE INDEX UX_GmailClientMessage_EntityID ON dbo.GmailClientMessage (EntityID) WHERE EntityID IS NOT NULL;
+GO
+-- ---- GmailClientMessage_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessage_LOG')
+    CREATE TABLE dbo.GmailClientMessage_LOG (
+        GmailClientMessage_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientMessage_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientMessage_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientMessage_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientMessageID INT NULL, GmailID VARCHAR(400) NULL, ThreadID VARCHAR(64) NULL,   -- GmailID: Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        SenderKey NVARCHAR(254) NULL, FromHeader NVARCHAR(320) NULL, Subject NVARCHAR(500) NULL,
+        ReceivedDate DATETIME NULL, IsRead BIT NULL, IsHidden BIT NULL, HiddenDate DATETIME NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL, EntityID INT NULL);
+GO
+-- ---- GmailClientCheck (Leonardo Schema_GmailClient.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientCheck')
+BEGIN
+    CREATE TABLE dbo.GmailClientCheck (
+        GmailClientCheckID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientCheck PRIMARY KEY CLUSTERED,
+        StartedDate        DATETIME          NOT NULL CONSTRAINT DF_GmailClientCheck_StartedDate DEFAULT (GETDATE()),
+        FinishedDate       DATETIME          NULL,
+        WindowStartDate    DATETIME          NOT NULL,  -- the mail read is everything after this
+        MessagesListed     INT               NOT NULL CONSTRAINT DF_GmailClientCheck_Listed DEFAULT (0),
+        MessagesAdded      INT               NOT NULL CONSTRAINT DF_GmailClientCheck_Added DEFAULT (0),
+        IsComplete         BIT               NOT NULL CONSTRAINT DF_GmailClientCheck_IsComplete DEFAULT (0),
+        ErrorText          NVARCHAR(1000)    NULL
+    );
+    CREATE INDEX IX_GmailClientCheck_Complete ON dbo.GmailClientCheck (IsComplete, StartedDate);
+END;
+GO
+-- ---- GmailClientCheck_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientCheck_LOG')
+    CREATE TABLE dbo.GmailClientCheck_LOG (
+        GmailClientCheck_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientCheck_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientCheck_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientCheck_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientCheckID INT NULL, StartedDate DATETIME NULL, FinishedDate DATETIME NULL,
+        WindowStartDate DATETIME NULL, MessagesListed INT NULL, MessagesAdded INT NULL,
+        IsComplete BIT NULL, ErrorText NVARCHAR(1000) NULL);
+GO
+-- ---- GmailClientMessageBody (Leonardo Schema_GmailClientMessageBody.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessageBody')
+BEGIN
+    CREATE TABLE dbo.GmailClientMessageBody (
+        GmailClientMessageID INT            NOT NULL
+            CONSTRAINT PK_GmailClientMessageBody PRIMARY KEY CLUSTERED
+            CONSTRAINT FK_GmailClientMessageBody_Message REFERENCES dbo.GmailClientMessage (GmailClientMessageID),
+        BodyHtml             NVARCHAR(MAX)  NULL,
+        BodyText             NVARCHAR(MAX)  NULL,
+        AttachmentNames      NVARCHAR(2000) NULL,      -- one name per line
+        IsGoneFromGmail      BIT            NOT NULL CONSTRAINT DF_GmailClientMessageBody_Gone DEFAULT (0),
+        SavedDate            DATETIME       NOT NULL CONSTRAINT DF_GmailClientMessageBody_SavedDate DEFAULT (GETDATE())
+    );
+END;
+GO
+-- ---- GmailClientMessageBody_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessageBody_LOG')
+    CREATE TABLE dbo.GmailClientMessageBody_LOG (
+        GmailClientMessageBody_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientMessageBody_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientMessageBody_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientMessageBody_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientMessageID INT NULL, HtmlLength INT NULL, TextLength INT NULL,
+        AttachmentNames NVARCHAR(2000) NULL, IsGoneFromGmail BIT NULL, SavedDate DATETIME NULL);
+GO
+-- ---- GmailClientSentMessage (Leonardo Schema_GmailClientSent.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSentMessage')
+BEGIN
+    CREATE TABLE dbo.GmailClientSentMessage (
+        GmailClientSentMessageID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientSentMessage PRIMARY KEY CLUSTERED,
+        GmailID              VARCHAR(400)      NOT NULL,   -- Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters; a provisional echo:<32 hex> until Check mail finds it in Sent Items
+        ThreadID             VARCHAR(64)       NULL,
+        FromHeader           NVARCHAR(320)     NULL,
+        ToHeader             NVARCHAR(1000)    NULL,
+        CcHeader             NVARCHAR(1000)    NULL,
+        BccHeader            NVARCHAR(1000)    NULL,      -- known only for mail sent from the Gmail Client
+        Subject              NVARCHAR(500)     NULL,
+        Snippet              NVARCHAR(500)     NULL,
+        MessageIDHeader      NVARCHAR(500)     NULL,
+        SentDate             DATETIME          NOT NULL,
+        IsFromGmailClient    BIT               NOT NULL CONSTRAINT DF_GmailClientSentMessage_FromClient DEFAULT (0),
+        IsHidden             BIT               NOT NULL CONSTRAINT DF_GmailClientSentMessage_IsHidden DEFAULT (0),
+        HiddenDate           DATETIME          NULL,
+        FollowUpDate         DATE              NULL,      -- an open follow-up (NULL = none, or done)
+        FollowUpNote         NVARCHAR(300)     NULL,
+        FollowUpDoneDate     DATETIME          NULL,
+        CreatedDate          DATETIME          NOT NULL CONSTRAINT DF_GmailClientSentMessage_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate         DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_GmailClientSentMessage_GmailID ON dbo.GmailClientSentMessage (GmailID);
+    CREATE INDEX IX_GmailClientSentMessage_List ON dbo.GmailClientSentMessage (IsHidden, SentDate DESC) INCLUDE (ThreadID);
+END;
+GO
+-- ---- GmailClientSentMessage_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSentMessage_LOG')
+    CREATE TABLE dbo.GmailClientSentMessage_LOG (
+        GmailClientSentMessage_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientSentMessage_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientSentMessage_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientSentMessage_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientSentMessageID INT NULL, GmailID VARCHAR(400) NULL, ThreadID VARCHAR(64) NULL,   -- GmailID: Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        FromHeader NVARCHAR(320) NULL, ToHeader NVARCHAR(1000) NULL, CcHeader NVARCHAR(1000) NULL,
+        BccHeader NVARCHAR(1000) NULL, Subject NVARCHAR(500) NULL, Snippet NVARCHAR(500) NULL,
+        MessageIDHeader NVARCHAR(500) NULL, SentDate DATETIME NULL, IsFromGmailClient BIT NULL,
+        IsHidden BIT NULL, HiddenDate DATETIME NULL, FollowUpDate DATE NULL, FollowUpNote NVARCHAR(300) NULL,
+        FollowUpDoneDate DATETIME NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientSentMessageBody (Leonardo Schema_GmailClientSent.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSentMessageBody')
+BEGIN
+    CREATE TABLE dbo.GmailClientSentMessageBody (
+        GmailClientSentMessageID INT            NOT NULL
+            CONSTRAINT PK_GmailClientSentMessageBody PRIMARY KEY CLUSTERED
+            CONSTRAINT FK_GmailClientSentMessageBody_Sent REFERENCES dbo.GmailClientSentMessage (GmailClientSentMessageID),
+        BodyHtml             NVARCHAR(MAX)  NULL,
+        BodyText             NVARCHAR(MAX)  NULL,
+        AttachmentNames      NVARCHAR(2000) NULL,      -- one name per line
+        IsGoneFromGmail      BIT            NOT NULL CONSTRAINT DF_GmailClientSentMessageBody_Gone DEFAULT (0),
+        SavedDate            DATETIME       NOT NULL CONSTRAINT DF_GmailClientSentMessageBody_SavedDate DEFAULT (GETDATE())
+    );
+END;
+GO
+-- ---- GmailClientSentMessageBody_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientSentMessageBody_LOG')
+    CREATE TABLE dbo.GmailClientSentMessageBody_LOG (
+        GmailClientSentMessageBody_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientSentMessageBody_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientSentMessageBody_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientSentMessageBody_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientSentMessageID INT NULL, HtmlLength INT NULL, TextLength INT NULL,
+        AttachmentNames NVARCHAR(2000) NULL, IsGoneFromGmail BIT NULL, SavedDate DATETIME NULL);
+GO
+-- ---- GmailClientFollowUp (Leonardo Schema_GmailClientFollowUp.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientFollowUp')
+BEGIN
+    CREATE TABLE dbo.GmailClientFollowUp (
+        GmailClientFollowUpID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientFollowUp PRIMARY KEY CLUSTERED,
+        GmailClientMessageID  INT               NOT NULL
+            CONSTRAINT FK_GmailClientFollowUp_Message REFERENCES dbo.GmailClientMessage (GmailClientMessageID),
+        DueDate               DATE              NOT NULL,
+        Note                  NVARCHAR(300)     NULL,
+        IsDone                BIT               NOT NULL CONSTRAINT DF_GmailClientFollowUp_IsDone DEFAULT (0),
+        DoneDate              DATETIME          NULL,
+        CreatedDate           DATETIME          NOT NULL CONSTRAINT DF_GmailClientFollowUp_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate          DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_GmailClientFollowUp_Message ON dbo.GmailClientFollowUp (GmailClientMessageID);
+    CREATE INDEX IX_GmailClientFollowUp_Open ON dbo.GmailClientFollowUp (IsDone, DueDate) INCLUDE (GmailClientMessageID);
+END;
+GO
+-- ---- GmailClientFollowUp_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientFollowUp_LOG')
+    CREATE TABLE dbo.GmailClientFollowUp_LOG (
+        GmailClientFollowUp_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientFollowUp_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientFollowUp_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientFollowUp_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientFollowUpID INT NULL, GmailClientMessageID INT NULL, DueDate DATE NULL, Note NVARCHAR(300) NULL,
+        IsDone BIT NULL, DoneDate DATETIME NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientFlag (Leonardo Schema_GmailClientFlag.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientFlag')
+BEGIN
+    CREATE TABLE dbo.GmailClientFlag (
+        GmailClientFlagID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientFlag PRIMARY KEY CLUSTERED,
+        FlagName          NVARCHAR(60)      NOT NULL,
+        SortOrder         INT               NOT NULL CONSTRAINT DF_GmailClientFlag_SortOrder DEFAULT (0),
+        CreatedDate       DATETIME          NOT NULL CONSTRAINT DF_GmailClientFlag_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate      DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_GmailClientFlag_FlagName ON dbo.GmailClientFlag (FlagName);
+END;
+GO
+-- ---- GmailClientFlag_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientFlag_LOG')
+    CREATE TABLE dbo.GmailClientFlag_LOG (
+        GmailClientFlag_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientFlag_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientFlag_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientFlag_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientFlagID INT NULL, FlagName NVARCHAR(60) NULL, SortOrder INT NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientMessageFlag (Leonardo Schema_GmailClientFlag.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessageFlag')
+BEGIN
+    CREATE TABLE dbo.GmailClientMessageFlag (
+        GmailClientMessageFlagID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientMessageFlag PRIMARY KEY CLUSTERED,
+        GmailClientMessageID     INT               NOT NULL
+            CONSTRAINT FK_GmailClientMessageFlag_Message REFERENCES dbo.GmailClientMessage (GmailClientMessageID),
+        GmailClientFlagID        INT               NOT NULL
+            CONSTRAINT FK_GmailClientMessageFlag_Flag REFERENCES dbo.GmailClientFlag (GmailClientFlagID),
+        CreatedDate              DATETIME          NOT NULL CONSTRAINT DF_GmailClientMessageFlag_CreatedDate DEFAULT (GETDATE())
+    );
+    CREATE UNIQUE INDEX UX_GmailClientMessageFlag_Pair ON dbo.GmailClientMessageFlag (GmailClientMessageID, GmailClientFlagID);
+    CREATE INDEX IX_GmailClientMessageFlag_Flag ON dbo.GmailClientMessageFlag (GmailClientFlagID, GmailClientMessageID);
+END;
+GO
+-- ---- GmailClientMessageFlag_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientMessageFlag_LOG')
+    CREATE TABLE dbo.GmailClientMessageFlag_LOG (
+        GmailClientMessageFlag_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientMessageFlag_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientMessageFlag_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientMessageFlag_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientMessageFlagID INT NULL, GmailClientMessageID INT NULL, GmailClientFlagID INT NULL, CreatedDate DATETIME NULL);
+GO
+-- ---- GmailClientColor (Leonardo Schema_GmailClientColor.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientColor')
+BEGIN
+    CREATE TABLE dbo.GmailClientColor (
+        GmailClientColorID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientColor PRIMARY KEY CLUSTERED,
+        ColorKind          VARCHAR(8)        NOT NULL
+            CONSTRAINT CK_GmailClientColor_Kind CHECK (ColorKind IN ('sender', 'domain', 'flag')),
+        MatchText          NVARCHAR(254)     NULL,
+        GmailClientFlagID  INT               NULL
+            CONSTRAINT FK_GmailClientColor_Flag REFERENCES dbo.GmailClientFlag (GmailClientFlagID),
+        ColorHex           CHAR(7)           NOT NULL
+            CONSTRAINT CK_GmailClientColor_Hex CHECK (ColorHex LIKE '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'),
+        CreatedDate        DATETIME          NOT NULL CONSTRAINT DF_GmailClientColor_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate       DATETIME          NULL,
+        CONSTRAINT CK_GmailClientColor_Match CHECK (
+            (ColorKind = 'flag' AND GmailClientFlagID IS NOT NULL AND MatchText IS NULL)
+            OR (ColorKind <> 'flag' AND MatchText IS NOT NULL AND GmailClientFlagID IS NULL))
+    );
+    CREATE UNIQUE INDEX UX_GmailClientColor_Text ON dbo.GmailClientColor (ColorKind, MatchText) WHERE MatchText IS NOT NULL;
+    CREATE UNIQUE INDEX UX_GmailClientColor_Flag ON dbo.GmailClientColor (GmailClientFlagID) WHERE GmailClientFlagID IS NOT NULL;
+END;
+GO
+-- ---- GmailClientColor_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientColor_LOG')
+    CREATE TABLE dbo.GmailClientColor_LOG (
+        GmailClientColor_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientColor_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientColor_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientColor_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientColorID INT NULL, ColorKind VARCHAR(8) NULL, MatchText NVARCHAR(254) NULL, GmailClientFlagID INT NULL,
+        ColorHex CHAR(7) NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- GmailClientDraft (Leonardo Schema_GmailClientDraft.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientDraft')
+BEGIN
+    CREATE TABLE dbo.GmailClientDraft (
+        GmailClientDraftID   INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientDraft PRIMARY KEY CLUSTERED,
+        ClientKey            VARCHAR(40)       NULL,      -- the page's key for a new draft (repeat saves find it)
+        Mode                 VARCHAR(16)       NOT NULL,  -- new | reply | replyAll | forward | writeAgain | forwardSent | gmail
+        SourceID             INT               NULL,      -- the message answered (inbox id; sent id for writeAgain / forwardSent)
+        ToHeader             NVARCHAR(1000)    NULL,
+        CcHeader             NVARCHAR(1000)    NULL,
+        BccHeader            NVARCHAR(1000)    NULL,
+        Subject              NVARCHAR(500)     NULL,
+        BodyText             NVARCHAR(MAX)     NULL,
+        Snippet              NVARCHAR(300)     NULL,      -- the start of the body on one line, for the list
+        IncludeOriginal      BIT               NOT NULL CONSTRAINT DF_GmailClientDraft_IncludeOriginal DEFAULT (0),
+        AttachmentsJson      NVARCHAR(4000)    NULL,      -- the files to attach: [{kind, token, nook, name, size}]
+        AttachmentCount      INT               NOT NULL CONSTRAINT DF_GmailClientDraft_AttachmentCount DEFAULT (0),
+        GmailDraftID         VARCHAR(400)      NULL,      -- Gmail's draft id once it is in Gmail's Drafts. Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        GmailMessageID       VARCHAR(400)      NULL,      -- the message id of Gmail's copy (changes on every edit). Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        ThreadID             VARCHAR(64)       NULL,
+        InReplyTo            NVARCHAR(500)     NULL,
+        ReferencesHeader     NVARCHAR(2000)    NULL,
+        IsFromGmailClient    BIT               NOT NULL CONSTRAINT DF_GmailClientDraft_FromClient DEFAULT (1),
+        IsOpen               BIT               NOT NULL CONSTRAINT DF_GmailClientDraft_IsOpen DEFAULT (1),
+        ClosedReason         VARCHAR(16)       NULL,      -- sent | discarded | gone
+        ClosedDate           DATETIME          NULL,
+        PushedDate           DATETIME          NULL,      -- when Gmail's copy last matched this row
+        CreatedDate          DATETIME          NOT NULL CONSTRAINT DF_GmailClientDraft_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate         DATETIME          NOT NULL CONSTRAINT DF_GmailClientDraft_ModifiedDate DEFAULT (GETDATE())
+    );
+    CREATE UNIQUE INDEX UX_GmailClientDraft_ClientKey ON dbo.GmailClientDraft (ClientKey) WHERE ClientKey IS NOT NULL;
+    CREATE UNIQUE INDEX UX_GmailClientDraft_GmailDraftID ON dbo.GmailClientDraft (GmailDraftID) WHERE GmailDraftID IS NOT NULL;
+    CREATE UNIQUE INDEX UX_GmailClientDraft_OpenSource ON dbo.GmailClientDraft (Mode, SourceID) WHERE IsOpen = 1 AND SourceID IS NOT NULL;
+    CREATE INDEX IX_GmailClientDraft_List ON dbo.GmailClientDraft (IsOpen, ModifiedDate DESC);
+END;
+GO
+-- ---- GmailClientDraft_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'GmailClientDraft_LOG')
+    CREATE TABLE dbo.GmailClientDraft_LOG (
+        GmailClientDraft_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_GmailClientDraft_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_GmailClientDraft_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_GmailClientDraft_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        GmailClientDraftID INT NULL, ClientKey VARCHAR(40) NULL, Mode VARCHAR(16) NULL, SourceID INT NULL,
+        ToHeader NVARCHAR(1000) NULL, CcHeader NVARCHAR(1000) NULL, BccHeader NVARCHAR(1000) NULL,
+        Subject NVARCHAR(500) NULL, BodyLength INT NULL, IncludeOriginal BIT NULL, AttachmentCount INT NULL,
+        GmailDraftID VARCHAR(400) NULL, GmailMessageID VARCHAR(400) NULL, ThreadID VARCHAR(64) NULL,   -- Story 5654: widened from VARCHAR(64) -- an Outlook EntryID is ~140 hex characters
+        IsFromGmailClient BIT NULL, IsOpen BIT NULL, ClosedReason VARCHAR(16) NULL, ClosedDate DATETIME NULL,
+        PushedDate DATETIME NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
+-- ---- MailTriageRule (Leonardo Schema_MailTriage.sql) ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'MailTriageRule')
+BEGIN
+    CREATE TABLE dbo.MailTriageRule (
+        MailTriageRuleID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MailTriageRule PRIMARY KEY CLUSTERED,
+        SenderKey        NVARCHAR(254)     NOT NULL,
+        KeyKind          VARCHAR(10)       NOT NULL
+            CONSTRAINT CK_MailTriageRule_KeyKind CHECK (KeyKind IN ('domain', 'address')),
+        Disposition      VARCHAR(10)       NOT NULL
+            CONSTRAINT CK_MailTriageRule_Disposition CHECK (Disposition IN ('white', 'black', 'junk')),   -- Story 5654: made with Schema_MailTriage_Junk.sql's values
+        IsProtected      BIT               NOT NULL CONSTRAINT DF_MailTriageRule_IsProtected DEFAULT (0),
+        GmailFilterID    VARCHAR(100)      NULL,
+        FilterMode       VARCHAR(10)       NULL      -- trash | archive (archive = Gmail refused a trash filter)
+            CONSTRAINT CK_MailTriageRule_FilterMode CHECK (FilterMode IN ('trash', 'archive', 'spam')),   -- Story 5654: made with Schema_MailTriage_Junk.sql's values
+        Note             NVARCHAR(500)     NULL,
+        CreatedDate      DATETIME          NOT NULL CONSTRAINT DF_MailTriageRule_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate     DATETIME          NULL
+    );
+    CREATE UNIQUE INDEX UX_MailTriageRule_SenderKey ON dbo.MailTriageRule (SenderKey);
+    CREATE INDEX IX_MailTriageRule_Disposition ON dbo.MailTriageRule (Disposition, SenderKey);
+END;
+GO
+-- ---- MailTriageRule_LOG ----
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'MailTriageRule_LOG')
+    CREATE TABLE dbo.MailTriageRule_LOG (
+        MailTriageRule_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MailTriageRule_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_MailTriageRule_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_MailTriageRule_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        MailTriageRuleID INT NULL, SenderKey NVARCHAR(254) NULL, KeyKind VARCHAR(10) NULL,
+        Disposition VARCHAR(10) NULL, IsProtected BIT NULL, GmailFilterID VARCHAR(100) NULL,
+        FilterMode VARCHAR(10) NULL, Note NVARCHAR(500) NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL);
+GO
