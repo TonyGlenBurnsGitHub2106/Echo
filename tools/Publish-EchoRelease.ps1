@@ -40,9 +40,8 @@ $repo = Get-EchoGitHubRepo $root
 Write-Host "== $repo, $branch at $($head.Substring(0, 10))"
 
 # ---- 2. build that commit in a folder of its own ---------------------------------------------------
-$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $work = Join-Path 'C:\temp\claude\echo-release' $stamp
-if (Test-Path $work) { $work = "$work-" + (Get-Date -Format 'ss') }
 New-Item -ItemType Directory -Force $work | Out-Null
 $zip = Join-Path $work 'source.zip'
 Invoke-Git "archive --format=zip -o `"$zip`" HEAD" | Out-Null
