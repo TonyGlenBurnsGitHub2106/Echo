@@ -56,7 +56,7 @@ Choices you may want on the `install.cmd` line:
 | `start-echo.cmd` / `stop-echo.cmd` | Start or stop Echo. |
 | `update-echo.cmd` | git pull, download the newest Echo release (no compiling), back up the database, update it, restart. If the new program does not start, the old one is put back. `-Build` compiles from source instead. Settings -> Update Echo does the same from the browser. |
 | `backup-echo.cmd` | Back up the Echo database to a dated `.bak`. |
-| `uninstall-echo.cmd` | Take Echo off this computer: backs the database up, drops it and Echo's SQL login (kept if another Echo database still uses it), and moves `config\`, `logs\`, `target\`, `lib\` and `EchoFiles\` to the Recycle Bin. It drops only a database that holds Echo's own tables -- never Leonardo or Hearth. Run as administrator; asks you to type YES. `install.cmd` puts it back. |
+| `uninstall-echo.cmd` | Take Echo off this computer: backs the database up, drops it and Echo's SQL login (kept if another Echo database still uses it), and moves `config\`, `logs\`, `target\`, `lib\` and `EchoFiles\` to the Recycle Bin. It drops only a database that holds Echo's own tables -- never Leonardo or Hearth. Run as administrator; asks twice -- type YES, then the database name. `install.cmd` puts it back. |
 | `set-password.cmd` | A new password, or another sign-in (`-Username someone`). Also resets a forgotten one. |
 | `export-solution.cmd` / `import-solution.cmd` | Copy a whole solution from Leonardo (or another Echo) into this Echo. See Echo's Help, "Bringing a solution over from Leonardo". |
 

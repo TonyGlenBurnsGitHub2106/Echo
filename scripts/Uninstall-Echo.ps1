@@ -15,8 +15,9 @@
          outright): config\, logs\, target\, lib\ and -- unless -KeepFiles -- EchoFiles\ (the
          files attached to solutions). backups\ and the code itself are left alone.
 
-    Run it as administrator, like install.cmd. It asks you to type YES first (the database and its
-    rows go); -Yes skips the question, for scripts. It drops only a database that holds Echo's own
+    Run it as administrator, like install.cmd. It asks twice before it changes anything: type YES,
+    then type the database's name (the second question says how many solutions go with it).
+    -Yes skips both questions, for scripts. It drops only a database that holds Echo's own
     tables. Safe to run when Echo is half installed: each step skips what is not there.
 
 .EXAMPLE
@@ -77,6 +78,26 @@ Write-Host "  - these folders, to the Recycle Bin: $($folders -join ', ')"
 if (-not $Yes) {
     $answer = Read-Host 'Type YES to go ahead'
     if ($answer -cne 'YES') { Write-Host 'Nothing was changed.'; return }
+
+    # Story 5653 (Tony, 2026-10-28): "Uninstall echo cmd should confirm twice before it just does it!"
+    # The second question is different from the first on purpose -- it says what is about to be lost
+    # and asks for the database's name, so a YES typed twice out of habit cannot get past it.
+    $solutions = $null
+    if ($dbExists) {
+        $c = New-EchoConnection -SqlServer $SqlServer -Database $Database -SqlUser $AdminSqlUser -SqlPassword $AdminSqlPassword
+        try { $solutions = Invoke-EchoScalar $c "IF OBJECT_ID('dbo.Solution') IS NULL SELECT -1 ELSE SELECT COUNT(*) FROM dbo.Solution" }
+        catch { $solutions = $null }
+        finally { $c.Close() }
+    }
+    Write-Host ''
+    Write-Host 'Are you sure? This is the last question.' -ForegroundColor Yellow
+    if ($null -ne $solutions -and [int]$solutions -ge 0) {
+        Write-Host "  $Database holds $solutions solution(s); they go with it."
+    }
+    if ($NoBackup) { Write-Host '  -NoBackup was given: there will be NO backup to bring them back from.' -ForegroundColor Red }
+    else { Write-Host '  A backup is made first.' }
+    $answer = Read-Host "Type the database name ($Database) to uninstall Echo"
+    if ($answer -cne $Database) { Write-Host 'Nothing was changed.'; return }
 }
 
 function Step([string]$text) { Write-Host ''; Write-Host "== $text" -ForegroundColor Cyan }

@@ -25,7 +25,7 @@ run them in a command window):
 | `stop-echo.cmd` | Stops it. |
 | `update-echo.cmd` | Gets the newest Echo, backs up the database, updates it and restarts -- the same as **Settings -> Update Echo**. Nothing is compiled: it downloads the finished program. If the new Echo does not start, the one you had is put back. |
 | `backup-echo.cmd` | Backs up the Echo database to a dated file. |
-| `uninstall-echo.cmd` | Takes Echo off the computer again: backs up the database, removes it and Echo's SQL login (kept if another Echo database on that SQL Server still uses it), and moves Echo's settings, logs and files to the Recycle Bin. Run it as administrator; it asks you to type YES first. Run `install.cmd` to put it back. |
+| `uninstall-echo.cmd` | Takes Echo off the computer again: backs up the database, removes it and Echo's SQL login (kept if another Echo database on that SQL Server still uses it), and moves Echo's settings, logs and files to the Recycle Bin. Run it as administrator. It asks twice before it changes anything: type YES, then type the database name (it tells you how many solutions go with it). Run `install.cmd` to put it back. |
 | `set-password.cmd` | Sets a new password (or creates another sign-in). Also how a forgotten password is reset. A password too short or typed differently twice is asked for again; Enter with nothing typed cancels. |
 | `export-solution.cmd` / `import-solution.cmd` | Copy a solution from Leonardo (or another Echo) into this Echo -- see above. |
 
