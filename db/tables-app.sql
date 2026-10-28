@@ -112,3 +112,51 @@ CREATE TABLE dbo.EntityLoginSetupXRef_LOG (
     CreatedDate            DATETIME NULL
 )
 GO
+-- ---- Email Client removed (Story 5654, 2026-10-28) ----
+-- Tony's company does not allow it: new Outlook has no COM, classic Outlook is not allowed to run,
+-- and Graph needs an admin's approval. Tony: "We could probably get around it, but it would violate
+-- the company security policy, so remove it." This takes the email objects out of a database that
+-- an earlier install gave them to. Code objects (procs, functions, views) always go. The TABLES go
+-- only when every one of them is empty -- mail or a list someone typed is never dropped by an
+-- update; a database that holds any is left alone and says so here.
+DECLARE @sql NVARCHAR(MAX) = N'';
+SELECT @sql = @sql + N'DROP ' + CASE o.type WHEN 'P' THEN N'PROCEDURE' WHEN 'V' THEN N'VIEW' ELSE N'FUNCTION' END
+            + N' dbo.' + QUOTENAME(o.name) + N'; '
+FROM sys.objects o
+WHERE o.schema_id = SCHEMA_ID('dbo')
+  AND o.type IN ('P', 'V', 'FN', 'IF', 'TF')
+  AND (o.name LIKE 'stp[_]GmailClient%' OR o.name LIKE 'stp[_]MailTriage%' OR o.name LIKE 'fn[_]GmailClient%'
+       OR o.name LIKE 'vw[_]GmailClient%' OR o.name = 'fn_IsoDate_IsValid');
+IF @sql <> N'' EXEC (@sql);
+GO
+DECLARE @rows BIGINT = 0, @n BIGINT, @t SYSNAME, @count NVARCHAR(MAX);
+DECLARE c CURSOR LOCAL FAST_FORWARD FOR
+    SELECT name FROM sys.tables
+    WHERE (name LIKE 'GmailClient%' OR name LIKE 'MailTriageRule%') AND name NOT LIKE '%[_]LOG';
+OPEN c; FETCH NEXT FROM c INTO @t;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @count = N'SELECT @n = COUNT_BIG(*) FROM dbo.' + QUOTENAME(@t);
+    EXEC sp_executesql @count, N'@n BIGINT OUTPUT', @n = @n OUTPUT;
+    SET @rows = @rows + @n;
+    FETCH NEXT FROM c INTO @t;
+END
+CLOSE c; DEALLOCATE c;
+IF @rows > 0
+    PRINT 'Story 5654: the Email Client tables hold ' + CAST(@rows AS VARCHAR(20)) + ' row(s), so they were kept.';
+ELSE
+BEGIN
+    DECLARE @sql NVARCHAR(MAX) = N'';
+    SELECT @sql = @sql + N'ALTER TABLE dbo.' + QUOTENAME(OBJECT_NAME(fk.parent_object_id))
+                + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N'; '
+    FROM sys.foreign_keys fk
+    WHERE OBJECT_NAME(fk.referenced_object_id) LIKE 'GmailClient%' OR OBJECT_NAME(fk.referenced_object_id) LIKE 'MailTriageRule%';
+    SELECT @sql = @sql + N'DROP TABLE dbo.' + QUOTENAME(name) + N'; '
+    FROM sys.tables WHERE name LIKE 'GmailClient%' OR name LIKE 'MailTriageRule%';
+    IF @sql <> N'' EXEC (@sql);
+END
+GO
+-- The menu no longer has the Email Client; a Quick Launch tile pointing at it would open nothing.
+IF OBJECT_ID('dbo.QuickLaunch') IS NOT NULL
+    DELETE FROM dbo.QuickLaunch WHERE Url LIKE '%/gmail-client/%';
+GO

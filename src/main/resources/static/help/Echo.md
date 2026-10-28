@@ -4,9 +4,9 @@ Echo is a small app of its own that echoes parts of Leonardo. It has its own sig
 database and its own address, so it can run on a computer that has no Leonardo on it, such as your
 work machine. The first part it echoes is **Solutions**: every feature of Leonardo's Solutions, with
 the same screens, buttons and behavior, minus the record links that only make sense inside Leonardo.
-It looks and works like LeonardoWeb: the same icon band, Quick Launch, menu and Print menu. The
-second part (10/26/2026) is the **Email Client** -- Leonardo's Gmail Client, reading and sending your
-work mail through Outlook, with one more theme that looks like Outlook.
+It looks and works like LeonardoWeb: the same icon band, Quick Launch, menu and Print menu. (An
+Email Client was added on 10/26/2026 and taken out on 10/28/2026: the company's security policy does
+not allow a program like Echo to read work mail.)
 
 The help is in two parts; tap a heading to open it.
 
@@ -173,28 +173,6 @@ address, both types by name, notes, Important, order) are made again with Echo's
 same transaction -- an address Echo already has is linked, not duplicated. A failed import moves the
 files it had written to `EchoFiles\trash`.
 
-**The Email Client (Story 5654).** Leonardo's Gmail Client echoed whole -- `GmailClient*` classes,
-`static/gmail-client/`, the `GmailClient*` and `MailTriageRule` tables and procs, all under Leonardo's
-names, with every Echo change marked "Story 5654" -- at `/api/gmail-client`. Its mail source is
-`OutlookClient`: `PowerShellOutlookClient` (`echo.mail.source=outlook`, the default) starts
-`scripts\OutlookBridge.ps1` once and talks to it one JSON line at a time; the bridge ATTACHES to the
-running classic Outlook over COM (`GetActiveObject`) and never starts one (closed Outlook = 409, shown
-on the status line). `DemoOutlookClient` (`echo.mail.source=demo`) is a pretend mailbox for tests.
-The Gmail id columns hold Outlook EntryIDs (widened to VARCHAR(400)); ThreadID holds the
-ConversationID. Outlook gives a sent message no id, so Echo stamps it with a key (a named MAPI
-property, `EchoSendKey`) and keeps it as `echo:<key>` until Check mail finds it in Sent Items and
-`stp_GmailClientSent_Rekey` gives it its real id. Replies, forwards and write-agains start from
-Outlook's own Reply / ReplyAll / Forward so the conversation holds together; the words are always
-Echo's plain text. Drafts go to Outlook's Drafts folder (words only; a version is a SHA-1 of
-To, Cc, Bcc, subject and body). Files to send are written for a moment to `EchoFiles\mail-outbox`.
-The whitelist and blacklist (`MailTriageRule`) are Echo's own and are NEVER made into Outlook
-rules; Echo never moves, flags or deletes a received message in Outlook. Left out from Leonardo:
-links to records, Leonardo Find, Reading Nook attachments, Save to Leonardo Files, Listen, View in
-Gmail, the demo page, the nightly check. Added: `GET /api/gmail-client/senders/rules`,
-`DELETE .../senders/rules/{id}`, `POST .../senders/rules/{id}/protect`, the Outlook theme and the
-Lists dialog (`gmail-client-echo.css` / `.js`). The bridge's own test, needing no Outlook:
-`tools\Test-OutlookBridge.ps1`.
-
 **Execution policy.** The `.cmd` files start PowerShell with `-ExecutionPolicy Bypass`, so the
 scripts run on a machine whose policy is AllSigned or Restricted. A Group Policy that forbids
 Bypass would still stop them.
@@ -228,7 +206,7 @@ Every page has the icon band across the top, exactly as in LeonardoWeb:
 | Print | The Print menu for the page you are on |
 | Logout (right) | Sign out |
 
-The main menu has the **Quick Launch** row, a **Solutions** section, an **Email** section, and an **Echo** section for
+The main menu has the **Quick Launch** row, a **Solutions** section, and an **Echo** section for
 housekeeping (Manage Quick Launch, API Clients, Settings, Help). Tap a section's heading to fold or
 open it; **Fold all** / **Open all** works them all at once. Echo remembers which sections you
 folded, in its database, so every browser you use sees the same menu.
@@ -262,43 +240,6 @@ What is different in Echo:
 - **The Reader has no Library actions**: no Save Excerpt, Send to Quotes, Define or Send to Reading
   Nook. Research (Wikipedia, a web search) is there.
 - **No quizzes.**
-
-### The Email Client
-
-Main menu -> Email -> **Email Client**. Your work mail, the way Leonardo's Gmail Client shows Gmail:
-your own inboxes, a whitelist and a blacklist, follow-ups, flags, colors, conversations, drafts,
-search, the preview view and the themes all work as they do there. See *GmailClient* in Leonardo's
-help for the full walkthrough. Born 10/26/2026 (Story 5654).
-
-**Outlook must be open.** Echo reads and sends through the Outlook app on this computer (classic
-Outlook, the one with the File menu). It never asks for a password -- Outlook is already signed in.
-If Outlook is closed, the status line says so; open Outlook and tap **Check mail**. The mail Echo
-already read in stays readable while Outlook is closed.
-
-What happens where:
-
-| You do this in Echo | In Outlook |
-|---|---|
-| Check mail | Nothing changes. Echo reads the Inbox, Sent Items and Drafts. |
-| Delete, mark read, file in an inbox, flag, follow up | Nothing changes -- these live in Echo only. |
-| Whitelist or blacklist a sender | Nothing changes. Echo **never** makes an Outlook rule; the lists live in Echo. |
-| Send, reply, reply all, forward | Outlook sends it, and keeps it in Sent Items, in the same conversation. |
-| Close a message without sending | It is kept as a draft in Echo and in Outlook's Drafts. |
-
-**Whitelist and blacklist.** Mail from a sender you have not decided on waits on the **Undecided**
-tab, with **Whitelist** and **Blacklist** on each message. Whitelisted mail shows in your inboxes;
-a blacklisted sender's mail is never read in. **Lists** (in the page title, and More -> Whitelist and
-blacklist) shows both lists: find a sender, move one to the other list, **Remove** one (its mail
-goes back to Undecided), or add one by typing an address or a domain.
-
-**The Outlook theme.** **Theme** -> **Outlook** makes the page look like Outlook: Outlook's blue and
-type, your inboxes down a folder pane on the left with **Whitelist** and **Blacklist** under them,
-and the reading pane on the right. The button at the top of the folder pane folds it to a narrow
-strip (remembered for each device). On a phone the folders run across the top instead. Pick any
-other theme to go back.
-
-Not in Echo: links to records, the Reading Nook, Save to Leonardo Files, Listen and View in Gmail --
-those belong to Leonardo.
 
 ### Sharing a solution with an agent (Rex)
 
