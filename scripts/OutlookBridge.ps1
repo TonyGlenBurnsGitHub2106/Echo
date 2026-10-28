@@ -60,13 +60,34 @@ function Connect-Outlook {
     if ($script:ol) {
         try { $null = $script:ns.CurrentUser; return } catch { $script:ol = $null; $script:ns = $null }
     }
-    try { $script:ol = [Runtime.InteropServices.Marshal]::GetActiveObject('Outlook.Application') }
-    catch {
-        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-        if ((New-Object Security.Principal.WindowsPrincipal $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-            Fail 409 'Echo is running as administrator, so it cannot see Outlook. Run stop-echo.cmd, then start-echo.cmd (not as administrator).'
+    # Story 5654 (work, 2026-10-28): "It says Outlook is not running, but it is." GetActiveObject reads
+    # the Running Object Table, and Outlook is not always listed there even when it is open (Office can
+    # skip or delay the listing). So: find Outlook's PROCESS first, try the table, and when Outlook is
+    # running but not listed, ask COM for Outlook.Application. Outlook allows one copy per user, so with
+    # outlook.exe already running that call hands back the running Outlook -- it never starts a second
+    # one and never shows a profile prompt. With no outlook.exe we never ask, so we never launch it.
+    $classic = @(Get-Process -Name 'outlook' -ErrorAction SilentlyContinue)
+    if ($classic.Count -eq 0) {
+        if (@(Get-Process -Name 'olk' -ErrorAction SilentlyContinue).Count -gt 0) {
+            Fail 409 'You are running the NEW Outlook, which other programs cannot talk to. Echo needs classic Outlook: in Outlook, turn off the "New Outlook" switch at the top right, then try again.'
         }
         Fail 409 'Outlook is not running on this computer. Open Outlook, then try again.'
+    }
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $echoIsAdmin = (New-Object Security.Principal.WindowsPrincipal $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    try { $script:ol = [Runtime.InteropServices.Marshal]::GetActiveObject('Outlook.Application') }
+    catch {
+        try { $script:ol = New-Object -ComObject 'Outlook.Application' }
+        catch {
+            $hr = '0x{0:X8}' -f $_.Exception.HResult
+            if ($echoIsAdmin) {
+                Fail 409 'Echo is running as administrator, so it cannot reach Outlook. Run stop-echo.cmd, then start-echo.cmd (not as administrator).'
+            }
+            if ($hr -eq '0x80080005') {
+                Fail 409 ('Outlook is open but Windows would not let Echo reach it (' + $hr + '). This usually means Outlook was started as administrator. Close Outlook, open it normally, then try again.')
+            }
+            Fail 409 ('Outlook is open but would not answer Echo (' + $hr + ': ' + $_.Exception.Message + ').')
+        }
     }
     $script:ns = $script:ol.GetNamespace('MAPI')
 }
