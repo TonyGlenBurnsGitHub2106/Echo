@@ -1,0 +1,79 @@
+/*
+ * picasso-multi-pick.css -- the shared "pick one or more" file list
+ * (picasso-multi-pick.js loads this itself). Sits above record modals (1000)
+ * and the capture tools (3000); Picasso message dialogs (100000) still sit
+ * above it.
+ */
+.pmp-backdrop {
+    position: fixed; inset: 0; z-index: 3200;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px; box-sizing: border-box;
+}
+.pmp-sheet {
+    background: #fff; color: #1F2329;
+    border-radius: 8px; padding: 16px 18px;
+    width: 100%; max-width: 640px;
+    max-height: 92vh; max-height: 92dvh;
+    display: flex; flex-direction: column;
+    box-sizing: border-box;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    font-family: "Segoe UI", system-ui, sans-serif;
+}
+.pmp-title { font: 600 13pt "Segoe UI", system-ui, sans-serif; margin-bottom: 4px; flex: 0 0 auto; }
+.pmp-hint  { font-size: 10pt; color: #666; margin-bottom: 8px; flex: 0 0 auto; }
+.pmp-filter {
+    flex: 0 0 auto;
+    display: block; width: 100%; box-sizing: border-box;
+    padding: 9px 12px; border: 1px solid #C9C9CC; border-radius: 4px;
+    font: 12pt "Segoe UI", system-ui, sans-serif;
+}
+.pmp-bar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin: 8px 0 6px;
+}
+.pmp-count { font-weight: 600; font-size: 10.5pt; margin-right: auto; }
+.pmp-link {
+    background: none; border: 0; padding: 4px 0; cursor: pointer;
+    color: #0A66C2; font: 10.5pt "Segoe UI", system-ui, sans-serif;
+}
+.pmp-link:hover { text-decoration: underline; }
+.pmp-list {
+    flex: 1 1 auto; min-height: 120px; overflow-y: auto;
+    border: 1px solid #DCDFE3; border-radius: 4px;
+}
+.pmp-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; border-bottom: 1px solid #EEF0F3;
+    cursor: pointer; user-select: none;
+}
+.pmp-row:last-child { border-bottom: 0; }
+.pmp-row:hover { background: #F5F8FC; }
+.pmp-row:focus-visible { outline: 2px solid #0A66C2; outline-offset: -2px; }
+.pmp-row.is-on { background: #EAF4EC; }
+.pmp-box {
+    flex: 0 0 auto;
+    width: 20px; height: 20px; margin-top: 1px;
+    border: 2px solid #9AA0A6; border-radius: 4px; box-sizing: border-box;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12pt; font-weight: 700; line-height: 1; color: #fff;
+}
+.pmp-row.is-on .pmp-box { background: #1A7A3C; border-color: #1A7A3C; }
+.pmp-text { display: flex; flex-direction: column; min-width: 0; }
+.pmp-name { font-weight: 600; overflow-wrap: anywhere; }
+.pmp-sub  { font-size: 9pt; color: #777; margin-top: 2px; overflow-wrap: anywhere; }
+.pmp-empty { padding: 14px; color: #888; font-style: italic; }
+.pmp-actions { flex: 0 0 auto; display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.pmp-btn {
+    background: #fff; color: #333; border: 1px solid #C9C9CC; border-radius: 4px;
+    padding: 9px 20px; cursor: pointer; font: 11pt "Segoe UI", system-ui, sans-serif;
+}
+.pmp-btn:hover { background: #F0F0F2; }
+.pmp-primary { background: #0A66C2; color: #fff; border-color: #0A66C2; font-weight: 600; }
+.pmp-primary:hover { background: #0E7AE0; }
+.pmp-btn[disabled] { opacity: 0.45; cursor: default; }
+@media (max-width: 560px) {
+    .pmp-backdrop { padding: 0; align-items: stretch; }
+    .pmp-sheet { max-width: none; max-height: none; height: 100%; border-radius: 0; }
+}

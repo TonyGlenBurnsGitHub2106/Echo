@@ -309,6 +309,18 @@
         const formEl = bg.querySelector('#lwedForm');
         formEl.addEventListener('input',  function () { _modalDirty = true; });
         formEl.addEventListener('change', function () { _modalDirty = true; });
+        // Escape closes it like Cancel (house rule: a modal closes by its own
+        // buttons or Escape). Capture phase, so an open dropdown inside the
+        // form is seen before its own Escape shuts it: that Escape only closes
+        // the dropdown, and the next one closes the dialog. A message or a
+        // quick-add sheet opened on top of it takes its own Escape.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape' || !bg.classList.contains('open')) return;
+            if (bg.querySelector('.picker-dropdown.open, .is-open')) return;
+            if (document.querySelector('.pdlg-backdrop, .pqa-bg')) return;
+            e.stopPropagation();
+            requestClose();
+        }, true);
         _modalEl = bg;
         return bg;
     }
@@ -3869,8 +3881,10 @@
      *
      * sink (optional) lets another Files tab -- a solution's (2026-10-15) --
      * reuse this same dialog and its Reading Nook / library pickers while
-     * doing its own attaching: { title, uploadHint, upload(), nook(pick),
-     * library(leonardoFileId, picked), typedPath: false }. With no sink the
+     * doing its own attaching: { title, uploadHint, upload(), nook(picks),
+     * library(items), typedPath: false } -- picks are nook rows (viewKey,
+     * name, ...) and items are { leonardoFileId, file }; both are arrays,
+     * since 2026-10-29 the pickers take one or more. With no sink the
      * picks are linked to the record as always.
      */
     ED.openFileSourcePicker = function (entityId, refresh, sink) {
@@ -3882,11 +3896,11 @@
             + '<div style="display:flex;flex-direction:column;gap:8px;margin:4px 0 8px 0">'
             +     '<button type="button" class="ed-btn primary" data-src="' + FILE_SRC_NOOK_INBOX + '" data-testid="ed-file-src-nook" style="padding:14px;text-align:left">'
             +         '<div style="font-weight:600">\uD83D\uDCE5  From the Reading Nook</div>'
-            +         '<div style="font-size:9pt;opacity:0.8;margin-top:2px">Pick something from any nook -- Inbox, Archive, Articles, Videos, Rex Inbox, your own nooks and the rest.</div>'
+            +         '<div style="font-size:9pt;opacity:0.8;margin-top:2px">Pick one or more files from any nook -- Inbox, Archive, Articles, Videos, Rex Inbox, your own nooks and the rest.</div>'
             +     '</button>'
             +     '<button type="button" class="ed-btn primary" data-src="' + FILE_SRC_LIBRARY + '" data-testid="ed-file-src-library" style="padding:14px;text-align:left">'
             +         '<div style="font-weight:600">\uD83D\uDCDA  From the Leonardo Files library</div>'
-            +         '<div style="font-size:9pt;opacity:0.8;margin-top:2px">Attach to a file already in the catalog (also lets you associate it with multiple entities).</div>'
+            +         '<div style="font-size:9pt;opacity:0.8;margin-top:2px">Pick one or more files already in the catalog (a file can be on many records).</div>'
             +     '</button>'
             +     '<button type="button" class="ed-btn primary" data-src="upload" data-testid="ed-file-src-upload" style="padding:14px;text-align:left">'
             +         '<div style="font-weight:600">\u2B06  Upload from this device</div>'
@@ -3951,6 +3965,64 @@
             document.head.appendChild(s);
         });
         return _capture.loading;
+    }
+
+    /** The shared pick-one-or-more list (picasso-multi-pick.js), loaded on
+     *  first use like the capture tools, so no page needs another script tag. */
+    var _multiPick = { loading: null };
+    function loadMultiPick() {
+        if (window.PicassoMultiPick) return Promise.resolve(window.PicassoMultiPick);
+        if (_multiPick.loading) return _multiPick.loading;
+        _multiPick.loading = new Promise(function (resolve, reject) {
+            const s = document.createElement('script');
+            s.src = '/picasso-multi-pick.js?v=1';
+            s.onload  = function () { window.PicassoMultiPick ? resolve(window.PicassoMultiPick) : reject(new Error('picasso-multi-pick.js loaded but did not start')); };
+            s.onerror = function () { _multiPick.loading = null; reject(new Error('picasso-multi-pick.js could not be loaded')); };
+            document.head.appendChild(s);
+        });
+        return _multiPick.loading;
+    }
+    async function openMultiPick(opts) {
+        let M;
+        try { M = await loadMultiPick(); }
+        catch (e) {
+            if (window.Picasso) await Picasso.error('The file picker did not load: ' + e.message);
+            return null;
+        }
+        return M.open(opts);
+    }
+
+    /** Link a file already in Leonardo Files to the record under its own name,
+     *  with no details dialog -- how a batch of picks is added. Throws an Error
+     *  that names the file; answers the link response. */
+    async function linkCatalogFile(entityId, leonardoFileId, name) {
+        const link = await window.LWAuth.apiPost('/api/entities/' + entityId + '/files',
+            { leonardoFileId: leonardoFileId, sourcePath: null, sourceType: null,
+              name: name, description: name, notes: '' }, 'POST');
+        if (!link || !link.ok) throw new Error(window.LWAuth.errorText(link, name + ' could not be linked to this record'));
+        return link;
+    }
+
+    /** Add a batch of picks one after another under one busy overlay: each
+     *  addOne(pick) resolves with its link response or throws. Then refresh,
+     *  and list anything that failed (that message waits for OK). */
+    async function addPicksInTurn(picks, addOne, refresh) {
+        const answers = [], failed = [];
+        function label(i) { return 'Adding ' + (i + 1) + ' of ' + picks.length + ': ' + picks[i].name; }
+        if (window.Picasso) Picasso.busy(label(0));
+        try {
+            for (let i = 0; i < picks.length; i++) {
+                if (window.Picasso && i > 0) { Picasso.busy(label(i)); Picasso.idle(); }
+                try { answers.push(await addOne(picks[i])); }
+                catch (e) { failed.push(picks[i].name + ' -- ' + (e && e.message ? e.message : 'no reason given')); }
+            }
+        } finally { if (window.Picasso) Picasso.idle(); }
+        refresh();
+        ED.sayFiledOn(ED.filedOnNames(answers));
+        if (failed.length && window.Picasso) {
+            await Picasso.error((answers.length ? answers.length + ' added. ' : '')
+                + 'These were not added:\n\n' + failed.join('\n'));
+        }
     }
 
     /** Upload one File into Leonardo Files and link it to the record. Throws
@@ -4086,133 +4158,115 @@
         // he just dropped in a nook, and with six buckets merged together a
         // bucket-order list buries it (Story 2436).
         results.sort(function (a, b) { return (b.modified || 0) - (a.modified || 0); });
-        // Render a list-picker modal.
-        var bg = ensureModal();
-        document.getElementById('lwedTitle').textContent = 'Pick a file from the Reading Nook';
-        document.getElementById('lwedErr').textContent = '';
-        var form = document.getElementById('lwedForm');
-        form.innerHTML = ''
-            + '<input id="lwedNookFilter" type="search" placeholder="Filter\u2026" style="width:100%;padding:8px;margin-bottom:8px">'
-            + '<div id="lwedNookList" style="max-height:50vh;overflow:auto;border:1px solid #DCDFE3;border-radius:4px"></div>';
-        var saveBtn = document.getElementById('lwedSave');
-        saveBtn.style.display = 'none';
-        bg.classList.add('open');
-
-        function renderList(needle) {
-            var lc = (needle || '').trim().toLowerCase();
-            var subset = lc
-                ? results.filter(function (f) { return f.name.toLowerCase().indexOf(lc) >= 0; })
-                : results;
-            if (!subset.length) {
-                document.getElementById('lwedNookList').innerHTML =
-                    '<div style="padding:14px;color:#888;font-style:italic">No matches.</div>';
-                return;
-            }
-            // Articles alone holds over a thousand files -- draw the newest
-            // NOOK_PICKER_ROW_CAP and let the filter narrow to the rest.
-            var more = subset.length - NOOK_PICKER_ROW_CAP;
-            if (more > 0) subset = subset.slice(0, NOOK_PICKER_ROW_CAP);
-            document.getElementById('lwedNookList').innerHTML = subset.map(function (f, i) {
-                return '<div class="lwed-nook-row" data-testid="ed-nook-pick-row" data-i="' + i + '" style="padding:10px 12px;border-bottom:1px solid #EEF0F3;cursor:pointer">'
-                     +     '<div style="font-weight:600">' + ED.escapeHtml(f.name) + '</div>'
-                     +     '<div style="font-size:9pt;color:#888">'
-                     +         ED.escapeHtml(f.viewLabel) + '  \u00B7  ' + fmtBytes(f.size)
-                     +         (f.modified ? '  \u00B7  ' + fmtNookDate(f.modified) : '')
-                     +     '</div>'
-                     + '</div>';
-            }).join('') + (more > 0
-                ? '<div style="padding:12px;color:#888;font-style:italic">' + more
-                  + ' more files -- keep typing to narrow</div>'
-                : '');
-            document.getElementById('lwedNookList').querySelectorAll('.lwed-nook-row').forEach(function (rowEl) {
-                rowEl.addEventListener('click', async function () {
-                    var idx = parseInt(rowEl.getAttribute('data-i'), 10);
-                    var pick = subset[idx];
-                    closeModal();
-                    saveBtn.style.display = '';
-                    // Another Files tab (a solution's) does its own attaching.
-                    if (sink) { sink.nook(pick); return; }
-                    // Stage 1 -- promote the nook file into the LeonardoFile
-                    // catalog. For Inbox / Archive sources the server copies
-                    // it into LeonardoFiles\ first; the Leonardo source is
-                    // registered in place. We come back with a stable
-                    // leonardoFileId; the entity xref form needs nothing else.
-                    if (window.Picasso) Picasso.busy('Adding to library\u2026');
-                    var rFn;
-                    try {
-                        rFn = await window.LWAuth.apiPost('/api/leonardo-files/from-nook',
-                            { view: pick.viewKey, name: pick.name }, 'POST');
-                    } finally { if (window.Picasso) Picasso.idle(); }
-                    if (!rFn || !rFn.ok) {
-                        alert('Could not stage file: '
-                            + (rFn && rFn.data && rFn.data.error ? rFn.data.error : 'unknown'));
-                        return;
-                    }
-                    // A video is linked in place, never copied into Leonardo
-                    // Files (videos stay out of the repository) -- say so.
-                    if (rFn.data.video && window.Picasso) {
-                        await Picasso.message('"' + pick.name + '" is a video, so it is linked in place '
-                            + 'in the ' + pick.viewLabel + ' nook and was NOT copied into Leonardo Files. '
-                            + 'That keeps the video out of the repository.',
-                            { title: 'Video Linked In Place' });
-                    }
-                    ED.editFileMetadata(entityId, {
-                        leonardoFileId: rFn.data.leonardoFileId,
-                        renameOnDisk:   !!rFn.data.copied,
-                        defaults: { name: rFn.data.name || pick.name }
-                    }, refresh);
-                });
-            });
+        // Pick one or more (2026-10-29). Articles alone holds over a thousand
+        // files -- the list draws the newest NOOK_PICKER_ROW_CAP and the filter
+        // narrows to the rest.
+        var picks = await openMultiPick({
+            title:       'Pick files from the Reading Nook',
+            hint:        'Tap each file you want, then Save. Ticks stay put while you filter.',
+            placeholder: 'Filter by name',
+            rowCap:      NOOK_PICKER_ROW_CAP,
+            testid:      'ed-nook-pick',
+            rows: results.map(function (f) {
+                f.key = f.viewKey + '/' + f.name;
+                f.sub = f.viewLabel + '  |  ' + fmtBytes(f.size) + (f.modified ? '  |  ' + fmtNookDate(f.modified) : '');
+                return f;
+            })
+        });
+        if (!picks || !picks.length) return;
+        // Another Files tab (a solution's) does its own attaching.
+        if (sink) { sink.nook(picks); return; }
+        if (picks.length === 1) { addOneNookPick(entityId, picks[0], refresh); return; }
+        var videos = [];
+        await addPicksInTurn(picks, async function (pick) {
+            var d = await stageNookPick(pick);
+            if (d.video) videos.push(pick.name);
+            return linkCatalogFile(entityId, d.leonardoFileId, d.name || pick.name);
+        }, refresh);
+        if (videos.length && window.Picasso) {
+            await Picasso.message(videos.join(', ') + (videos.length === 1 ? ' is a video, so it was' : ' are videos, so they were')
+                + ' linked in place in the Reading Nook and NOT copied into Leonardo Files. '
+                + 'That keeps videos out of the repository.', { title: 'Videos Linked In Place' });
         }
-        renderList('');
-        var filter = document.getElementById('lwedNookFilter');
-        filter.addEventListener('input', function () { renderList(filter.value); });
-        setTimeout(function () { filter.focus(); }, 30);
     };
 
+    /** Stage 1 -- promote a nook file into the LeonardoFile catalog. For Inbox /
+     *  Archive sources the server copies it into LeonardoFiles\ first; the
+     *  Leonardo source is registered in place. Answers the response data
+     *  (leonardoFileId, name, copied, video) or throws an Error naming the file. */
+    async function stageNookPick(pick) {
+        var rFn = await window.LWAuth.apiPost('/api/leonardo-files/from-nook',
+            { view: pick.viewKey, name: pick.name }, 'POST');
+        if (!rFn || !rFn.ok || !rFn.data) {
+            throw new Error(window.LWAuth.errorText(rFn, 'Could not add ' + pick.name + ' to Leonardo Files'));
+        }
+        return rFn.data;
+    }
+
+    /** One nook pick: stage it, then the details dialog, as it always was. */
+    async function addOneNookPick(entityId, pick, refresh) {
+        var d;
+        if (window.Picasso) Picasso.busy('Adding to library\u2026');
+        try { d = await stageNookPick(pick); }
+        catch (e) { if (window.Picasso) Picasso.idle(); if (window.Picasso) await Picasso.error(e.message); return; }
+        if (window.Picasso) Picasso.idle();
+        // A video is linked in place, never copied into Leonardo
+        // Files (videos stay out of the repository) -- say so.
+        if (d.video && window.Picasso) {
+            await Picasso.message('"' + pick.name + '" is a video, so it is linked in place '
+                + 'in the ' + pick.viewLabel + ' nook and was NOT copied into Leonardo Files. '
+                + 'That keeps the video out of the repository.',
+                { title: 'Video Linked In Place' });
+        }
+        ED.editFileMetadata(entityId, {
+            leonardoFileId: d.leonardoFileId,
+            renameOnDisk:   !!d.copied,
+            defaults: { name: d.name || pick.name }
+        }, refresh);
+    }
+
     /**
-     * Step 2 (Library source) -- pick from the Leonardo Files library. The
-     * SERVER searches (stp_LW_LeonardoFile_List: name or description, newest
-     * first) once the typing pauses. It used to load the newest 200 files and
-     * filter them here, so every older file was unfindable -- the Progressive
-     * ID cards, 290 files back, were the report (2026-09-26).
+     * Step 2 (Library source) -- pick one or more from the Leonardo Files
+     * library. The SERVER searches (stp_LW_LeonardoFile_List: name or
+     * description, newest first) once the typing pauses. It used to load the
+     * newest 200 files and filter them here, so every older file was
+     * unfindable -- the Progressive ID cards, 290 files back, were the report
+     * (2026-09-26).
      */
     var LIBRARY_PICKER_LIMIT = 50;
-    ED.openLibraryPicker = function (entityId, refresh, sink) {
-        // Every row the picker has shown, by id, so Save can carry the picked
-        // file's name / description / notes forward into the metadata dialog.
-        var seen = {};
+    ED.openLibraryPicker = async function (entityId, refresh, sink) {
         async function searchFiles(needle) {
             var r = await window.LWAuth.apiGet('/api/leonardo-files?limit=' + LIBRARY_PICKER_LIMIT
                                                + '&q=' + encodeURIComponent(needle || ''));
-            if (!r || !r.ok) return [];
+            if (!r || !r.ok) throw new Error(window.LWAuth.errorText(r, 'Could not search Leonardo Files'));
             return (Array.isArray(r.data) ? r.data : []).map(function (f) {
-                seen[f.leonardoFileId] = f;
-                return { id: f.leonardoFileId, name: f.name + (f.description && f.description !== f.name ? '  --  ' + f.description : '') };
+                return { key: String(f.leonardoFileId), id: f.leonardoFileId, file: f, name: f.name,
+                         sub: (f.description && f.description !== f.name) ? f.description : '' };
             });
         }
-        ED.openModal({
-            title: 'Pick from the Leonardo Files library',
-            fields: [
-                { key: 'leonardoFileId', label: 'Search', type: 'typeahead', required: true, value: '', search: searchFiles }
-            ],
-            onSave: async function (data) {
-                var pickedId = parseInt(data.leonardoFileId, 10) || 0;
-                if (!pickedId) throw new Error('Pick a file first.');
-                var picked = seen[pickedId];
-                if (!picked) throw new Error('Picked file not found.');
-                if (sink) return function () { sink.library(pickedId, picked); };
-                // Carry forward into the metadata dialog with the existing
-                // catalog row's defaults pre-populated. Returned as a
-                // continuation so it opens AFTER this dialog closes.
-                return function () {
-                    ED.editFileMetadata(entityId, {
-                        leonardoFileId: pickedId,
-                        defaults: { name: picked.name, description: picked.description, notes: picked.notes }
-                    }, refresh);
-                };
-            }
+        var picks = await openMultiPick({
+            title:       'Pick from the Leonardo Files library',
+            hint:        'Type to search. Tap each file you want, then Save. Ticks stay put while you search.',
+            placeholder: 'Search names and descriptions',
+            rowCap:      LIBRARY_PICKER_LIMIT,
+            testid:      'ed-library-pick',
+            search:      searchFiles
         });
+        if (!picks || !picks.length) return;
+        if (sink) { sink.library(picks.map(function (p) { return { leonardoFileId: p.id, file: p.file }; })); return; }
+        if (picks.length === 1) {
+            // One pick goes on to the details dialog with the catalog row's
+            // name, description and notes filled in, as it always did.
+            var f = picks[0].file;
+            ED.editFileMetadata(entityId, {
+                leonardoFileId: picks[0].id,
+                defaults: { name: f.name, description: f.description, notes: f.notes }
+            }, refresh);
+            return;
+        }
+        await addPicksInTurn(picks, function (p) {
+            return linkCatalogFile(entityId, p.id, p.file.name || p.name);
+        }, refresh);
     };
 
     /**

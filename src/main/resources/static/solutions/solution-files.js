@@ -902,18 +902,25 @@
         var files = Array.prototype.slice.call(fileList || []);
         if (!files.length) return;
         var done = 0, failed = [], newIds = [];
-        for (var i = 0; i < files.length; i++) {
-            var form = new FormData();
-            form.append('file', files[i]);
-            SL.status('Uploading ' + (i + 1) + ' of ' + files.length + ': ' + files[i].name);
-            var r = await window.LWAuth.apiPostForm('/api/solutions/' + Page.id + '/files', form);
-            if (!r || !r.ok) { failed.push(files[i].name + ' -- ' + SL.failText(r, 'could not be uploaded')); continue; }
-            done++;
-            if (r.data && r.data.id) newIds.push(r.data.id);
-        }
-        $('fileInput').value = '';
-        await landed(done, newIds);
-        if (failed.length) window.alert('These did not upload:\n\n' + failed.join('\n'));
+        // The spinner names the file it is on, as Add Files' batches do (2026-10-29).
+        function label(i) { return 'Uploading ' + (i + 1) + ' of ' + files.length + ': ' + files[i].name; }
+        Picasso.busy(label(0));
+        try {
+            for (var i = 0; i < files.length; i++) {
+                if (i > 0) { Picasso.busy(label(i)); Picasso.idle(); }
+                var form = new FormData();
+                form.append('file', files[i]);
+                SL.status(label(i));
+                var r = await window.LWAuth.apiPostForm('/api/solutions/' + Page.id + '/files', form);
+                if (!r || !r.ok) { failed.push(files[i].name + ' -- ' + SL.failText(r, 'could not be uploaded')); continue; }
+                done++;
+                if (r.data && r.data.id) newIds.push(r.data.id);
+            }
+            $('fileInput').value = '';
+            await landed(done, newIds);
+        } finally { Picasso.idle(); }
+        showLanded(newIds);
+        if (failed.length) await Picasso.error('These did not upload:\n\n' + failed.join('\n'));
     }
 
     /** After files arrive: say so, open Staging where they landed, flash them, redraw. */
@@ -944,20 +951,48 @@
             upload:     function () { $('fileInput').click(); },
             files:      function (files) { return upload(files); },
             where:      'this solution',
-            nook:       function (pick) {
-                attachFrom('/from-nook', { view: pick.viewKey, name: pick.name }, pick.name);
+            nook:       function (picks) {
+                attachAll('/from-nook', picks.map(function (p) {
+                    return { body: { view: p.viewKey, name: p.name }, name: p.name };
+                }));
             },
-            library:    function (leonardoFileId, picked) {
-                attachFrom('/from-library', { leonardoFileId: leonardoFileId }, picked && picked.name);
+            library:    function (items) {
+                attachAll('/from-library', items.map(function (it) {
+                    return { body: { leonardoFileId: it.leonardoFileId }, name: it.file && it.file.name };
+                }));
             }
         });
     }
 
-    async function attachFrom(path, body, name) {
-        SL.status('Adding ' + (name || 'the file'));
-        var r = await SL.post('/api/solution-files/' + Page.id + path, body);
-        if (!r || !r.ok) { await Picasso.error(SL.failText(r, 'Could not add ' + (name || 'the file'))); return; }
-        await landed(1, r.data && r.data.id ? [r.data.id] : []);
+    /** Copy one or more picks into the solution, one after another, then land them all together.
+     *  Anything that failed is listed once at the end (2026-10-29: pick several at once). */
+    async function attachAll(path, picks) {
+        var ids = [], failed = [];
+        // Each copy takes a couple of seconds (it is encrypted on the way in), so the spinner says
+        // which file it is on -- the status bar alone went unseen for a 12-second batch (2026-10-29).
+        function label(i) {
+            return 'Adding ' + (picks.length > 1 ? (i + 1) + ' of ' + picks.length + ': ' : '') + (picks[i].name || 'the file');
+        }
+        Picasso.busy(label(0));
+        try {
+            for (var i = 0; i < picks.length; i++) {
+                if (i > 0) { Picasso.busy(label(i)); Picasso.idle(); }
+                SL.status(label(i));
+                var r = await SL.post('/api/solution-files/' + Page.id + path, picks[i].body);
+                if (r && r.ok) { if (r.data && r.data.id) ids.push(r.data.id); }
+                else failed.push(SL.failText(r, 'Could not add ' + (picks[i].name || 'the file')));
+            }
+            await landed(picks.length - failed.length, ids);
+        } finally { Picasso.idle(); }
+        showLanded(ids);
+        if (failed.length) await Picasso.error(failed.join('\n'));
+    }
+
+    /** Bring the files that just landed into view: the first one scrolled to, all of them lit up. */
+    function showLanded(ids) {
+        if (!ids.length || !st.pane) return;
+        var card = st.pane.querySelector('.ef-card[data-fileid="' + ids[0] + '"]');
+        if (card) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
     async function fetchBlob(id) {
