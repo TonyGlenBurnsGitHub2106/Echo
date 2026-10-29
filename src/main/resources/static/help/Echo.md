@@ -234,6 +234,10 @@ What is different in Echo:
 
 - **No linked records.** Leonardo can hang a solution on a matter, a person or a vendor; Echo has
   none of those. The Web tab has no **Pin** (pins go to Leonardo's Needs attention).
+- **Files come from this computer.** **+ Add Files** offers Upload from this device (pick as many
+  files as you like), Scan, Paste text and New text note. There is no Reading Nook or Leonardo Files
+  library to pick from. While files are added a spinner says which one it is on ("Uploading 2 of 6"),
+  and then the page scrolls to the new files in Staging, lit up (10/29/2026).
 - **Files are kept in Echo's own files folder** on the computer Echo runs on (the Files tab says so).
   Removing a file moves it to a trash folder there; nothing is erased. There is no "from the
   Reading Nook" or "from Leonardo Files".
