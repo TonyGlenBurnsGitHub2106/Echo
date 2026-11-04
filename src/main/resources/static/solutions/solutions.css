@@ -774,3 +774,9 @@ span.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-rad
     .sl-bulkbar .fld { flex: 1 1 45%; min-width: 0; }
     .sl-bulkbar .sl-bulk-why { flex-basis: 100%; }
 }
+
+/* ---- Story 5695 (Echo), Release 6: close out -------------------------------------------------------- */
+.sl-co-summary { margin: -6px 0 10px; font-weight: 600; color: #B45309; }
+.sl-co-summary.clear { color: #15803D; }
+.sl-co-group + .sl-co-group { border-top: 1px solid #E5E7EB; }
+.sl-co-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; font-weight: 600; color: #374151; }

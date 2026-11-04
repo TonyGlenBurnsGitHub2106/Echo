@@ -8,6 +8,8 @@
 
     var mLookups = { statuses: [], members: [] };
     var mShowArchived = false;
+    // Story 5695 (Echo), Release 6: the shapes a new solution can start from, and the solutions it could copy.
+    var mShapes = [], mList = [];
     try { mShowArchived = localStorage.getItem('sl.showArchived') === '1'; } catch (e) { /* private mode */ }
 
     // ---- load ---------------------------------------------------------------
@@ -23,6 +25,7 @@
             $('cards').innerHTML = '<div class="sl-empty">' + esc(SL.failText(r, 'Could not load the solutions.')) + '</div>';
             return;
         }
+        mList = r.data;
         render(r.data);
     }
 
@@ -78,8 +81,25 @@
             mLookups.statuses.length ? mLookups.statuses[0].code : '');
         SL.fillSelect($('fldOwner'), [{ value: '', label: 'Nobody yet' }].concat(
             mLookups.members.filter(function (m) { return m.active; }).map(function (m) { return { value: m.code, label: m.name }; })), '');
+        fillShapes();
         SL.open('solutionOverlay');
         $('fldName').focus();
+    }
+
+    async function fillShapes() {
+        if (!mShapes.length) {
+            var r = await SL.get('/api/solutions/shapes');
+            mShapes = r && r.ok && Array.isArray(r.data) ? r.data : [];
+        }
+        SL.fillSelect($('fldShape'), [{ value: '', label: 'Blank' }].concat(mShapes.map(function (s) { return { value: s.code, label: s.name }; })), '');
+        SL.fillSelect($('fldShapeFrom'), mList.map(function (s) { return { value: String(s.id), label: s.name }; }), mList.length ? String(mList[0].id) : '');
+        paintShape();
+    }
+
+    function paintShape() {
+        var code = $('fldShape').value, s = mShapes.filter(function (x) { return x.code === code; })[0];
+        $('fldShapeHint').textContent = s ? s.description : 'Nothing to start with: you add the projects.';
+        $('fldShapeFromField').hidden = code !== 'copy';
     }
 
     async function saveNew() {
@@ -92,10 +112,18 @@
             ownerCode: $('fldOwner').value, targetDate: target
         });
         if (!r || !r.ok) { SL.warn('solutionWarn', SL.failText(r, 'The solution could not be saved.')); return; }
+        var shape = $('fldShape').value;
+        if (shape) {
+            var body = { shape: shape };
+            if (shape === 'copy') body.fromSolutionId = +$('fldShapeFrom').value;
+            var sr = await SL.post('/api/solutions/' + r.data.id + '/shape', body);
+            if (!sr || !sr.ok) await window.Picasso.error('The solution was made, but its shape was not: ' + SL.failText(sr, 'nothing was added.'));
+        }
         window.location.href = '/solutions/solution.html?id=' + r.data.id;
     }
 
     // ---- wire ---------------------------------------------------------------
+    document.addEventListener('change', function (e) { if (e.target && e.target.id === 'fldShape') paintShape(); });   // Story 5695 (Echo)
 
     function wire() {
         $('btnAdd').addEventListener('click', openAdd);

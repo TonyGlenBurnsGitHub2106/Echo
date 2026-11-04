@@ -13,7 +13,7 @@ working session; it is always current.
 2. The shape of the data -- codes, dates, ids, and how a PUT merges
 3. The five rules
 4. Endpoints -- Orientation, Projects, Items, Log, Notes, Terms, Links and topics, Kinds of topic,
-   Waits, Many at once and Make into, Since you were last here, Questions and decisions, Deleting,
+   Waits, Many at once and Make into, Start and close out, Since you were last here, Questions and decisions, Deleting,
    Files, Conversations, Testing checklists, Configuration, Configuration II
 5. Seeing everything -- how to read a whole solution
 6. Every operation, one example each
@@ -57,6 +57,11 @@ working session; it is always current.
 > one field on many items with a REASON (one log entry, linked to each). `POST .../promote` makes a message,
 > a log entry, a note or an item into another kind without retyping. Files keep VERSIONS. See *Many at
 > once and Make into* and *Files* in section 4.
+
+> **Added 2026-11-04 -- Shapes and close-out.** A new, empty solution can start from a SHAPE
+> (`POST .../shape`): a starting frame of projects, kinds of part, parts and tags, or the skeleton of
+> another solution. `GET .../close-out` lists everything still open before a solution is called done.
+> See *Start and close out* in section 4.
 
 ## 1. Connecting
 
@@ -620,6 +625,50 @@ POST) / "A view needs a name." / "A view's name can be at most 100 characters." 
 object, as a string." / "A view's filters can be at most 2,000 characters." A `filter` sent as an object
 rather than a string is a wrong JSON type (400 with no message). 409 "You have 30 saved views here
 already. Delete one first. Nothing was saved."
+
+### Start and close out
+
+A solution's beginning and end. Anyone the solution is shared with may call these.
+
+| Call | Note |
+|---|---|
+| `GET /api/solutions/shapes` | the shapes a new solution can start from: `[{code, name, description}]`, always `programming`, `writing`, `life`, `copy` in that order |
+| `POST /api/solutions/{id}/shape` | body `{shape, fromSolutionId}`. `shape` is one of the four codes (any case). `fromSolutionId` is required for `copy` and ignored otherwise. Answers `{projects, kindsOfPart, parts, tags, termTypes, termCategories}`: how many of each it made. Only for a NEW, EMPTY solution: one with no projects, no topics and no kinds of part yet. Make the solution (`POST /api/solutions`), then give it its shape. |
+| `GET /api/solutions/{id}/close-out` | everything still open: `{open, counts, total}`. `open` is `[{group, kind, id, title, sub, changedDate}]`, ordered by group, then by project and order. `counts` names every group, zeros included, in this order: `project, item, question, decision, part, assumption, thread`. |
+
+What each shape makes (every project and part starts at the first status, `todo`):
+
+| `shape` | Projects | Kinds of part (number label) | Parts | Tags |
+|---|---|---|---|---|
+| `programming` | Design, Build, Test, Release | Environment | Dev, QA, Production | Risk, Idea |
+| `writing` | Draft, Revise, Publish | Chapter (`words`), Character | none | Idea, Cut |
+| `life` | Gather the facts, Decide, Do it | Account (`balance`) | none | Important, Waiting on someone |
+| `copy` | the other solution's, with their descriptions, owners and order | its kinds of part | its parts (name, kind of part, order; no number) | its tags |
+
+`copy` also copies the other solution's term types and term categories (names only). It never copies items,
+notes, log entries, files, terms, questions, decisions, subjects or assumptions, and every status starts
+again. The other solution must be one you can see (else 404, as for any solution).
+
+Refusals of a shape: 400 "shape must be one of programming, writing, life, copy." / "Say which solution to
+copy the shape of (fromSolutionId)." (copy without it) / "Say which shape." (no body). 409 "A shape is for a
+new, empty solution. This one has projects or topics already. Nothing was added." / "A solution cannot take
+its own shape. Nothing was added." 404 when either solution is not one you can see. Everything is made in
+one transaction: a refusal adds nothing.
+
+The groups of the close-out list, and how to open each row:
+
+| `group` | What is in it | `kind` / `id` |
+|---|---|---|
+| `project` | projects whose status is not a closed one; `sub` is the status name | `project` / the project id |
+| `item` | items still open; `sub` is "project \| status \| who has it" | `item` / the item id |
+| `question` | open questions; `sub` names who should answer, or "nobody named to answer it" | `question` / the question id |
+| `decision` | decisions still `proposed` | `decision` / the decision id |
+| `part` | parts whose status is not closed (or that have none) | `topic` / the topic id |
+| `assumption` | assumptions still marked holding (never proved false) | `topic` / the topic id |
+| `thread` | threads (not resolved) whose LAST message awaits an answer; `sub` says from whom | `message` / the conversation id |
+
+Calling the solution done is a separate, ordinary update: `PUT /api/solutions/{id}` `{"statusCode":"done"}`.
+What is still open stays as it is. Never do it on your own: show your human the close-out list and ask first.
 
 ### Since you were last here
 
@@ -1287,6 +1336,12 @@ curl $H           "$B/api/solutions/1/provenance?kind=item&recordId=1305"
 curl $H           "$B/api/solutions/1/views?scope=items"
 curl $H -X POST   $B/api/solutions/1/views               -H "Content-Type: application/json" -d '{"scope":"items","name":"My open submit work","filter":"{\"project\":\"41\",\"status\":\"\",\"assignee\":\"rex\",\"hideClosed\":true,\"view\":\"tree\"}"}'
 curl $H -X DELETE $B/api/solutions/views/3
+
+# ---- start and close out
+curl $H           $B/api/solutions/shapes
+curl $H -X POST   $B/api/solutions/12/shape              -H "Content-Type: application/json" -d '{"shape":"programming"}'
+curl $H -X POST   $B/api/solutions/13/shape              -H "Content-Type: application/json" -d '{"shape":"copy","fromSolutionId":1}'
+curl $H           $B/api/solutions/1/close-out
 
 # ---- since you were last here
 curl $H -X POST   $B/api/solutions/1/visit

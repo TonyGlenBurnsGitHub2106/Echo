@@ -40,7 +40,7 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
 
     /** The documented paths under these controllers' prefixes, loosened ({} for every placeholder). Story 5695 Release 5 adds
      *  items/bulk, promote, provenance, views and files (with their versions). */
-    private static final String OURS = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age|lens|left-off|activity|items\/bulk|promote|provenance|views|files|terms|conversations|test-plans|config|config-grid).*|\/(topics|topic-types|waits|questions|decisions|views|files|terms|conversations|test-plans|config|config-grid)\/.*|\/topic-kinds)$/
+    private static final String OURS = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age|lens|left-off|activity|items\/bulk|promote|provenance|views|files|terms|conversations|test-plans|config|config-grid|shape|close-out).*|\/(topics|topic-types|waits|questions|decisions|views|files|terms|conversations|test-plans|config|config-grid)\/.*|\/topic-kinds|\/shapes)$/
 
     private static final List<Class<?>> AGENT_CONTROLLERS = [SolutionController, SolutionItemController, SolutionLogController,
                                                              SolutionNoteController, SolutionSpecController,
@@ -54,7 +54,9 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
                                                              SolutionChangeController, SolutionSavedViewController, SolutionFileController,
                                                              // the API audit of 2026-11-04: five more an agent can reach, documented now
                                                              SolutionTermController, SolutionConversationController, SolutionTestController,
-                                                             SolutionConfigController, SolutionConfigGridController]
+                                                             SolutionConfigController, SolutionConfigGridController,
+                                                             // Story 5695 Release 6: shapes and close-out
+                                                             SolutionLifecycleController]
 
     def "RESOURCE should name the classpath file that holds the contract when read"() {
 

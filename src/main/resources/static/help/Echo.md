@@ -350,6 +350,24 @@ one tap. Saving under the same name replaces it. **Delete view** takes it away. 
 keeps its title, links, item and filing, and its View says which version it is. **Earlier versions** lists
 the ones before it, each with what changed next, and each still downloads.
 
+**Start from a shape.** **+ Solution** asks what to **Start from**. **Blank** is as before. A shape gives
+the new solution its starting frame:
+
+- **Programming effort**: projects Design, Build, Test and Release, the parts Dev, QA and Production
+  (Environments), and the tags Risk and Idea.
+- **Writing effort**: projects Draft, Revise and Publish, Chapters (counting words) and Characters as
+  kinds of part, and the tags Idea and Cut.
+- **Life matter**: projects Gather the facts, Decide and Do it, Accounts (counting a balance) as a kind
+  of part, and the tags Important and Waiting on someone.
+- **The shape of another solution**: choose which one. Its projects, kinds of part, parts, tags, term
+  types and term categories come across, every status back at the start. None of its items, notes, log,
+  files, terms, questions or decisions do.
+
+**Close out.** **Close out** on the Overview's tool row lists everything still open before a solution is
+called done: projects not closed, items still open, open questions, decisions not yet agreed, parts not
+done, assumptions still marked holding, and threads waiting for an answer. Tap one to go to it. **Mark the
+solution Done** asks first, saying how much is still open. What is open stays as it is.
+
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
 button. It counts from when the words were written, not from when the solution was last saved. A

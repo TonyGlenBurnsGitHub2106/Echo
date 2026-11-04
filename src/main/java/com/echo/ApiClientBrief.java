@@ -92,6 +92,8 @@ final class ApiClientBrief {
             + "- A document that changed: upload a new version of the file, not a second file." + nl
             + "- Before you stop: write your note for next time (PUT .../{solutionId}/left-off) -- where you were" + nl
             + "  and what comes first." + nl
+            + "- Before anyone calls a solution done, GET .../{solutionId}/close-out shows what is still open. Show it" + nl
+            + "  to your human; never mark a solution done on your own." + nl
             + "- The spec has the details of every one of these. Read its \"Added\" notes at the top: they say" + nl
             + "  what changed since you last read it." + nl + nl
             + "## Communications -- how to ask, and how to get the answer" + nl + nl

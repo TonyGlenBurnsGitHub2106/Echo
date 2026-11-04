@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=52">
+    <link rel="stylesheet" href="solutions.css?v=53">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -60,6 +60,7 @@
         <button type="button" class="sl-btn primary" id="btnAddProject" data-testid="solution-add-project">+ Project</button>
         <button type="button" class="sl-btn" id="btnEditSolution" data-testid="solution-edit-btn" title="Edit this solution: name, status, owner, target date, where things stand">Edit</button>
         <button type="button" class="sl-btn" id="btnShare" data-testid="solution-share-btn" title="Share this solution with an outside agent">Share</button>
+        <button type="button" class="sl-btn" id="btnCloseOut" data-testid="solution-close-out-btn" title="Everything still open, before the solution is called done">Close out</button>
         <button type="button" class="sl-btn" id="btnLeftOff" data-testid="solution-leftoff-btn" title="A note to yourself for the next time you open this solution">Note for next time</button>
         <button type="button" class="sl-btn" id="btnBrief" data-testid="solution-brief-top" title="The instructions to hand the agent this solution is shared with" hidden>Brief</button>
         <button type="button" class="sl-btn" id="btnProjExpand" data-testid="solution-expand-all">Expand all</button>
@@ -640,6 +641,19 @@
     </div>
 </div>
 
+<!-- Story 5695 (Echo), Release 6: close out -- everything still open -->
+<div class="sl-overlay" id="closeOutOverlay" data-testid="close-out-overlay">
+    <div class="sl-modal" style="width:min(760px,100%)">
+        <h2 id="coTitle">Close out</h2>
+        <div class="sl-co-summary" id="coSummary" data-testid="close-out-summary"></div>
+        <div class="sl-act-list" id="coList" data-testid="close-out-list"></div>
+        <div class="foot">
+            <span class="left"><button type="button" class="sl-btn" id="coDone" data-testid="close-out-done">Mark the solution Done</button></span>
+            <button type="button" class="sl-btn primary" id="coClose" data-testid="close-out-close">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- Story 5695 (Echo), Release 5: make a record into another kind -->
 <div class="sl-overlay" id="makeOverlay" data-testid="make-overlay">
     <div class="sl-modal" style="width:min(560px,100%)">
@@ -1133,6 +1147,7 @@
 <script src="solution-lens.js?v=1"></script>
 <script src="solution-activity.js?v=1"></script>
 <script src="solution-changes.js?v=1"></script>
+<script src="solution-closeout.js?v=1"></script>
 <script src="solution-conv.js?v=9"></script>
 <script src="solution-files.js?v=23"></script>
 <script src="solution-tests.js?v=15"></script>

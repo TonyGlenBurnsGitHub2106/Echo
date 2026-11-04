@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link rel="stylesheet" href="../picasso-base.css?v=6">
     <link rel="stylesheet" href="/picasso-select.css?v=5">
-    <link rel="stylesheet" href="solutions.css?v=52">
+    <link rel="stylesheet" href="solutions.css?v=53">
 </head>
 <body>
 <div class="sl-shell" data-testid="solutions-page">
@@ -59,6 +59,16 @@
                 <select id="fldOwner" data-testid="solutions-owner-select" data-ps-placeholder="Nobody yet"></select>
             </div>
         </div>
+        <!-- Story 5695 (Echo), Release 6: start from a shape, or the skeleton of another solution -->
+        <div class="fld">
+            <label for="fldShape">Start from</label>
+            <select id="fldShape" data-testid="solutions-shape-select"></select>
+            <div class="sl-muted" id="fldShapeHint" data-testid="solutions-shape-hint" style="margin-top:4px"></div>
+        </div>
+        <div class="fld" id="fldShapeFromField" hidden>
+            <label for="fldShapeFrom">Whose shape</label>
+            <select id="fldShapeFrom" data-testid="solutions-shape-from"></select>
+        </div>
         <div class="fld">
             <label for="fldTarget">Target date</label>
             <input type="text" id="fldTarget" data-testid="solutions-target" placeholder="MM/DD/YYYY" autocomplete="off" inputmode="numeric">
@@ -75,6 +85,6 @@
 <script src="/picasso-select.js?v=5"></script>
 <script src="../marked.min.js?v=1"></script>
 <script src="solutions-common.js?v=13"></script>
-<script src="solutions.js?v=5"></script>
+<script src="solutions.js?v=6"></script>
 </body>
 </html>
