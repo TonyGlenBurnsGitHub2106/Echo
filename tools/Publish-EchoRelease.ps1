@@ -50,7 +50,8 @@ Write-Host "== $repo, $branch at $($head.Substring(0, 10))"
 $version = [string]$pom.project.version
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "pom.xml's <version> is '$version'; it must look like 1.2.0." }
 Set-EchoWebDefaults
-$published = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases?per_page=100" -Headers @{ 'User-Agent' = 'Echo-Publish' })
+# Windows PowerShell hands a JSON array on as ONE object: unroll it, so each release is tested on its own
+$published = @((Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases?per_page=100" -Headers @{ 'User-Agent' = 'Echo-Publish' }) | ForEach-Object { $_ })
 $taken = $published | Where-Object { [string]$_.body -match "(?m)^version: $([regex]::Escape($version))\s*$" } | Select-Object -First 1
 if ($taken) {
     throw "Echo $version is already published ($($taken.tag_name)). Every update needs a version of its own: raise <version> in pom.xml (new features: the middle number, fixes only: the last), commit and push, then publish again."
