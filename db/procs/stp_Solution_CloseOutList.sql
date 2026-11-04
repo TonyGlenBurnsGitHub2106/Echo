@@ -25,6 +25,8 @@ Date        Developer    Description
                          marked holding, so the plan still rests on them), and threads whose last message is waiting
                          for an answer. Each row: GroupCode, the record's Kind and id (a thread: its ConversationID),
                          Title, Sub (where it is, who has it) and when it last changed.
+11/04/2026  Felix        A resolved thread is Status 'closed' (SolutionConversationService.STATUS_RESOLVED), not
+                         'resolved': both are left out.
 
 */
 
@@ -77,7 +79,7 @@ FROM (
     JOIN   dbo.Conversation c ON c.ConversationID = sc.ConversationID
     CROSS APPLY (SELECT TOP 1 m.AwaitingResponseFrom, m.CreatedDate FROM dbo.ConversationMessage m
                  WHERE m.ConversationID = c.ConversationID ORDER BY m.CreatedDate DESC, m.ConversationMessageID DESC) lm
-    WHERE  sc.SolutionID = @prmSolutionID AND ISNULL(lm.AwaitingResponseFrom, N'') <> N'' AND ISNULL(c.Status, N'') <> N'resolved'
+    WHERE  sc.SolutionID = @prmSolutionID AND ISNULL(lm.AwaitingResponseFrom, N'') <> N'' AND ISNULL(c.Status, N'') NOT IN (N'resolved', N'closed')
 ) x
 ORDER BY G, S1, S2, RecordID
 

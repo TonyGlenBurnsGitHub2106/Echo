@@ -37,6 +37,8 @@ Date        Developer    Description
                                         and categories. No items, notes, log, files, terms, questions or decisions,
                                         and every status starts again at the first one.
                          Projects and parts start at the first status. One transaction. Returns the counts made.
+11/04/2026  Felix        Names are normalized as the save procs do (lower case, runs of spaces made one), and a term
+                         type or category the new solution already has is not copied twice.
 
 */
 
@@ -127,10 +129,20 @@ BEGIN TRY
     FROM   @topics t
     LEFT JOIN @types ty ON ty.Rn = t.TypeRn OR (t.OldTypeID IS NOT NULL AND ty.OldID = t.OldTypeID)
 
+    -- the same normalized names the save procs write: lower case, runs of spaces made one
+    WHILE EXISTS (SELECT 1 FROM dbo.SolutionTopicType WHERE SolutionID = @prmSolutionID AND NormalizedName LIKE N'%  %')
+        UPDATE dbo.SolutionTopicType SET NormalizedName = REPLACE(NormalizedName, N'  ', N' ')
+        WHERE  SolutionID = @prmSolutionID AND NormalizedName LIKE N'%  %'
+    WHILE EXISTS (SELECT 1 FROM dbo.SolutionTopic WHERE SolutionID = @prmSolutionID AND NormalizedName LIKE N'%  %')
+        UPDATE dbo.SolutionTopic SET NormalizedName = REPLACE(NormalizedName, N'  ', N' ')
+        WHERE  SolutionID = @prmSolutionID AND NormalizedName LIKE N'%  %'
+
     INSERT INTO dbo.SolutionTermType (SolutionID, TypeName, SortOrder)
-    SELECT @prmSolutionID, TypeName, Rn FROM @termTypes
+    SELECT @prmSolutionID, t.TypeName, t.Rn FROM @termTypes t
+    WHERE  NOT EXISTS (SELECT 1 FROM dbo.SolutionTermType x WHERE x.SolutionID = @prmSolutionID AND x.TypeName = t.TypeName)
     INSERT INTO dbo.SolutionTermCategory (SolutionID, CategoryName)
-    SELECT @prmSolutionID, CategoryName FROM @termCats
+    SELECT @prmSolutionID, c.CategoryName FROM @termCats c
+    WHERE  NOT EXISTS (SELECT 1 FROM dbo.SolutionTermCategory x WHERE x.SolutionID = @prmSolutionID AND x.CategoryName = c.CategoryName)
     COMMIT TRANSACTION
 END TRY
 BEGIN CATCH
