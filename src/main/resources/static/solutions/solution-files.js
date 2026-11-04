@@ -1066,6 +1066,7 @@
         body.innerHTML = '<div class="sl-empty">Opening&hellip;</div>';
         SL.open('fileViewOverlay');
         window.SolutionLinks.mount($('fvLinks'), 'file', id, f.title);
+        if (window.SolutionChanges) window.SolutionChanges.fileVersions(id, $('fvVersions'));   // Story 5695 (Echo), Release 5
 
         var blob = await fetchBlob(id);
         if (!current()) return false;
@@ -1396,6 +1397,7 @@
             $('fileSave').addEventListener('click', function () { SL.guard($('fileSave'), saveEdit); });
             $('fvClose').addEventListener('click', closeView);
             $('fvDownload').addEventListener('click', function () { if (mViewId) download(mViewId); });
+            $('fvNewVersion').addEventListener('click', function () { if (mViewId) window.SolutionChanges.newVersion(mViewId); });
             $('fvFolder').addEventListener('click', function () { if (mViewId) SL.guard($('fvFolder'), function () { return openFolder(mViewId); }); });
             $('fvReader').addEventListener('click', function () { var f = byId(mViewId); if (f) openReader(f); });
             $('fvPrint').addEventListener('click', printView);
@@ -1414,6 +1416,8 @@
         show: function () { st.arranging = false; mLoading = load(); return mLoading; },
         /** A deep link (?file=, Leonardo Find) wants one file shown: wait for the tab's own load,
          *  page on until the row is there, then open the sepia View. */
-        openFile: openFile
+        openFile: openFile,
+        /** Story 5695 (Echo), Release 5: after a new version -- the list again, then the file's View. */
+        reopen: async function (id) { mLoading = load(); await mLoading; await openView(id); }
     });
 })();

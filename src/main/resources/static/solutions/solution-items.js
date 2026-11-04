@@ -32,6 +32,7 @@
             b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         $('itemTreeTools').hidden = v !== 'tree';
+        $('itemBulkBar').hidden = v !== 'tree' || !(window.SolutionChanges && window.SolutionChanges.selecting());
     }
     function filterKey() { return 'sl.items.filter.' + Page.id; }
     function loadFilter() { try { var s = sessionStorage.getItem(filterKey()); if (s) mFilter = Object.assign(mFilter, JSON.parse(s)); } catch (e) { /* private mode */ } }
@@ -168,7 +169,11 @@
         var tick = '<button type="button" class="sl-tick' + (t ? ' ' + t : '') + '" data-tick="' + i.id + '" role="checkbox" aria-checked="' +
             (t === 'on' ? 'true' : (t === 'skip' ? 'mixed' : 'false')) + '" title="' + TICK_TITLE[t] + '" aria-label="' + TICK_TITLE[t] + ': ' + esc(i.title) +
             '" data-testid="items-tick">' + (t === 'on' ? '&#10003;' : (t === 'skip' ? '&#8211;' : '')) + '</button>';
-        var head = grip + tick + '<button type="button" class="sl-pill" style="background:' + esc(s.colorHex || '#6B7280') + '" data-status-of="' + i.id +
+        // Story 5695 (Echo), Release 5: Select puts a box on every row (solution-changes.js keeps what is ticked).
+        var SC = window.SolutionChanges;
+        var pick = SC && SC.selecting() ? '<input type="checkbox" class="sl-bulk-pick" data-bulk-pick="' + i.id + '"' + (SC.isPicked(i.id) ? ' checked' : '') +
+            ' aria-label="Choose ' + esc(i.title) + '" data-testid="items-bulk-pick">' : '';
+        var head = pick + grip + tick + '<button type="button" class="sl-pill" style="background:' + esc(s.colorHex || '#6B7280') + '" data-status-of="' + i.id +
                 '" data-testid="items-status-btn">' + esc(i.statusName) + '</button>' +
             '<div class="main" data-fold="' + i.id + '" data-testid="items-title">' +
                 '<div class="title"><span class="chev' + (folded ? ' folded' : '') + '">&#9660;</span> ' + esc(i.title) + ' ' + subs + waitsChip(i) + '</div>';
@@ -674,6 +679,10 @@
             $('statusCancel').addEventListener('click', function () { SL.close('statusOverlay'); });
             $('itemViewClose').addEventListener('click', closeItemView);
             $('itemViewEdit').addEventListener('click', editFromItemView);
+            // Story 5695 (Echo), Release 5: an item made into a note.
+            $('itemViewMake').addEventListener('click', function () {
+                var id = mViewItemId; closeItemView(); window.SolutionChanges.promote('item', id, 'note');
+            });
             $('itemViewCopy').addEventListener('click', function () {
                 SL.guard($('itemViewCopy'), function () { return copyItem(mViewItemId); });
             });
@@ -683,10 +692,23 @@
         },
         show: function () {
             var v = currentView();
+            if (window.SolutionChanges && window.SolutionChanges.viewsLoadedFor() !== Page.id) window.SolutionChanges.loadViews();
             paintViewSwitch(v);
             if (v === 'now' && window.SolutionLens) { window.SolutionLens.show($('pane-items')); return; }
             if (window.SolutionLens) window.SolutionLens.hide();
             fillFilters(); load();
+        },
+        /** Story 5695 (Echo), Release 5: draw the tree again (Select on or off). */
+        redraw: function () { if (currentView() === 'tree') draw(); },
+        /** Story 5695 (Echo), Release 5: what a saved view keeps -- the filters and Projects or Now. */
+        viewState: function () {
+            return { project: mFilter.project, status: mFilter.status, assignee: mFilter.assignee, hideClosed: !!mFilter.hideClosed, view: currentView() };
+        },
+        /** Story 5695 (Echo), Release 5: a saved view chosen -- its filters and view, then the tab again. */
+        applyView: function (f) {
+            mFilter = { project: f.project || '', status: f.status || '', assignee: f.assignee || '', hideClosed: !!f.hideClosed };
+            saveFilter(); setView(f.view === 'now' ? 'now' : 'tree');
+            Page.tabs.items.show();
         },
         /** Story 5695 (Echo): the view the tab opens on next -- 'tree' or 'now'. */
         openView: function (v) { setView(v); },

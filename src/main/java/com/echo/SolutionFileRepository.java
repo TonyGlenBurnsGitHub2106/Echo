@@ -24,6 +24,16 @@ public interface SolutionFileRepository {
 
     boolean delete(int id);
 
+    /** Story 5695 (Echo) Release 5: the file takes new bytes; what it had becomes a version. Returns the new number. */
+    int newVersion(int fileId, String originalFileName, String storedFileName, String contentType, long sizeBytes,
+                   String changeNote, String memberCode);
+
+    /** The earlier versions, newest first. */
+    java.util.List<SolutionFileVersionModels.FileVersion> versions(int fileId);
+
+    /** One earlier version, with its solution; null when there is none. */
+    SolutionFileVersionModels.FileVersion version(int versionId);
+
     /** Every attached file's id, oldest first -- for the one-pass secure sweep. */
 
 }

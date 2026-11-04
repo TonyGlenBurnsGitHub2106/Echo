@@ -29,6 +29,9 @@ public interface SolutionLinkRepository {
 
     boolean unlink(int linkId);
 
+    /** Story 5695 (Echo): can a link reach this record in this solution? */
+    boolean linkable(int solutionId, String kind, int id);
+
     /** The other ends of every link of one record, a page at a time, and how many there are in all. */
     LinkPage links(int solutionId, String kind, int id, int offset, int pageSize);
 

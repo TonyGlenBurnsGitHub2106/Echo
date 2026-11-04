@@ -121,7 +121,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         SolutionNotFoundException ex = thrown()
         ex.message == expectedMessage
         0 * decisions._
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
         0 * items._
         0 * log._
 
@@ -155,7 +155,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         0 * decisions.saveDecision(*_)
         0 * decisions.deleteDecision(_)
         0 * decisions.openLinks(_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
         0 * items._
         0 * log._
 
@@ -460,7 +460,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
 
         then:
         1 * decisions.saveQuestion(*_) >> 5
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         where:
         scenario                 | isNull || unused
@@ -477,7 +477,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         IllegalArgumentException incomplete = thrown()
         incomplete.message == 'Each link needs a kind and an id.'
         0 * decisions.saveQuestion(*_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         when:
         service.saveQuestion(TONY, new QuestionDraft(0, 1, 'Why?', null, null), [new LinkRef('story', 1)])
@@ -486,7 +486,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         IllegalArgumentException unknown = thrown()
         unknown.message == 'kind must be one of item, note, log, file, term, topic, question, decision.'
         0 * decisions.saveQuestion(*_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
     }
 
     def "saveQuestion should merge-edit through the question's own solution and never link, nor check links, when an edit is saved"() {
@@ -499,7 +499,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
 
         then:
         1 * decisions.saveQuestion(draft, 'rex') >> 5
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
         q.id() == 5
     }
 
@@ -574,7 +574,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         1 * decisions.saveQuestion(*_) >> savedId
         SolutionNotFoundException ex = thrown()
         ex.message == expectedMessage
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         where:
         scenario      | savedId || expectedMessage
@@ -591,7 +591,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         1 * decisions.saveQuestion(*_) >> { throw new SolutionRuleException('That question is already open in this solution. Nothing was saved.') }
         SolutionRuleException ex = thrown()
         ex.message == 'That question is already open in this solution. Nothing was saved.'
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
     }
 
     @Unroll
@@ -832,7 +832,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         IllegalArgumentException ex = thrown()
         ex.message == expectedMessage
         0 * decisions.saveDecision(*_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         where:
         scenario                                  | id | status         | supersedesId || expectedMessage
@@ -854,7 +854,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
 
         then:
         1 * decisions.saveDecision(draft, 'rex') >> new Saved(20, 410)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         where:
         scenario      | supersedesId || unused
@@ -892,7 +892,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         IllegalArgumentException incomplete = thrown()
         incomplete.message == 'Each link needs a kind and an id.'
         0 * decisions.saveDecision(*_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         when:
         service.saveDecision(TONY, addDecision(1, null, null), [new LinkRef('message', 9)])
@@ -913,7 +913,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
 
         then:
         1 * decisions.saveDecision(draft, 'rex') >> new Saved(20, 410)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
         d.id() == 20
     }
 
@@ -927,7 +927,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         1 * decisions.saveDecision(*_) >> new Saved(savedId, null)
         SolutionNotFoundException ex = thrown()
         ex.message == expectedMessage
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
 
         where:
         scenario          | savedId || expectedMessage
@@ -981,7 +981,7 @@ class SolutionDecisionServiceSpec extends SolutionServiceSupport {
         SolutionRuleException ex = thrown()
         ex.message == 'That decision was already replaced by a newer one. Nothing was added.'
         0 * decisions.saveDecision(*_)
-        0 * links._
+        0 * links.link(*_)          // "link nothing": checking a link first (requireLinkable) writes nothing
     }
 
     def "deleteDecision should delete a visible decision and throw not found when nothing was removed"() {

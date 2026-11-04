@@ -65,7 +65,11 @@ final class ApiClientBrief {
             + "   Read all of it before doing anything else. If something is not in it, you cannot do it --" + nl
             + "   never guess at a path." + nl
             + "2. GET " + BASE_URL + "/api/solutions/whoami   to confirm the connection works." + nl
-            + "3. GET " + BASE_URL + "/api/solutions          to see the solutions you were given." + nl + nl
+            + "3. GET " + BASE_URL + "/api/solutions          to see the solutions you were given." + nl
+            // Story 5695 (Echo): the session habits the Solutions upgrade added
+            + "4. POST " + BASE_URL + "/api/solutions/{solutionId}/visit   what others changed since your last session." + nl
+            + "5. GET  " + BASE_URL + "/api/solutions/{solutionId}/left-off   your own note from last time, if you wrote one." + nl
+            + "6. GET  " + BASE_URL + "/api/solutions/{solutionId}/lens   what is Now, what is Waiting, what is Next." + nl + nl
             + "## The five rules" + nl + nl
             + "1. The tracker is the only list. Every action item goes in as an Item." + nl
             + "2. Log what you did, when you did it -- one entry per action, in order. Exact commands as" + nl
@@ -75,6 +79,21 @@ final class ApiClientBrief {
             + "4. Ask questions in a Conversation, then wait (see the next section)." + nl
             + "5. You have full rights inside a solution shared with you, deletes included -- and a delete is" + nl
             + "   permanent. Prefer the status 'cancelled' for dropped work so the history stays." + nl + nl
+            // Story 5695 (Echo)
+            + "## Keeping the record useful" + nl + nl
+            + "- An open question goes in as a Question (POST .../{solutionId}/questions), not only in the log." + nl
+            + "- Something decided goes in as a Decision (POST .../{solutionId}/decisions), linked to the questions" + nl
+            + "  it answers and the items it settles. It writes its own log entry. A changed mind is a supersede," + nl
+            + "  never an edit." + nl
+            + "- Link records (POST .../{solutionId}/links) instead of writing \"see item 42\" into text, and use" + nl
+            + "  topics for subjects that run across projects." + nl
+            + "- Changing many items at once: one bulk change with a reason (POST .../{solutionId}/items/bulk)," + nl
+            + "  not one call per item." + nl
+            + "- A document that changed: upload a new version of the file, not a second file." + nl
+            + "- Before you stop: write your note for next time (PUT .../{solutionId}/left-off) -- where you were" + nl
+            + "  and what comes first." + nl
+            + "- The spec has the details of every one of these. Read its \"Added\" notes at the top: they say" + nl
+            + "  what changed since you last read it." + nl + nl
             + "## Communications -- how to ask, and how to get the answer" + nl + nl
             + "A Conversation is how you talk to the people on the other side. It is a thread of messages" + nl
             + "inside a solution. Nobody on the other side is watching it live: a person reads your message" + nl

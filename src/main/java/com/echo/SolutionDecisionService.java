@@ -68,7 +68,7 @@ public class SolutionDecisionService {
         if (draft.id() > 0) solutionId = question(caller, draft.id()).solutionId();
         else { access.requireSolution(caller, draft.solutionId()); solutionId = draft.solutionId(); }
         if (draft.ownerCode() != null) codes.member(caller, draft.ownerCode());
-        if (draft.id() <= 0) checkLinks(linkTo);
+        if (draft.id() <= 0) { checkLinks(linkTo); requireTargets(solutionId, linkTo); }
         int id = repo.saveQuestion(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Question");
         if (draft.id() <= 0) linkAll(caller, solutionId, "question", id, linkTo);
@@ -130,7 +130,7 @@ public class SolutionDecisionService {
         if (draft.supersedesId() != null && draft.supersedesId() > 0 && draft.id() > 0)
             throw new IllegalArgumentException("Only a new decision can supersede another.");
         if (draft.supersedesId() != null && draft.supersedesId() > 0) decision(caller, draft.supersedesId());
-        if (draft.id() <= 0) checkLinks(linkTo);
+        if (draft.id() <= 0) { checkLinks(linkTo); requireTargets(solutionId, linkTo); }
         Saved saved = repo.saveDecision(draft, caller.memberCode());
         if (saved.id() <= 0) throw new SolutionNotFoundException("Decision");
         if (draft.id() <= 0) linkAll(caller, solutionId, "decision", saved.id(), linkTo);
@@ -228,6 +228,12 @@ public class SolutionDecisionService {
                 throw new IllegalArgumentException("Each link needs a kind and an id.");
             SolutionLinkService.kind(l.kind());
         }
+    }
+
+    /** Each link's other end must be a record of this solution, checked before the save (Story 5695, audit 11/04). */
+    private void requireTargets(int solutionId, List<LinkRef> linkTo) {
+        if (linkTo == null) return;
+        for (LinkRef l : linkTo) links.requireLinkable(solutionId, l.kind(), l.id());
     }
 
     private void linkAll(SolutionCaller caller, int solutionId, String kind, int id, List<LinkRef> linkTo) {

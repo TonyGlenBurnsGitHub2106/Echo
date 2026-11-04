@@ -243,6 +243,22 @@ try {
                     $dr['StoredFileName'] = [DBNull]::Value
                 }
             }
+            # Story 5695 (Echo), Release 5: an earlier version's bytes go into this Echo's files folder too.
+            if ($p.Table -eq 'SolutionFileVersion') {
+                $b64 = if ($doc.ContainsKey('versionFiles') -and $doc['versionFiles']) { $doc['versionFiles'][[string]$row['SolutionFileVersionID']] } else { $null }
+                if ($b64) {
+                    $safe = ([string]$row['OriginalFileName']) -replace '[^A-Za-z0-9._ ()-]', '_'
+                    $safe = $safe.TrimStart('.'); if (-not $safe) { $safe = 'file' }
+                    $rel = "$sid/" + [Guid]::NewGuid().ToString().Substring(0, 8) + '-' + $safe
+                    $full = Join-Path $FilesRoot $rel
+                    New-Item -ItemType Directory -Force (Split-Path -Parent $full) | Out-Null
+                    [IO.File]::WriteAllBytes($full, [Convert]::FromBase64String($b64))
+                    $written += $full
+                    $dr['StoredFileName'] = $rel
+                } else {
+                    $dr['StoredFileName'] = [DBNull]::Value
+                }
+            }
             $dt.Rows.Add($dr)
         }
         $bulk = New-Object System.Data.SqlClient.SqlBulkCopy($c, $opts, $tran)

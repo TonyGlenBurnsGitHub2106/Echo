@@ -53,6 +53,16 @@ public class SolutionLinkService {
         return links.links(solutionId, from, fromId, 0, 50);
     }
 
+    /**
+     * Story 5695 (Echo): refuses (409, nothing written) a link a new record asks for when its other end is not a
+     * record of this solution. Called BEFORE that record is saved.
+     */
+    public void requireLinkable(int solutionId, String kind, int id) {
+        String k = kind(kind);
+        if (!links.linkable(solutionId, k, id))
+            throw new SolutionRuleException("The " + k + " " + id + " to link to is not in this solution. Nothing was saved.");
+    }
+
     public void unlink(SolutionCaller caller, int solutionId, int linkId) {
         access.requireSolution(caller, solutionId);
         StoredLink l = linkId <= 0 ? null : links.findLink(linkId);

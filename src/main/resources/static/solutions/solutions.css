@@ -751,3 +751,26 @@ span.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-rad
 .sl-act-filters .fld { flex: 1 1 140px; min-width: 120px; }
 .sl-act-list { max-height: 60vh; max-height: 60dvh; overflow: auto; border: 1px solid #E5E7EB; border-radius: 6px; }
 .sl-leftoff { background: #FFFBEB; border-left: 3px solid #F59E0B; padding: 6px 10px; border-radius: 4px; }
+
+/* ---- Story 5695 (Echo), Release 5: Select and the bulk bar, Make into, saved views, file versions ---------- */
+.sl-bulkbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 8px 10px; margin: 0 0 8px;
+              background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; }
+.sl-bulkbar[hidden] { display: none; }
+.sl-bulkbar .fld { margin: 0; min-width: 130px; }
+.sl-bulkbar .sl-bulk-why { flex: 1 1 220px; }
+.sl-bulkbar .sl-bulk-why input { width: 100%; }
+.sl-bulkbar .warn { flex-basis: 100%; }
+.sl-bulkbar .warn:empty { display: none; }
+.sl-bulk-count { font-weight: 600; align-self: center; min-width: 74px; }
+.sl-bulk-pick { width: 20px; height: 20px; margin: 0 6px 0 0; flex: 0 0 auto; cursor: pointer; }
+#btnItemsSelect.on { background: #1D4ED8; color: #fff; border-color: #1D4ED8; }
+.sl-views { min-width: 140px; }
+#makeTargets button.on { background: #1D4ED8; color: #fff; }
+.sl-fv-versions { margin-top: 10px; border-top: 1px solid #E5E7EB; padding-top: 8px; font-size: 13px; }
+.sl-fv-versions-head { margin-bottom: 4px; }
+.sl-fv-version { padding: 3px 0; }
+.sl-fv-change { color: #6B7280; margin-left: 12px; }
+@media (max-width: 640px) {
+    .sl-bulkbar .fld { flex: 1 1 45%; min-width: 0; }
+    .sl-bulkbar .sl-bulk-why { flex-basis: 100%; }
+}

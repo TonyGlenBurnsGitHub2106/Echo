@@ -325,6 +325,31 @@ it** writes a new one, and saving it empty takes it away.
 how far back (a week, 30 days, 90 days, a year) and topic (that topic and everything linked to it). Tap a
 change to open the record.
 
+**Change many items at once.** **Select** on the Items tab's tool row puts a box on every row and opens a
+bar under the tool row. Tick the items (or **All shown**), choose what to change (status, project, who has
+it, due date, priority, or a topic to link them to) and what to, and say **why**. **Change them** asks first,
+naming how many and what. One log entry records the change and your reason, linked to every item changed.
+Moving items to another project takes their sub-items with them. An item already that way is left alone.
+
+**Make into.** Turn one record into another kind without retyping. The source stays as it was.
+
+- A thread message: the arrow button on the message makes it an **item**, a **note** or a **question**.
+  The new record starts with who wrote the message and when.
+- A log entry: **Make into** now also offers **An item** and **A note**.
+- An item: **Make into a note** on its View. A note: **Make into an item** on its View.
+
+The title is the first line unless you type one, and the whole text comes along. The two are linked (a
+message cannot be linked, but the item, note or question says where it came from). Echo refuses to make
+the same thing into the same kind twice while the first one is still there.
+
+**Saved views.** **Save view** on the Items tab keeps the filters you have set (project, status, who,
+Hide closed, and Projects or Now) under a name of your own. Choose it from **View** to put them all back in
+one tap. Saving under the same name replaces it. **Delete view** takes it away. Only you see your views.
+
+**File versions.** A file's View has **New version**. Choose the new file and say what changed. The file
+keeps its title, links, item and filing, and its View says which version it is. **Earlier versions** lists
+the ones before it, each with what changed next, and each still downloads.
+
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
 button. It counts from when the words were written, not from when the solution was last saved. A

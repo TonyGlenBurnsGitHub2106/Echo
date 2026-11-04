@@ -3,6 +3,8 @@ package com.echo
 import java.nio.file.Files
 import java.nio.file.Path
 
+import com.echo.SolutionFileVersionModels.FileVersion
+import com.echo.SolutionFileVersionModels.Versions
 import com.echo.SolutionModels.FileRow
 
 import spock.lang.TempDir
@@ -625,5 +627,427 @@ class SolutionFileServiceSpec extends SolutionServiceSupport {
         thrown(SolutionNotFoundException)
         Files.readString(tmp.resolve('outside.txt')) == 'secret'
         !Files.exists(root.resolve('trash'))
+    }
+
+    // ---- Story 5695 (Release 5): new versions -------------------------------------------------------
+
+    /** One earlier version of a file, in the solution given (null = the list's rows, which carry none). */
+    private static FileVersion fileVersion(int id, int fileId, int number, String stored, Integer solutionId) {
+        new FileVersion(id, fileId, number, 'a.txt', stored, 'text/plain', 3L, null, null, 'tony', 'Tony', solutionId)
+    }
+
+    def "newVersion should write the new bytes beside the old ones and hand the row the new name when a client uploads"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        put(root, '1/abcd1234-a.txt', 'version one')
+        byte[] bytes = 'version two'.bytes
+        String stored = null
+
+        when:
+        FileRow f = service.newVersion(REX, 1, '  QA numbers added  ', 'report v2.pdf', 'application/pdf', bytes.length,
+                                       new ByteArrayInputStream(bytes))
+
+        then:
+        1 * files.newVersion(1, 'report v2.pdf', _, 'application/pdf', 11L, 'QA numbers added', 'rex') >> { a -> stored = a[2]; 2 }
+        f.id() == 1
+        stored ==~ /1\/[0-9a-f]{8}-report v2\.pdf/
+        Files.readAllBytes(root.resolve(stored)) == bytes
+        Files.readString(root.resolve('1/abcd1234-a.txt')) == 'version one'
+        tree(tmp) == ['EchoFiles/1/abcd1234-a.txt', 'EchoFiles/' + stored].sort()
+    }
+
+    def "newVersion should write into the folder of the file's own solution when the file is in another solution"() {
+
+        given:
+        rows[5] = row(5, 2, '2/abcd1234-b.txt')
+        String stored = null
+
+        when:
+        service.newVersion(TONY, 5, null, 'b.txt', null, 3, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(5, 'b.txt', _, null, 3L, null, 'tony') >> { a -> stored = a[2]; 2 }
+        stored ==~ /2\/[0-9a-f]{8}-b\.txt/
+        tree(tmp) == ['EchoFiles/' + stored]
+    }
+
+    @Unroll
+    def "newVersion should pass the note as #expectedNote when it is #scenario"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+
+        when:
+        service.newVersion(TONY, 1, note, 'a.txt', null, 3, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(1, 'a.txt', _, null, 3L, expectedNote, 'tony') >> 2
+
+        where:
+        scenario                      | note           || expectedNote
+        'null'                        | null           || null
+        'blank, left for the proc'    | '   '          || ''
+        'padded'                      | '  Fixed it  ' || 'Fixed it'
+    }
+
+    def "newVersion should pass a note of exactly 500 characters"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        String note = textOf(500)
+
+        when:
+        service.newVersion(TONY, 1, note, 'a.txt', null, 3, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(1, 'a.txt', _, null, 3L, note, 'tony') >> 2
+    }
+
+    def "newVersion should refuse a note of 501 characters before reading anything"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        InputStream stream = Mock()
+
+        when:
+        service.newVersion(TONY, 1, textOf(501), 'a.txt', null, 3, stream)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == 'What changed can be at most 500 characters.'
+        0 * stream._
+        0 * files.newVersion(*_)
+        tree(tmp) == []
+    }
+
+    @Unroll
+    def "newVersion should keep the new bytes inside the solution's folder when #scenario"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        String stored = null
+
+        when:
+        service.newVersion(TONY, 1, null, name, null, 3, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(1, expectedName, _, null, 3L, null, 'tony') >> { a -> stored = a[2]; 2 }
+        stored.startsWith('1/')
+        stored.endsWith('-' + expectedName)
+        tree(tmp) == ['EchoFiles/' + stored]
+
+        where:
+        scenario                               | name                         || expectedName
+        'the name climbs with slashes'         | '../../../escape.txt'        || 'escape.txt'
+        'the name climbs with backslashes'     | '..\\..\\escape.txt'         || 'escape.txt'
+        'the name is a dot file'               | '.bashrc'                    || 'bashrc'
+        'the name is missing'                  | null                         || 'file'
+    }
+
+    def "newVersion should record the size it read when the request claimed another"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+
+        when:
+        service.newVersion(TONY, 1, null, 'a.txt', null, 999, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(1, 'a.txt', _, null, 3L, null, 'tony') >> 2
+    }
+
+    @Unroll
+    def "newVersion should read and write nothing when #scenario"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        rows[2] = row(2, 2, '2/abcd1234-b.txt')
+        SolutionCaller caller = callerOf(callerName)
+        InputStream stream = Mock()
+
+        when:
+        service.newVersion(caller, fileId, null, 'a.txt', null, 3, stream)
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == expectedMessage
+        0 * stream._
+        0 * files.newVersion(*_)
+        tree(tmp) == []
+
+        where:
+        scenario                         | callerName | fileId || expectedMessage
+        'the client was not given it'    | 'REX'      | 2      || 'Solution not found.'
+        'the client was given nothing'   | 'ZED'      | 1      || 'Solution not found.'
+        'the file does not exist'        | 'TONY'     | 99     || 'File not found.'
+        'the file id is zero'            | 'TONY'     | 0      || 'File not found.'
+    }
+
+    def "newVersion should look at visibility before the size when the file is hidden and the upload empty"() {
+
+        given:
+        rows[2] = row(2, 2, '2/abcd1234-b.txt')
+
+        when:
+        service.newVersion(REX, 2, null, 'a.txt', null, 0, new ByteArrayInputStream(new byte[0]))
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == 'Solution not found.'
+    }
+
+    @Unroll
+    def "newVersion should refuse an empty file and write nothing when #scenario"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+
+        when:
+        service.newVersion(TONY, 1, null, 'a.txt', null, size, new ByteArrayInputStream(new byte[0]))
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == expectedMessage
+        0 * files.newVersion(*_)
+        tree(tmp) == []
+
+        where:
+        scenario                          | size || expectedMessage
+        'the declared size is zero'       | 0L   || 'The file is empty.'
+        'the declared size is negative'   | -1L  || 'The file is empty.'
+        'the stream is empty'             | 10L  || 'The file is empty.'
+    }
+
+    def "newVersion should refuse a declared size over 50 MB before reading anything"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        InputStream stream = Mock()
+
+        when:
+        service.newVersion(TONY, 1, null, 'big.bin', null, SolutionFileService.MAX_BYTES + 1, stream)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == 'A file may be at most 50 MB.'
+        0 * stream._
+        0 * files.newVersion(*_)
+    }
+
+    def "newVersion should refuse a stream longer than 50 MB and write nothing when the request claimed less"() {
+
+        given: 'a stream that never ends'
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        InputStream endless = new InputStream() {
+            int read() { 120 }
+            int read(byte[] b, int off, int len) { Arrays.fill(b, off, off + len, (byte) 120); len }
+        }
+
+        when:
+        service.newVersion(TONY, 1, null, 'big.bin', null, 10, endless)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == 'A file may be at most 50 MB.'
+        0 * files.newVersion(*_)
+        tree(tmp) == []
+    }
+
+    def "newVersion should move the new bytes to trash, keep the old ones and rethrow when the row is refused"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        put(root, '1/abcd1234-a.txt', 'version one')
+
+        when:
+        service.newVersion(TONY, 1, null, 'a.txt', null, 3, new ByteArrayInputStream('two'.bytes))
+
+        then:
+        1 * files.newVersion(*_) >> { throw new SolutionRuleException('That file no longer exists. Nothing was saved.') }
+        SolutionRuleException ex = thrown()
+        ex.message == 'That file no longer exists. Nothing was saved.'
+        List<String> left = tree(tmp)
+        left.size() == 2
+        left.contains('EchoFiles/1/abcd1234-a.txt')
+        String trashed = left.find { String it -> it.startsWith('EchoFiles/trash/') }
+        trashed ==~ /EchoFiles\/trash\/[0-9a-f]{8}-a\.txt/
+        Files.readString(root.resolve(trashed.substring('EchoFiles/'.length()))) == 'two'
+        Files.readString(root.resolve('1/abcd1234-a.txt')) == 'version one'
+    }
+
+    def "newVersion should answer the file as the repository reads it after the change"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+
+        when:
+        FileRow f = service.newVersion(TONY, 1, null, 'a2.txt', null, 3, new ByteArrayInputStream('abc'.bytes))
+
+        then:
+        1 * files.newVersion(*_) >> { a -> rows[1] = row(1, 1, (String) a[2], 'a2.txt'); 2 }
+        f.originalFileName() == 'a2.txt'
+        f.storedFileName().endsWith('-a2.txt')
+    }
+
+    // ---- versions ----
+
+    def "versions should check the file and then answer the current number and the earlier versions"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        List<FileVersion> earlier = [fileVersion(12, 1, 2, '1/b.txt', null), fileVersion(11, 1, 1, '1/a.txt', null)]
+
+        when:
+        Versions v = service.versions(REX, 1)
+
+        then:
+        1 * files.find(1) >> rows[1]
+
+        then:
+        1 * files.versions(1) >> earlier
+        v.currentVersion() == 3
+        v.versions().is(earlier)
+    }
+
+    def "versions should answer version 1 and nothing earlier when the file has no versions"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+
+        when:
+        Versions v = service.versions(TONY, 1)
+
+        then:
+        1 * files.versions(1) >> []
+        v.currentVersion() == 1
+        v.versions().isEmpty()
+    }
+
+    @Unroll
+    def "versions should read no versions when #scenario"() {
+
+        given:
+        rows[1] = row(1, 1, '1/abcd1234-a.txt')
+        rows[2] = row(2, 2, '2/abcd1234-b.txt')
+        SolutionCaller caller = callerOf(callerName)
+
+        when:
+        service.versions(caller, fileId)
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == expectedMessage
+        0 * files.versions(_)
+
+        where:
+        scenario                         | callerName | fileId || expectedMessage
+        'the client was not given it'    | 'REX'      | 2      || 'Solution not found.'
+        'the client was given nothing'   | 'ZED'      | 1      || 'Solution not found.'
+        'the file does not exist'        | 'TONY'     | 99     || 'File not found.'
+        'the file id is zero'            | 'TONY'     | 0      || 'File not found.'
+    }
+
+    // ---- one version ----
+
+    def "version should answer the version when the caller may see its solution"() {
+
+        given:
+        FileVersion v = fileVersion(11, 1, 1, '1/a.txt', 1)
+
+        when:
+        FileVersion got = service.version(REX, 11)
+
+        then:
+        1 * files.version(11) >> v
+        got.is(v)
+    }
+
+    @Unroll
+    def "version should answer not found and not reach the repository when the id is #scenario"() {
+
+        when:
+        service.version(TONY, versionId)
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == expectedMessage
+        0 * files.version(_)
+
+        where:
+        scenario     | versionId || expectedMessage
+        'zero'       | 0         || 'Version not found.'
+        'negative'   | -11       || 'Version not found.'
+    }
+
+    @Unroll
+    def "version should answer #expectedMessage when #scenario"() {
+
+        given:
+        SolutionCaller caller = callerOf(callerName)
+        FileVersion v = exists ? fileVersion(11, 1, 1, '1/a.txt', solutionId) : null
+
+        when:
+        service.version(caller, 11)
+
+        then:
+        1 * files.version(11) >> v
+        SolutionNotFoundException ex = thrown()
+        ex.message == expectedMessage
+
+        where:
+        scenario                                    | callerName | exists | solutionId || expectedMessage
+        'there is no such version'                  | 'TONY'     | false  | null       || 'Version not found.'
+        'the version has no solution'               | 'TONY'     | true   | null       || 'Version not found.'
+        'the version is of a hidden solution'       | 'REX'      | true   | 2          || 'Solution not found.'
+        'the client was given nothing'              | 'ZED'      | true   | 1          || 'Solution not found.'
+        'the version is of a missing solution'      | 'TONY'     | true   | 9          || 'Solution not found.'
+    }
+
+    def "version should not ask about the solution when the version has none"() {
+
+        when:
+        service.version(TONY, 11)
+
+        then:
+        1 * files.version(11) >> fileVersion(11, 1, 1, '1/a.txt', null)
+        0 * solutionRepo.findSolution(_)
+        thrown(SolutionNotFoundException)
+    }
+
+    // ---- the path of a version's download ----
+
+    def "pathOf should answer an earlier version's stored file when it is inside the folder"() {
+
+        given:
+        Path p = put(root, '1/abcd1234-a.txt', 'version one')
+
+        expect:
+        service.pathOf(fileVersion(11, 1, 1, '1/abcd1234-a.txt', 1)) == p.toAbsolutePath().normalize()
+    }
+
+    @Unroll
+    def "pathOf should answer #expectedMessage for a version when #scenario"() {
+
+        given:
+        put(tmp, 'outside.txt', 'secret')
+        put(root, '1/inside.txt', 'abc')
+        Files.createDirectories(root.resolve('1/folder'))
+
+        when:
+        service.pathOf(fileVersion(11, 1, 1, stored, 1))
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == expectedMessage
+
+        where:
+        scenario                                | stored                    || expectedMessage
+        'there is no stored name'               | null                      || 'Version not found.'
+        'the bytes are missing'                 | '1/missing.txt'           || 'Version not found.'
+        'the name is a folder'                  | '1/folder'                || 'Version not found.'
+        'the name climbs one level up'          | '../outside.txt'          || 'File not found.'
+        'the name goes in and out again'        | '1/../../outside.txt'     || 'File not found.'
+        'the name climbs out of trash'          | 'trash/../../outside.txt' || 'File not found.'
     }
 }

@@ -106,6 +106,16 @@ try {
         }
     }
 
+    # Story 5695 (Echo), Release 5: the bytes of every file's EARLIER versions (an Echo keeps them in its files
+    # folder; Leonardo has none). Keyed by SolutionFileVersionID.
+    $versionFiles = [ordered]@{}
+    foreach ($v in @($tables['SolutionFileVersion'])) {
+        if ($null -eq $v -or -not $v.StoredFileName) { continue }
+        $vp = Join-Path $FilesRoot $v.StoredFileName
+        if (Test-Path -LiteralPath $vp) { $versionFiles["$($v.SolutionFileVersionID)"] = [Convert]::ToBase64String([IO.File]::ReadAllBytes($vp)) }
+        else { $missing += "version $($v.VersionNumber) of file $($v.SolutionFileID)" }
+    }
+
     # Story 5653: the solution's Web tab -- its web addresses, hung off its EntityID -- by value (name,
     # address, types by name, notes, Important, order), since entity ids mean nothing in another database.
     # Import-Solution.ps1 makes them again through Echo's own procedures. Logins are not exported.
@@ -144,6 +154,7 @@ $doc = [ordered]@{
     solutionName = $name
     tables       = $tables
     files        = $files
+    versionFiles = $versionFiles   # Story 5695
     webAddresses = $webAddresses   # Story 5653
 }
 $json = $doc | ConvertTo-Json -Depth 6 -Compress

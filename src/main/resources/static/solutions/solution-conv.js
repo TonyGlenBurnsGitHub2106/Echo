@@ -101,6 +101,9 @@
         Array.prototype.forEach.call(document.querySelectorAll('[data-msg-edit]'), function (b) {
             b.addEventListener('click', function (e) { e.stopPropagation(); editMessage(+b.getAttribute('data-msg-edit')); });
         });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-msg-make]'), function (b) {
+            b.addEventListener('click', function (e) { e.stopPropagation(); window.SolutionChanges.promote('message', +b.getAttribute('data-msg-make')); });
+        });
         Array.prototype.forEach.call(document.querySelectorAll('[data-msg-delete]'), function (b) {
             b.addEventListener('click', function (e) { e.stopPropagation(); deleteMessage(+b.getAttribute('data-msg-delete')); });
         });
@@ -120,7 +123,9 @@
     }
 
     function msgTools(m) {
-        return '<span class="sl-msgtools"><button type="button" class="sl-iconbtn" title="Edit this message" data-msg-edit="' + m.id + '" data-testid="conv-message-edit">&#9998;</button>' +
+        // Story 5695 (Echo), Release 5: Make into (an item, a note or a question) comes first.
+        return '<span class="sl-msgtools"><button type="button" class="sl-iconbtn" title="Make this message into an item, a note or a question" aria-label="Make this message into" data-msg-make="' + m.id + '" data-testid="conv-message-make">&#8618;</button>' +
+            '<button type="button" class="sl-iconbtn" title="Edit this message" data-msg-edit="' + m.id + '" data-testid="conv-message-edit">&#9998;</button>' +
             '<button type="button" class="sl-iconbtn" title="Delete this message" data-msg-delete="' + m.id + '" data-testid="conv-message-delete">&#10005;</button></span>';
     }
 

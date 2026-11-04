@@ -32,6 +32,25 @@ public class JdbcSolutionFileRepository implements SolutionFileRepository {
             sizeBytes, notes, authorCode);
     }
 
+    // ---- Story 5695 (Echo) Release 5: versions ----
+
+    @Override
+    public int newVersion(int fileId, String originalFileName, String storedFileName, String contentType, long sizeBytes,
+                          String changeNote, String memberCode) {
+        return db.number("EXEC dbo.stp_SolutionFile_NewVersion ?, ?, ?, ?, ?, ?, ?", "CurrentVersionNumber",
+            fileId, originalFileName, storedFileName, contentType, sizeBytes, changeNote, memberCode);
+    }
+
+    @Override
+    public List<SolutionFileVersionModels.FileVersion> versions(int fileId) {
+        return db.list("EXEC dbo.stp_SolutionFileVersion_ListForFile ?", SolutionFileVersionModels.FileVersion::of, fileId);
+    }
+
+    @Override
+    public SolutionFileVersionModels.FileVersion version(int versionId) {
+        return db.one("EXEC dbo.stp_SolutionFileVersion_Get ?", SolutionFileVersionModels.FileVersion::of, versionId);
+    }
+
     @Override
     public boolean update(int id, Integer itemId, String title, String notes) {
         return db.number("EXEC dbo.stp_SolutionFile_Save ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?", "SolutionFileID",

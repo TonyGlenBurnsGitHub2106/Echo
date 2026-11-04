@@ -276,6 +276,8 @@
         var buttons = [
             { label: first === 'decision' ? 'A decision' : 'A question', value: first, style: 'primary', isDefault: true },
             { label: first === 'decision' ? 'A question' : 'A decision', value: first === 'decision' ? 'question' : 'decision', style: 'plain' },
+            { label: 'An item', value: 'item', style: 'plain' },          // Story 5695 (Echo), Release 5
+            { label: 'A note', value: 'note', style: 'plain' },
             { label: 'A runbook step', value: 'step', style: 'plain' },
             { label: 'Cancel', value: 'cancel', style: 'plain' }
         ];
@@ -283,13 +285,14 @@
         try {
             var dlg = await window.Picasso.dialog();
             answer = await dlg.show({ kind: 'question', title: 'Make log entry #' + e.sequenceNumber + ' into',
-                message: '"' + SL.plain(e.text, 140) + '"\n\nA decision or a question is made from it and linked to it; the entry itself stays as it is.' +
+                message: '"' + SL.plain(e.text, 140) + '"\n\nA decision, a question, an item or a note is made from it and linked to it; the entry itself stays as it is.' +
                          '\nA runbook step is copied into a runbook note.', buttons: buttons, escape: 'cancel' });
         } catch (err) {
             SL.toast('The choice could not be shown, so nothing was changed: ' + (err && err.message ? err.message : 'the dialog did not load.'));
             return;
         }
         if (answer === 'step') { openPromote(logId); return; }
+        if (answer === 'item' || answer === 'note') { window.SolutionChanges.promote('log', logId, answer); return; }
         if (answer !== 'decision' && answer !== 'question') return;
         if (window.SolutionDecisions && await window.SolutionDecisions.fromLog(logId, answer)) paintQuestionBadge();
     }

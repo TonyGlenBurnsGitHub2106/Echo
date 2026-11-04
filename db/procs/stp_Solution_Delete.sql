@@ -44,6 +44,8 @@ Date        Developer    Description
 2026-10-26  Felix        Story 5653 (Echo): no record links, notes or Leonardo Files here; unlinks the solution's web addresses (deleting any no other record uses) and logins.
 
 11/02/2026  Felix        Solution links: a solution's links, topics and visits go too.
+11/04/2026  Felix        Story 5695 (Echo): questions, decisions, kinds of part and waits (Releases 2 and 3), then
+                         promotions, file versions and saved views (Release 5) go too.
 */
 
 SET NOCOUNT ON
@@ -116,6 +118,11 @@ BEGIN TRY
     WHERE  p.SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionNote WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionLog      WHERE SolutionID = @prmSolutionID
+    -- Story 5695 (Echo), Release 5: promotions, saved views, the files' earlier versions (rows only).
+    DELETE FROM dbo.SolutionPromotion WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionSavedView WHERE SolutionID = @prmSolutionID
+    DELETE fv FROM dbo.SolutionFileVersion fv
+    JOIN   dbo.SolutionFile f ON f.SolutionFileID = fv.SolutionFileID WHERE f.SolutionID = @prmSolutionID
     DELETE fl FROM dbo.SolutionFileFiling fl
     JOIN   dbo.SolutionFile f ON f.SolutionFileID = fl.SolutionFileID WHERE f.SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionFile     WHERE SolutionID = @prmSolutionID     -- rows only; the bytes on disk are never unlinked

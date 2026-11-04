@@ -518,6 +518,10 @@
             $('btnNoteEdit').addEventListener('click', function () { openEditor(mNote); });
             $('btnNoteRead').addEventListener('click', function () { openView(mNote.id); });
             $('noteViewEdit').addEventListener('click', editFromView);
+            // Story 5695 (Echo), Release 5: a note made into an item.
+            $('noteViewMake').addEventListener('click', function () {
+                var id = mViewNote ? mViewNote.id : 0; closeView(); if (id) window.SolutionChanges.promote('note', id, 'item');
+            });
             $('noteViewClose').addEventListener('click', closeView);
             // Closes on a tap outside the page -- only when the press also BEGAN outside it, so
             // selecting text and letting go past the edge does not throw the reader out.

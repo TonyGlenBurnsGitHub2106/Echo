@@ -30,8 +30,17 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
         'GET /api/solutions/{id}/shares/{apiClientId}/brief', 'PUT /api/solutions/{id}/file-storage',
         'GET /api/solutions/items/{itemId}/locate', 'GET /api/solutions/notes/{noteId}/locate',
         // Story 5695: the deep-link helpers of topics, questions and decisions
-        'GET /api/solutions/topics/{topicId}/locate', 'GET /api/solutions/questions/{qid}/locate', 'GET /api/solutions/decisions/{did}/locate'
+        'GET /api/solutions/topics/{topicId}/locate', 'GET /api/solutions/questions/{qid}/locate', 'GET /api/solutions/decisions/{did}/locate',
+        // Story 5695 Release 5: opening Explorer on this computer is a person's action only (an agent is answered 403)
+        'POST /api/solutions/files/{fileId}/open-folder',
+        // Story 5695 (API audit 2026-11-04): the deep-link helpers of terms and the two configuration tabs
+        'GET /api/solutions/terms/{termId}/locate', 'GET /api/solutions/config/properties/{propertyId}/locate',
+        'GET /api/solutions/config-grid/properties/{propertyId}/locate'
     ] as Set
+
+    /** The documented paths under these controllers' prefixes, loosened ({} for every placeholder). Story 5695 Release 5 adds
+     *  items/bulk, promote, provenance, views and files (with their versions). */
+    private static final String OURS = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age|lens|left-off|activity|items\/bulk|promote|provenance|views|files|terms|conversations|test-plans|config|config-grid).*|\/(topics|topic-types|waits|questions|decisions|views|files|terms|conversations|test-plans|config|config-grid)\/.*|\/topic-kinds)$/
 
     private static final List<Class<?>> AGENT_CONTROLLERS = [SolutionController, SolutionItemController, SolutionLogController,
                                                              SolutionNoteController, SolutionSpecController,
@@ -39,7 +48,13 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
                                                              // (Release 4: SolutionOrientationController also maps lens, left-off and activity)
                                                              SolutionLinkController, SolutionDecisionController, SolutionOrientationController,
                                                              // Story 5695 Release 3: kinds of topic and the premise switch, what items wait on
-                                                             SolutionTopicKindController, SolutionDependencyController]
+                                                             SolutionTopicKindController, SolutionDependencyController,
+                                                             // Story 5695 Release 5: many at once and Make into, saved views, and
+                                                             // the files (for their versions)
+                                                             SolutionChangeController, SolutionSavedViewController, SolutionFileController,
+                                                             // the API audit of 2026-11-04: five more an agent can reach, documented now
+                                                             SolutionTermController, SolutionConversationController, SolutionTestController,
+                                                             SolutionConfigController, SolutionConfigGridController]
 
     def "RESOURCE should name the classpath file that holds the contract when read"() {
 
@@ -150,12 +165,35 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
         Set<String> mine = mappedEndpoints(AGENT_CONTROLLERS).collect { String e -> loosen(e) } as Set
         Matcher m = (raw() =~ /`(GET|POST|PUT|DELETE) (\/api\/solutions[^`?\s]*)/)
         List<String> documented = m.collect { List<String> g -> loosen(g[1] + ' ' + g[2]) }
-        String ours = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age|lens|left-off|activity).*|\/(topics|topic-types|waits|questions|decisions)\/.*|\/topic-kinds)$/
-        List<String> unknown = documented.findAll { String d -> d ==~ ours && !(d in mine) }.unique()
+        List<String> unknown = documented.findAll { String d -> d ==~ OURS && !(d in mine) }.unique()
 
         expect:
         documented.size() > 20
         unknown == []
+    }
+
+    @Unroll
+    def "#seq. the contract's path pattern should recognise the Release 5 path for #scenario"() {
+
+        given:
+        Set<String> mine = mappedEndpoints(AGENT_CONTROLLERS).collect { String e -> loosen(e) } as Set
+
+        expect:
+        path ==~ OURS
+        mine.contains(path)
+        loosen(raw()).contains(path)
+
+        where:
+        seq | scenario                             | path                                              || unused
+        1   | 'a bulk change'                      | 'POST /api/solutions/{}/items/bulk'               || null
+        2   | 'a promotion'                        | 'POST /api/solutions/{}/promote'                  || null
+        3   | 'provenance'                         | 'GET /api/solutions/{}/provenance'                || null
+        4   | 'the saved views'                    | 'GET /api/solutions/{}/views'                     || null
+        5   | 'saving a view'                      | 'POST /api/solutions/{}/views'                    || null
+        6   | 'deleting a view'                    | 'DELETE /api/solutions/views/{}'                  || null
+        7   | 'uploading a new version'            | 'POST /api/solutions/files/{}/versions'           || null
+        8   | 'listing the versions'               | 'GET /api/solutions/files/{}/versions'            || null
+        9   | 'downloading an earlier version'     | 'GET /api/solutions/files/versions/{}/content'    || null
     }
 
     private static String raw() {
@@ -176,8 +214,11 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
                     if (a != null) {
                         List<String> values = (a.value() as List) + (a.path() as List)
                         String p = values.isEmpty() ? '' : values[0]
-                        String path = (base + p).replaceAll(/\{(\w+):[^}]*\}/, '{$1}')
-                        out << ((String) pair[1] + ' ' + path)
+                        // a placeholder that is a choice of words ({kind:types|categories}) is one endpoint per word,
+                        // the way the contract names them (Story 5695, API audit 2026-11-04)
+                        java.util.regex.Matcher m = (base + p) =~ /\{\w+:([a-z-]+(?:\|[a-z-]+)+)\}/
+                        List<String> raws = m.find() ? m.group(1).split(/\|/).collect { String w -> (base + p).replace(m.group(0), w) } : [base + p]
+                        raws.each { String r -> out << ((String) pair[1] + ' ' + r.replaceAll(/\{(\w+):[^}]*\}/, '{$1}')) }
                     }
                 }
             }

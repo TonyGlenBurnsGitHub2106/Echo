@@ -25,6 +25,7 @@ Date        Developer    Description
 10/05/2026  Felix        Story 5594: also removes the file's filing row (SolutionFileFiling), in one transaction.
 
 11/02/2026  Felix        Solution links: the file's links go too (SolutionLink).
+11/04/2026  Felix        Story 5695 (Echo) Release 5: its earlier versions go too (rows only, the bytes stay on disk).
 */
 
 SET NOCOUNT ON
@@ -35,6 +36,7 @@ DECLARE @rows INT
 
 BEGIN TRAN
     DELETE FROM dbo.SolutionFileFiling WHERE SolutionFileID = @prmSolutionFileID
+    DELETE FROM dbo.SolutionFileVersion WHERE SolutionFileID = @prmSolutionFileID     -- Story 5695 (Echo)
     DELETE FROM dbo.SolutionLink WHERE (FromKind = 'file' AND FromID = @prmSolutionFileID) OR (ToKind = 'file' AND ToID = @prmSolutionFileID)
     DELETE FROM dbo.SolutionFile WHERE SolutionFileID = @prmSolutionFileID
     SET @rows = @@ROWCOUNT

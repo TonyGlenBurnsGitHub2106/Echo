@@ -73,6 +73,36 @@ public class SolutionFileController extends SolutionControllerSupport {
         return ResponseEntity.ok(service.update(caller(req), fileId, body.itemId(), body.title(), body.notes()));
     }
 
+    // ---- Story 5695 (Echo) Release 5: versions ----
+
+    @PostMapping(value = "/files/{fileId:\\d+}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> newVersion(HttpServletRequest req, @PathVariable int fileId,
+                                        @RequestParam(value = "file", required = false) MultipartFile file,
+                                        @RequestParam(value = "changeNote", required = false) String changeNote) throws IOException {
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("A file is required.");
+        try (InputStream in = file.getInputStream()) {
+            return ResponseEntity.ok(service.newVersion(caller(req), fileId, changeNote, file.getOriginalFilename(),
+                file.getContentType(), file.getSize(), in));
+        }
+    }
+
+    @GetMapping("/files/{fileId:\\d+}/versions")
+    public ResponseEntity<?> versions(HttpServletRequest req, @PathVariable int fileId) {
+        return ResponseEntity.ok(service.versions(caller(req), fileId));
+    }
+
+    @GetMapping("/files/versions/{versionId:\\d+}/content")
+    public ResponseEntity<?> versionContent(HttpServletRequest req, @PathVariable int versionId) {
+        SolutionFileVersionModels.FileVersion v = service.version(caller(req), versionId);
+        Path path = service.pathOf(v);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(v.originalFileName(), StandardCharsets.UTF_8).build());
+        headers.set("X-Content-Type-Options", "nosniff");
+        headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
+        return ResponseEntity.ok().headers(headers).body(new FileSystemResource(path));
+    }
+
     @GetMapping("/files/{fileId:\\d+}/content")
     public ResponseEntity<?> content(HttpServletRequest req, @PathVariable int fileId) {
         FileRow f = service.get(caller(req), fileId);

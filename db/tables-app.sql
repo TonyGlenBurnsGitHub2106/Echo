@@ -375,3 +375,125 @@ GO
 IF COL_LENGTH('dbo.SolutionMemberVisit_LOG', 'PartingNote') IS NULL
     ALTER TABLE dbo.SolutionMemberVisit_LOG ADD PartingNote NVARCHAR(1000) NULL, PartingNoteDate DATETIME NULL;
 GO
+
+-- ==== Story 5695 Release 5 (2026-11-04): promotions, file versions, saved views ====
+
+-- ---- Promote anything ----
+-- A record made FROM another one (a message into an item, a note into an item, an item into a note, a log
+-- entry into an item or a note ...). One row per promotion: it refuses a second promotion of the same
+-- source into the same kind, and says where a record came from even when the source is a message (a thread
+-- message cannot be linked, links join solution records only).
+IF OBJECT_ID('dbo.SolutionPromotion') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionPromotion (
+        SolutionPromotionID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionPromotion PRIMARY KEY CLUSTERED,
+        SolutionID          INT         NOT NULL,
+        SourceKind          VARCHAR(10) NOT NULL,     -- item | note | log | message
+        SourceID            INT         NOT NULL,     -- for a message: its ConversationMessageID
+        TargetKind          VARCHAR(10) NOT NULL,     -- item | note | question | decision
+        TargetID            INT         NOT NULL,
+        PromotedByMemberID  INT         NULL,
+        CreatedDate         DATETIME    NOT NULL CONSTRAINT DF_SolutionPromotion_CreatedDate DEFAULT (GETDATE()),
+        CONSTRAINT CK_SolutionPromotion_Kinds CHECK (SourceKind IN ('item', 'note', 'log', 'message')
+                                                 AND TargetKind IN ('item', 'note', 'question', 'decision'))
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionPromotion_Source' AND object_id = OBJECT_ID('dbo.SolutionPromotion'))
+    CREATE UNIQUE INDEX UX_SolutionPromotion_Source ON dbo.SolutionPromotion (SourceKind, SourceID, TargetKind);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionPromotion_Target' AND object_id = OBJECT_ID('dbo.SolutionPromotion'))
+    CREATE INDEX IX_SolutionPromotion_Target ON dbo.SolutionPromotion (TargetKind, TargetID);
+GO
+IF OBJECT_ID('dbo.SolutionPromotion_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionPromotion_LOG (
+        SolutionPromotion_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionPromotion_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionPromotion_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionPromotion_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionPromotionID INT NULL, SolutionID INT NULL, SourceKind VARCHAR(10) NULL, SourceID INT NULL,
+        TargetKind VARCHAR(10) NULL, TargetID INT NULL, PromotedByMemberID INT NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO
+
+-- ---- File versions ----
+-- "New version" on a file keeps the file's row (its links, its title, where it is filed) and puts the bytes
+-- it had into a version row. The old bytes stay on disk, beside the new ones.
+IF OBJECT_ID('dbo.SolutionFileVersion') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionFileVersion (
+        SolutionFileVersionID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionFileVersion PRIMARY KEY CLUSTERED,
+        SolutionFileID        INT            NOT NULL,
+        VersionNumber         INT            NOT NULL,     -- 1 = the first upload
+        OriginalFileName      NVARCHAR(300)  NULL,
+        StoredFileName        NVARCHAR(400)  NULL,
+        ContentType           NVARCHAR(200)  NULL,
+        FileSizeBytes         BIGINT         NULL,
+        ChangeNote            NVARCHAR(500)  NULL,         -- what the version AFTER this one changed
+        UploadedByMemberID    INT            NULL,
+        UploadedDate          DATETIME       NULL,         -- when these bytes were uploaded
+        CreatedDate           DATETIME       NOT NULL CONSTRAINT DF_SolutionFileVersion_CreatedDate DEFAULT (GETDATE())
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionFileVersion_Number' AND object_id = OBJECT_ID('dbo.SolutionFileVersion'))
+    CREATE UNIQUE INDEX UX_SolutionFileVersion_Number ON dbo.SolutionFileVersion (SolutionFileID, VersionNumber);
+GO
+IF OBJECT_ID('dbo.SolutionFileVersion_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionFileVersion_LOG (
+        SolutionFileVersion_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionFileVersion_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionFileVersion_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionFileVersion_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionFileVersionID INT NULL, SolutionFileID INT NULL, VersionNumber INT NULL, OriginalFileName NVARCHAR(300) NULL,
+        StoredFileName NVARCHAR(400) NULL, ContentType NVARCHAR(200) NULL, FileSizeBytes BIGINT NULL, ChangeNote NVARCHAR(500) NULL,
+        UploadedByMemberID INT NULL, UploadedDate DATETIME NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO
+-- The version number the file's CURRENT bytes are: 1 until a new version is uploaded.
+IF COL_LENGTH('dbo.SolutionFile', 'CurrentVersionNumber') IS NULL
+    ALTER TABLE dbo.SolutionFile ADD CurrentVersionNumber INT NOT NULL CONSTRAINT DF_SolutionFile_CurrentVersionNumber DEFAULT (1);
+GO
+IF COL_LENGTH('dbo.SolutionFile_LOG', 'CurrentVersionNumber') IS NULL
+    ALTER TABLE dbo.SolutionFile_LOG ADD CurrentVersionNumber INT NULL;
+GO
+
+-- ---- Saved views ----
+-- A member's named view of a tab: its filters, kept so "my open items in Submit path" is one tap. Each member
+-- has their own; ScopeCode says which tab (items for now).
+IF OBJECT_ID('dbo.SolutionSavedView') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionSavedView (
+        SolutionSavedViewID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionSavedView PRIMARY KEY CLUSTERED,
+        SolutionID          INT            NOT NULL,
+        SolutionMemberID    INT            NOT NULL,
+        ScopeCode           VARCHAR(20)    NOT NULL,     -- items
+        ViewName            NVARCHAR(100)  NOT NULL,
+        NormalizedName      NVARCHAR(100)  NOT NULL,
+        FilterJson          NVARCHAR(2000) NOT NULL,
+        SortOrder           INT            NOT NULL CONSTRAINT DF_SolutionSavedView_SortOrder DEFAULT (0),
+        CreatedDate         DATETIME       NOT NULL CONSTRAINT DF_SolutionSavedView_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate        DATETIME       NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionSavedView_Name' AND object_id = OBJECT_ID('dbo.SolutionSavedView'))
+    CREATE UNIQUE INDEX UX_SolutionSavedView_Name ON dbo.SolutionSavedView (SolutionID, SolutionMemberID, ScopeCode, NormalizedName);
+GO
+IF OBJECT_ID('dbo.SolutionSavedView_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.SolutionSavedView_LOG (
+        SolutionSavedView_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionSavedView_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionSavedView_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionSavedView_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionSavedViewID INT NULL, SolutionID INT NULL, SolutionMemberID INT NULL, ScopeCode VARCHAR(20) NULL,
+        ViewName NVARCHAR(100) NULL, NormalizedName NVARCHAR(100) NULL, FilterJson NVARCHAR(2000) NULL, SortOrder INT NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO

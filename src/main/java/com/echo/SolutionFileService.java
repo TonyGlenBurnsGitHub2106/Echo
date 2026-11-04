@@ -93,6 +93,58 @@ public class SolutionFileService {
         return files.find(id);
     }
 
+    /**
+     * Story 5695 (Echo) Release 5: a new version of a file. The bytes are written beside the old ones (which stay,
+     * as a version you can still download), then the file's row takes them. A refused row moves the new bytes to
+     * the trash, as an upload does.
+     */
+    public FileRow newVersion(SolutionCaller caller, int fileId, String changeNote, String originalName, String contentType,
+                              long sizeBytes, InputStream content) throws IOException {
+        FileRow f = get(caller, fileId);
+        if (sizeBytes <= 0) throw new IllegalArgumentException("The file is empty.");
+        if (sizeBytes > MAX_BYTES) throw new IllegalArgumentException("A file may be at most 50 MB.");
+        String note = changeNote == null ? null : changeNote.trim();
+        if (note != null && note.length() > 500) throw new IllegalArgumentException("What changed can be at most 500 characters.");
+        String safeName = safeName(originalName);
+        byte[] bytes = content.readNBytes((int) MAX_BYTES + 1);
+        if (bytes.length == 0) throw new IllegalArgumentException("The file is empty.");
+        if (bytes.length > MAX_BYTES) throw new IllegalArgumentException("A file may be at most 50 MB.");
+        Path dir = filesDir.resolve(String.valueOf(f.solutionId()));
+        Files.createDirectories(dir);
+        String stored = UUID.randomUUID().toString().substring(0, 8) + "-" + safeName;
+        Path target = inside(dir.resolve(stored));
+        Files.write(target, bytes, StandardOpenOption.CREATE_NEW);
+        try {
+            files.newVersion(fileId, safeName, f.solutionId() + "/" + stored, contentType, bytes.length, note, caller.memberCode());
+        } catch (RuntimeException ex) {
+            moveToTrash(target);
+            throw ex;
+        }
+        return files.find(fileId);
+    }
+
+    /** Story 5695 (Echo) Release 5: the number the file is at, and its earlier versions, newest first. */
+    public SolutionFileVersionModels.Versions versions(SolutionCaller caller, int fileId) {
+        get(caller, fileId);
+        return SolutionFileVersionModels.Versions.of(files.versions(fileId));
+    }
+
+    /** Story 5695 (Echo) Release 5: one earlier version, for its download. Visibility first. */
+    public SolutionFileVersionModels.FileVersion version(SolutionCaller caller, int versionId) {
+        SolutionFileVersionModels.FileVersion v = versionId <= 0 ? null : files.version(versionId);
+        if (v == null || v.solutionId() == null) throw new SolutionNotFoundException("Version");
+        access.requireSolution(caller, v.solutionId());
+        return v;
+    }
+
+    /** Where an earlier version's bytes are. Always a path proven to be inside the files folder. */
+    public Path pathOf(SolutionFileVersionModels.FileVersion v) {
+        if (v.storedFileName() == null) throw new SolutionNotFoundException("Version");
+        Path p = inside(filesDir.resolve(v.storedFileName()));
+        if (!Files.isRegularFile(p)) throw new SolutionNotFoundException("Version");
+        return p;
+    }
+
     public FileRow update(SolutionCaller caller, int fileId, Integer itemId, String title, String notes) {
         FileRow current = get(caller, fileId);
         Integer item = itemId == null ? current.itemId() : itemId;
@@ -128,9 +180,16 @@ public class SolutionFileService {
 
     public void delete(SolutionCaller caller, int fileId) throws IOException {
         FileRow f = get(caller, fileId);
+        // Story 5695 (Echo) Release 5: its earlier versions' bytes go to the trash with it (read before the rows go)
+        List<SolutionFileVersionModels.FileVersion> earlier = files.versions(fileId);
         if (!files.delete(fileId)) throw new SolutionNotFoundException("File");
         if (f.storedFileName() != null) {
             Path p = inside(filesDir.resolve(f.storedFileName()));
+            if (Files.isRegularFile(p)) moveToTrash(p);
+        }
+        for (SolutionFileVersionModels.FileVersion v : earlier == null ? List.<SolutionFileVersionModels.FileVersion>of() : earlier) {
+            if (v.storedFileName() == null) continue;
+            Path p = inside(filesDir.resolve(v.storedFileName()));
             if (Files.isRegularFile(p)) moveToTrash(p);
         }
     }

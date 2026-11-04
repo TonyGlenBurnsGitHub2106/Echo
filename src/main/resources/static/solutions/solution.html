@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=51">
+    <link rel="stylesheet" href="solutions.css?v=52">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -79,6 +79,10 @@
             <button type="button" role="tab" data-items-view="tree" aria-selected="true" data-testid="items-view-tree">Projects</button>
             <button type="button" role="tab" data-items-view="now" aria-selected="false" data-testid="items-view-now">Now</button>
         </div>
+        <!-- Story 5695 (Echo), Release 5: saved views of this tab, each person's own -->
+        <div class="fld sl-views"><label for="fItemView">View</label><select id="fItemView" data-ps-placeholder="Views" data-testid="items-views-select"></select></div>
+        <button type="button" class="sl-btn" id="btnItemsViewSave" title="Keep these filters as a view" data-testid="items-view-save">Save view</button>
+        <button type="button" class="sl-btn danger" id="btnItemsViewDelete" hidden title="Delete this saved view" data-testid="items-view-delete">Delete view</button>
         <div class="sl-contents" id="itemTreeTools" data-testid="items-tree-tools">
         <div class="fld"><label for="fItemProject">Project</label><select id="fItemProject" data-ps-placeholder="All projects" data-testid="items-filter-project"></select></div>
         <div class="fld"><label for="fItemStatus">Status</label><select id="fItemStatus" data-ps-placeholder="Any status" data-testid="items-filter-status"></select></div>
@@ -87,9 +91,22 @@
         <span class="spacer"></span>
         <button type="button" class="sl-btn" id="btnItemsExpand" data-testid="items-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnItemsCollapse" data-testid="items-collapse-all">Collapse all</button>
+        <button type="button" class="sl-btn" id="btnItemsSelect" aria-pressed="false" title="Choose items to change at once" data-testid="items-select-btn">Select</button>
         <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects and items" title="Arrange -- drag to reorder" data-testid="items-arrange-btn">&#8645;</button>
         </div>
         <button type="button" class="sl-btn primary" id="btnAddItem" data-testid="items-add-btn">+ Item</button>
+    </div>
+    <!-- Story 5695 (Echo), Release 5: change the chosen items at once, with a reason -->
+    <div class="sl-bulkbar" id="itemBulkBar" hidden data-testid="items-bulk-bar">
+        <span class="sl-bulk-count" id="bulkCount" data-testid="bulk-count">0 chosen</span>
+        <button type="button" class="sl-btn small" id="bulkAll" data-testid="bulk-all">All shown</button>
+        <button type="button" class="sl-btn small" id="bulkNone" data-testid="bulk-none">None</button>
+        <div class="fld"><label for="bulkField">Change</label><select id="bulkField" data-testid="bulk-field"></select></div>
+        <div class="fld"><label>To</label><span id="bulkValueHost"></span></div>
+        <div class="fld sl-bulk-why"><label for="bulkReason">Why (it goes in the log)</label><input type="text" id="bulkReason" maxlength="1000" data-testid="bulk-reason" placeholder="The partner app writes the 837 itself"></div>
+        <button type="button" class="sl-btn primary" id="bulkGo" disabled data-testid="bulk-go">Change them</button>
+        <button type="button" class="sl-btn" id="bulkDone" data-testid="bulk-done">Done</button>
+        <div class="warn" id="bulkWarn" data-testid="bulk-warn"></div>
     </div>
 
     <div class="sl-toolbar" id="toolbar-log" hidden data-testid="solution-toolbar-log">
@@ -402,10 +419,12 @@
         <div class="sl-muted" id="fvMeta" data-testid="file-view-meta" style="margin:-8px 0 10px"></div>
         <div class="sl-fileview-body" id="fvBody" data-testid="file-view-body"></div>
         <div class="sl-fileview-links" id="fvLinks" data-testid="file-view-links"></div>
+        <div id="fvVersions" data-testid="file-view-versions-host"></div>
         <div class="foot">
             <span class="left">
                 <button type="button" class="sl-btn" id="fvDownload" data-testid="file-view-download">Download</button>
                 <button type="button" class="sl-btn" id="fvFolder" data-testid="file-view-open-folder">Open folder</button>
+                <button type="button" class="sl-btn" id="fvNewVersion" title="Upload a new version of this file. The old one is kept." data-testid="file-view-new-version">New version</button>
                 <button type="button" class="sl-btn" id="fvReader" hidden data-testid="file-view-reader">Reader</button>
                 <button type="button" class="sl-btn" id="fvPrint" hidden data-testid="file-view-print">Print</button>
             </span>
@@ -472,6 +491,7 @@
             <div id="itemViewLinks" data-testid="item-view-links"></div>
         </div>
         <div class="foot">
+            <button type="button" class="sl-btn" id="itemViewMake" title="Make this item into a note" data-testid="item-view-make">Make into a note</button>
             <button type="button" class="sl-btn" id="itemViewCopy" data-testid="item-view-copy">Copy</button>
             <button type="button" class="sl-btn" id="itemViewEdit" data-testid="item-view-edit">Edit</button>
             <button type="button" class="sl-btn primary" id="itemViewClose" data-testid="item-view-close">Close</button>
@@ -546,6 +566,7 @@
             <div id="noteViewLinks" data-testid="note-view-links"></div>
         </div>
         <div class="foot">
+            <button type="button" class="sl-btn" id="noteViewMake" title="Make this note into an item" data-testid="note-view-make">Make into an item</button>
             <button type="button" class="sl-btn" id="noteViewEdit" data-testid="note-view-edit">Edit</button>
             <button type="button" class="sl-btn primary" id="noteViewClose" data-testid="note-view-close">Close</button>
         </div>
@@ -615,6 +636,51 @@
         </div>
         <div class="foot">
             <button type="button" class="sl-btn primary" id="linksSheetClose" data-testid="links-sheet-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo), Release 5: make a record into another kind -->
+<div class="sl-overlay" id="makeOverlay" data-testid="make-overlay">
+    <div class="sl-modal" style="width:min(560px,100%)">
+        <h2 id="makeTitleHead">Make it into</h2>
+        <div class="warn" id="makeWarn" data-testid="make-warn"></div>
+        <div class="sl-seg" role="tablist" aria-label="What to make it into" id="makeTargets" data-testid="make-targets"></div>
+        <div class="sl-muted" id="makeHint" style="margin:6px 0 8px"></div>
+        <div class="fld"><label for="makeName">Title</label><input type="text" id="makeName" maxlength="400" data-testid="make-title" placeholder="Leave it empty to use the first line"></div>
+        <div class="fld" id="makeProjectField"><label for="makeProject">Project</label><select id="makeProject" data-testid="make-project"></select></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="makeCancel" data-testid="make-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="makeSave" data-testid="make-save">Make it</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo), Release 5: name the Items tab's filters as a view -->
+<div class="sl-overlay" id="saveViewOverlay" data-testid="save-view-overlay">
+    <div class="sl-modal" style="width:min(460px,100%)">
+        <h2>Save view</h2>
+        <div class="sl-muted" style="margin:-8px 0 8px">Keeps the filters and Projects or Now as one choice under View. Only you see yours. The same name replaces it.</div>
+        <div class="warn" id="svWarn" data-testid="save-view-warn"></div>
+        <div class="fld"><label for="svName">Name</label><input type="text" id="svName" maxlength="100" data-testid="save-view-name" placeholder="My open submit work"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="svCancel" data-testid="save-view-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="svSave" data-testid="save-view-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo), Release 5: a new version of a file -->
+<div class="sl-overlay" id="newVersionOverlay" data-testid="new-version-overlay">
+    <div class="sl-modal" style="width:min(520px,100%)">
+        <h2>New version</h2>
+        <div class="sl-muted" style="margin:-8px 0 8px">The file keeps its title, links and filing. The version it has now stays, under Earlier versions.</div>
+        <div class="warn" id="nvWarn" data-testid="new-version-warn"></div>
+        <div class="fld"><label for="nvFile">The new file</label><input type="file" id="nvFile" data-testid="new-version-file"></div>
+        <div class="fld"><label for="nvNote">What changed</label><input type="text" id="nvNote" maxlength="500" data-testid="new-version-note" placeholder="QA numbers added"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="nvCancel" data-testid="new-version-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="nvSave" data-testid="new-version-save">Upload</button>
         </div>
     </div>
 </div>
@@ -1057,17 +1123,18 @@
 <script src="solutions-common.js?v=13"></script>
 <script src="solution.js?v=39"></script>
 <script src="solution-overview.js?v=5"></script>
-<script src="solution-items.js?v=24"></script>
-<script src="solution-log.js?v=11"></script>
-<script src="solution-notes.js?v=22"></script>
+<script src="solution-items.js?v=25"></script>
+<script src="solution-log.js?v=12"></script>
+<script src="solution-notes.js?v=23"></script>
 <script src="solution-terms.js?v=2"></script>
 <script src="solution-links.js?v=5"></script>
 <script src="solution-topics.js?v=3"></script>
 <script src="solution-decisions.js?v=1"></script>
 <script src="solution-lens.js?v=1"></script>
 <script src="solution-activity.js?v=1"></script>
-<script src="solution-conv.js?v=8"></script>
-<script src="solution-files.js?v=22"></script>
+<script src="solution-changes.js?v=1"></script>
+<script src="solution-conv.js?v=9"></script>
+<script src="solution-files.js?v=23"></script>
 <script src="solution-tests.js?v=15"></script>
 <script src="solution-config.js?v=9"></script>
 <script src="solution-config-grid.js?v=3"></script>

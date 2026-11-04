@@ -49,6 +49,11 @@ public class JdbcSolutionLinkRepository implements SolutionLinkRepository {
     public boolean unlink(int linkId) { return db.affected("EXEC dbo.stp_SolutionLink_Delete ?", linkId); }
 
     @Override
+    public boolean linkable(int solutionId, String kind, int id) {
+        return db.number("EXEC dbo.stp_SolutionLinkable_Exists ?, ?, ?", "Found", solutionId, kind, id) > 0;
+    }
+
+    @Override
     public LinkPage links(int solutionId, String kind, int id, int offset, int pageSize) {
         String sql = "EXEC dbo.stp_SolutionLink_ListForRecord ?, ?, ?, ?, ?";
         List<Map<String, Object>> rows = db.list(sql, r -> r, solutionId, kind, id, offset, pageSize);

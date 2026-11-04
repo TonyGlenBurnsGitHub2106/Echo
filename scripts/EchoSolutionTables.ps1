@@ -74,5 +74,10 @@ $EchoSolutionTables = @(
     @{ Name = 'SolutionDecision';     Where = 'SolutionID = @sid'; Optional = $true },
     @{ Name = 'SolutionLink';         Where = 'SolutionID = @sid'; Optional = $true },
     @{ Name = 'SolutionMemberVisit';  Where = 'SolutionID = @sid'; Optional = $true },
-    @{ Name = 'SolutionItemDependency'; Where = 'SolutionProjectItemID IN (SELECT i.SolutionProjectItemID FROM dbo.SolutionProjectItem i JOIN dbo.SolutionProject p ON p.SolutionProjectID = i.SolutionProjectID WHERE p.SolutionID = @sid)'; Optional = $true }
+    @{ Name = 'SolutionItemDependency'; Where = 'SolutionProjectItemID IN (SELECT i.SolutionProjectItemID FROM dbo.SolutionProjectItem i JOIN dbo.SolutionProject p ON p.SolutionProjectID = i.SolutionProjectID WHERE p.SolutionID = @sid)'; Optional = $true },
+    # Release 5: where records came from, the files' earlier versions (their bytes travel with the files folder),
+    # and each member's saved views.
+    @{ Name = 'SolutionPromotion';    Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionFileVersion';  Where = 'SolutionFileID IN (SELECT SolutionFileID FROM dbo.SolutionFile WHERE SolutionID = @sid)'; Optional = $true },
+    @{ Name = 'SolutionSavedView';    Where = 'SolutionID = @sid'; Optional = $true }
 )
