@@ -24,6 +24,7 @@ Date        Developer    Description
                          Leonardo Files copy stays in the catalog). Returns RowsAffected.
 10/05/2026  Felix        Story 5594: also removes the file's filing row (SolutionFileFiling), in one transaction.
 
+11/02/2026  Felix        Solution links: the file's links go too (SolutionLink).
 */
 
 SET NOCOUNT ON
@@ -34,6 +35,7 @@ DECLARE @rows INT
 
 BEGIN TRAN
     DELETE FROM dbo.SolutionFileFiling WHERE SolutionFileID = @prmSolutionFileID
+    DELETE FROM dbo.SolutionLink WHERE (FromKind = 'file' AND FromID = @prmSolutionFileID) OR (ToKind = 'file' AND ToID = @prmSolutionFileID)
     DELETE FROM dbo.SolutionFile WHERE SolutionFileID = @prmSolutionFileID
     SET @rows = @@ROWCOUNT
 COMMIT

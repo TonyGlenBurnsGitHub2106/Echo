@@ -23,6 +23,7 @@ Date        Developer    Description
 
 09/22/2026  Felix        Solutions documents are now NOTES (SolutionDocument* -> SolutionNote*, Tony 09/22/2026).
 
+11/02/2026  Felix        Solution links: the note's links go too (SolutionLink).
 */
 
 SET NOCOUNT ON
@@ -32,6 +33,7 @@ BEGIN TRY
     BEGIN TRANSACTION
     DELETE FROM dbo.SolutionNoteStep    WHERE SolutionNoteID = @prmSolutionNoteID
     DELETE FROM dbo.SolutionNoteVersion WHERE SolutionNoteID = @prmSolutionNoteID
+    DELETE FROM dbo.SolutionLink WHERE (FromKind = 'note' AND FromID = @prmSolutionNoteID) OR (ToKind = 'note' AND ToID = @prmSolutionNoteID)
     DELETE FROM dbo.SolutionNote        WHERE SolutionNoteID = @prmSolutionNoteID
     SET @rows = @@ROWCOUNT
     COMMIT TRANSACTION

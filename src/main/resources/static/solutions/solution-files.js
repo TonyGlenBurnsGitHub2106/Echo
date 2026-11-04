@@ -58,6 +58,9 @@
                       conf: 1, java: 1, js: 1, ts: 1, css: 1, ps1: 1, bat: 1, cmd: 1, sh: 1, py: 1, cs: 1, groovy: 1, gradle: 1,
                       kt: 1, edi: 1, x12: 1, '835': 1, '837': 1 };
     var IMAGE_EXT = { png: 1, jpg: 1, jpeg: 1, gif: 1, webp: 1, bmp: 1, svg: 1 };
+    // Story 5653 / 5695 (Echo): Echo's Reader predates Leonardo's 2026-10-29 change that made it safe for
+    // an agent's Markdown and web pages, so Echo keeps the narrower rule -- never take READER_KIND from a
+    // merge until that Reader change comes across too.
     // The Leonardo Reader is offered only where its own renderer cannot be steered by the file's
     // content: PDFs, pictures and plain text. Markdown and web pages -- which an outside agent can
     // upload to a shared solution -- are read with View, drawn the safe way.
@@ -1062,6 +1065,7 @@
         body.className = 'sl-fileview-body' + (kind === 'image' ? ' image' : kind === 'html' ? ' frame' : '');
         body.innerHTML = '<div class="sl-empty">Opening&hellip;</div>';
         SL.open('fileViewOverlay');
+        window.SolutionLinks.mount($('fvLinks'), 'file', id, f.title);
 
         var blob = await fetchBlob(id);
         if (!current()) return false;
@@ -1074,6 +1078,7 @@
         mViewId = 0;
         SL.close('fileViewOverlay');
         $('fvBody').innerHTML = '';
+        $('fvLinks').innerHTML = '';
         releaseView();
     }
 

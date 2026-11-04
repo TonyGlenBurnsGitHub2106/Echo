@@ -43,6 +43,7 @@ Date        Developer    Description
                          column tags, columns, axis values and axes.
 2026-10-26  Felix        Story 5653 (Echo): no record links, notes or Leonardo Files here; unlinks the solution's web addresses (deleting any no other record uses) and logins.
 
+11/02/2026  Felix        Solution links: a solution's links, topics and visits go too.
 */
 
 SET NOCOUNT ON
@@ -102,6 +103,9 @@ BEGIN TRY
     DELETE av FROM dbo.SolutionConfigGridAxisValue av
     JOIN   dbo.SolutionConfigGridAxis ax ON ax.SolutionConfigGridAxisID = av.SolutionConfigGridAxisID WHERE ax.SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionConfigGridAxis     WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionLink        WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionTopic       WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionMemberVisit WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionNote WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionLog      WHERE SolutionID = @prmSolutionID
     DELETE fl FROM dbo.SolutionFileFiling fl

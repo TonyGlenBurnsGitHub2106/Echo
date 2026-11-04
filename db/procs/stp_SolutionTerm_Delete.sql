@@ -23,6 +23,7 @@ Date        Developer    Description
                          and categories stay (they belong to the solution). Every row removed lands in its _LOG
                          twin. Returns RowsAffected.
 
+11/02/2026  Felix        Solution links: the term's links go too (SolutionLink).
 */
 
 SET NOCOUNT ON
@@ -33,6 +34,7 @@ DECLARE @rows INT = 0
 BEGIN TRY
     BEGIN TRANSACTION
     DELETE FROM dbo.SolutionTermCategoryXRef WHERE SolutionTermID = @prmSolutionTermID
+    DELETE FROM dbo.SolutionLink WHERE (FromKind = 'term' AND FromID = @prmSolutionTermID) OR (ToKind = 'term' AND ToID = @prmSolutionTermID)
     DELETE FROM dbo.SolutionTerm WHERE SolutionTermID = @prmSolutionTermID
     SET @rows = @@ROWCOUNT
     COMMIT TRANSACTION

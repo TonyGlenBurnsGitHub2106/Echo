@@ -135,6 +135,7 @@
                 : '<div class="text sl-md" data-testid="log-entry-text">' + SL.md(e.text, e.truncated) + '</div>') +
             '<div class="foot">' +
                 (e.truncated ? '<button type="button" class="sl-btn small" data-full="' + e.id + '" data-testid="log-full-btn">Show all of it</button>' : '') +
+                '<button type="button" class="sl-btn small" data-links="' + e.id + '" data-testid="log-links-btn">Links</button>' +
                 '<button type="button" class="sl-btn small" data-promote="' + e.id + '" data-testid="log-promote-btn">Make a runbook step</button>' +
                 '<button type="button" class="sl-btn small" data-correct="' + e.id + '" data-testid="log-correct-btn">Correct</button>' +
                 '<button type="button" class="sl-btn small danger" data-remove="' + e.id + '" data-testid="log-delete-btn">Delete</button>' +
@@ -160,9 +161,17 @@
             });
         });
         each('[data-full]',    function (b) { b.addEventListener('click', function () { showFull(+b.getAttribute('data-full')); }); });
+        each('[data-links]',   function (b) { b.addEventListener('click', function () { openLinks(+b.getAttribute('data-links')); }); });
         each('[data-promote]', function (b) { b.addEventListener('click', function () { openPromote(+b.getAttribute('data-promote')); }); });
         each('[data-correct]', function (b) { b.addEventListener('click', function () { openCorrect(+b.getAttribute('data-correct')); }); });
         each('[data-remove]',  function (b) { b.addEventListener('click', function () { remove(+b.getAttribute('data-remove')); }); });
+    }
+
+    /** A log entry has no View of its own, so its links open in the small Links sheet (2026-11-02). */
+    function openLinks(id) {
+        var e = mEntries.filter(function (x) { return x.id === id; })[0];
+        if (!e) return;
+        window.SolutionLinks.openSheet('log', id, '#' + e.sequenceNumber + ' ' + SL.plain(e.text, 120));
     }
 
     // ---- append, correct, delete -------------------------------------------------------

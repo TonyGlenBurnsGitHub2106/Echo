@@ -5417,3 +5417,110 @@ END
 
 GO
 -- ==== FOREIGN KEYS (Reader) ====
+
+-- ==== LINKS, TOPICS, SINCE YOU WERE LAST HERE (Leonardo 2026-11-02, carried to Echo by Story 5695) ====
+-- Leonardo's SQL Schema\Schema_SolutionLink.sql, verbatim from its first SET line: idempotent, net-new only.
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+-- ============ SolutionTopic ============
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionTopic')
+BEGIN
+    CREATE TABLE dbo.SolutionTopic (
+        SolutionTopicID   INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionTopic PRIMARY KEY CLUSTERED,
+        SolutionID        INT            NOT NULL,
+        TopicName         NVARCHAR(200)  NOT NULL,
+        NormalizedName    NVARCHAR(200)  NOT NULL,   -- lower case, spaces collapsed: the duplicate key
+        TopicSummary      NVARCHAR(MAX)  NULL,       -- where it stands now
+        AuthorMemberID    INT            NULL,
+        ModifiedBy        VARCHAR(20)    NULL,       -- member code, like the item and note tables
+        CreatedDate       DATETIME       NOT NULL CONSTRAINT DF_SolutionTopic_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate      DATETIME       NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionTopic_Name' AND object_id = OBJECT_ID('dbo.SolutionTopic'))
+    CREATE UNIQUE INDEX UX_SolutionTopic_Name ON dbo.SolutionTopic (SolutionID, NormalizedName);
+GO
+
+-- ============ SolutionLink ============
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionLink')
+BEGIN
+    CREATE TABLE dbo.SolutionLink (
+        SolutionLinkID    INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionLink PRIMARY KEY CLUSTERED,
+        SolutionID        INT          NOT NULL,
+        FromKind          VARCHAR(10)  NOT NULL,     -- item | note | log | file | term | topic
+        FromID            INT          NOT NULL,
+        ToKind            VARCHAR(10)  NOT NULL,
+        ToID              INT          NOT NULL,
+        CreatedByMemberID INT          NULL,
+        CreatedDate       DATETIME     NOT NULL CONSTRAINT DF_SolutionLink_CreatedDate DEFAULT (GETDATE()),
+        CONSTRAINT CK_SolutionLink_FromKind CHECK (FromKind IN ('item', 'note', 'log', 'file', 'term', 'topic')),
+        CONSTRAINT CK_SolutionLink_ToKind   CHECK (ToKind   IN ('item', 'note', 'log', 'file', 'term', 'topic'))
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionLink_Pair' AND object_id = OBJECT_ID('dbo.SolutionLink'))
+    CREATE UNIQUE INDEX UX_SolutionLink_Pair ON dbo.SolutionLink (SolutionID, FromKind, FromID, ToKind, ToID);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionLink_To' AND object_id = OBJECT_ID('dbo.SolutionLink'))
+    CREATE INDEX IX_SolutionLink_To ON dbo.SolutionLink (SolutionID, ToKind, ToID);
+GO
+
+-- ============ SolutionMemberVisit ============
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionMemberVisit')
+BEGIN
+    CREATE TABLE dbo.SolutionMemberVisit (
+        SolutionMemberVisitID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionMemberVisit PRIMARY KEY CLUSTERED,
+        SolutionID            INT      NOT NULL,
+        SolutionMemberID      INT      NOT NULL,
+        LastSeenDate          DATETIME NOT NULL,     -- the latest moment this member had the solution open
+        PreviousSeenDate      DATETIME NULL,         -- the end of the visit before this one: "since" starts here
+        CreatedDate           DATETIME NOT NULL CONSTRAINT DF_SolutionMemberVisit_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate          DATETIME NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionMemberVisit_Member' AND object_id = OBJECT_ID('dbo.SolutionMemberVisit'))
+    CREATE UNIQUE INDEX UX_SolutionMemberVisit_Member ON dbo.SolutionMemberVisit (SolutionID, SolutionMemberID);
+GO
+
+-- ============ _LOG twins ============
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionTopic_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionTopic_LOG (
+        SolutionTopic_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionTopic_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionTopic_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionTopic_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionTopicID INT NULL, SolutionID INT NULL, TopicName NVARCHAR(200) NULL, NormalizedName NVARCHAR(200) NULL,
+        TopicSummary NVARCHAR(MAX) NULL, AuthorMemberID INT NULL, ModifiedBy VARCHAR(20) NULL,
+        CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionLink_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionLink_LOG (
+        SolutionLink_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionLink_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionLink_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionLink_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionLinkID INT NULL, SolutionID INT NULL, FromKind VARCHAR(10) NULL, FromID INT NULL,
+        ToKind VARCHAR(10) NULL, ToID INT NULL, CreatedByMemberID INT NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionMemberVisit_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionMemberVisit_LOG (
+        SolutionMemberVisit_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionMemberVisit_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionMemberVisit_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionMemberVisit_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionMemberVisitID INT NULL, SolutionID INT NULL, SolutionMemberID INT NULL,
+        LastSeenDate DATETIME NULL, PreviousSeenDate DATETIME NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO

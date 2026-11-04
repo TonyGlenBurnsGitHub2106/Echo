@@ -23,6 +23,7 @@ Date        Developer    Description
                          of them are HISTORY and are kept, with the pointer cleared. One transaction. Returns
                          RowsAffected -- how many items went, the item itself included.
 
+11/02/2026  Felix        Solution links: the links of every item removed go too (SolutionLink).
 */
 
 SET NOCOUNT ON
@@ -39,6 +40,8 @@ BEGIN TRY
     BEGIN TRANSACTION
     UPDATE dbo.SolutionLog  SET SolutionProjectItemID = NULL WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
     UPDATE dbo.SolutionFile SET SolutionProjectItemID = NULL WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
+    DELETE FROM dbo.SolutionLink WHERE (FromKind = 'item' AND FromID IN (SELECT ItemID FROM @subtree))
+                                OR (ToKind   = 'item' AND ToID   IN (SELECT ItemID FROM @subtree))
     DELETE FROM dbo.SolutionProjectItem WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
     SET @rows = @@ROWCOUNT
     COMMIT TRANSACTION

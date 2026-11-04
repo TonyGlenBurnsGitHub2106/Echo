@@ -12,6 +12,7 @@
     //   ?item=<ItemID>        resolves its own solution, opens Items, flashes the row
     //   ?note=<NoteID>        resolves its own solution, opens that note (?doc= is still read: older links)
     //   ?term=<TermID>        resolves its own solution, opens the Terms tab and shows that term
+    //   ?topic=<TopicID>      resolves its own solution, opens the Topics tab and shows that topic (2026-11-02)
     //   ?testPlan=<PlanID>    resolves its own solution, opens the Testing tab (or QA, for a QA checklist) on it
     //   ?configProperty=<ID>  resolves its own solution, opens Configuration and flashes that property (Story 3516)
     //   ?gridProperty=<ID>    the same for Configuration II (Story 5611)
@@ -130,19 +131,20 @@
         Array.prototype.forEach.call(document.querySelectorAll('.sl-tab'), function (t) {
             t.classList.toggle('active', t.getAttribute('data-tab') === name);
         });
-        ['overview', 'items', 'log', 'notes', 'terms', 'tests', 'qa', 'config', 'grid', 'files', 'conversations', 'web', 'search'].forEach(function (n) {
+        ['overview', 'items', 'log', 'notes', 'topics', 'terms', 'tests', 'qa', 'config', 'grid', 'files', 'conversations', 'web', 'search'].forEach(function (n) {
             $('pane-' + n).hidden = n !== name;
             // The Web tab (the shared record Web tab) carries its own tool row, so it has no toolbar here.
             if ($('toolbar-' + n)) $('toolbar-' + n).hidden = n !== name;
         });
         try { sessionStorage.setItem('sl.tab.' + Page.id, name); } catch (e) { /* private mode */ }
-        if (name === 'overview') drawOverview();
+        if (name === 'overview') drawOverview(true);
         else Page.tabs[name].show();
     };
 
     // ---- overview -------------------------------------------------------------
 
-    function drawOverview() {
+    /** refresh = true when the tab was just shown: the bands read their tabs again (Story 5667). */
+    function drawOverview(refresh) {
         var s = Page.solution;
         // The summary card folds to one line (status and percent closed) so the projects get the
         // room; the choice is remembered with the other folds for this solution.
@@ -174,13 +176,31 @@
             ? '<div class="sl-cards' + (mRows ? ' rows' : '') + '" id="projectCards" data-testid="project-cards">' + shown.map(projectCard).join('') + '</div>'
             : '<div class="sl-empty">' + (Page.projects.length ? 'Every project is closed. Untick Open only to see them.' : 'No projects yet. A project is one workstream of the solution.') + '</div>';
 
-        $('pane-overview').innerHTML = hero +
-            '<div class="sl-section-title">Projects</div>' + projects +
-            '<div class="sl-section-title">Who can reach this from outside</div><div id="clientLine" class="sl-muted" data-testid="solution-clients">Checking&hellip;</div>';
+        // Under the summary, every tab is a band, the way a record's Overview in Entity IV shows its
+        // sections (Story 5667). Projects and sharing are drawn here; solution-overview.js draws the rest.
+        $('pane-overview').innerHTML = hero + '<div class="sl-ov" id="ovBands" data-testid="overview-bands"></div>';
 
         function flipHero() { Page.fold().toggle('hero', false); drawOverview(); }
         $('heroFold').addEventListener('click', flipHero);
         $('heroFold').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipHero(); } });
+
+        var openProjects = Page.projects.filter(function (p) { return !p.closed; }).length;
+        mOvFixed = {
+            projects: { html: projects, count: Page.projects.length + (Page.projects.length === 1 ? ' project' : ' projects') +
+                        (Page.projects.length ? ' | ' + openProjects + ' open' : '') },
+            sharing:  { html: '<div id="clientLine" class="sl-muted" data-testid="solution-clients">Checking&hellip;</div>' },
+            after: wireOverviewParts
+        };
+        window.SolutionOverview.draw($('ovBands'), mOvFixed, refresh === true);
+        $('btnProjView').textContent = mRows ? 'Cards' : 'Rows';
+        SL.status(Page.projects.length + (Page.projects.length === 1 ? ' project' : ' projects') + ' | ' +
+            s.itemCount + ' items | ' + s.logCount + ' log entries | ' + s.noteCount + ' notes');
+    }
+
+    var mOvFixed = null;
+
+    /** Wires the project rows / cards and the sharing line; called every time the bands are painted. */
+    function wireOverviewParts() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-project-open]'), function (b) {
             b.addEventListener('click', function () { Page.tabs.items.openProject(+b.getAttribute('data-project-open')); });
         });
@@ -202,10 +222,7 @@
         Array.prototype.forEach.call(document.querySelectorAll('[data-proj-grip]'), function (g) {
             Page.wireProjectGrip(g, '[data-project-card]', 'data-project-card', drawOverview);
         });
-        $('btnProjView').textContent = mRows ? 'Cards' : 'Rows';
         drawClients();
-        SL.status(Page.projects.length + (Page.projects.length === 1 ? ' project' : ' projects') + ' | ' +
-            s.itemCount + ' items | ' + s.logCount + ' log entries | ' + s.noteCount + ' notes');
     }
 
     /** A project card. Its title folds it; folded, it is one line. The grip at its left reorders it. */
@@ -278,7 +295,11 @@
             // the rest of the gesture is lost.
             card.classList.add('dragging');
             function order() {
-                return Array.prototype.map.call(host.querySelectorAll(cardSelector), function (c) { return +c.getAttribute(idAttr); });
+                // Ids are numbers; the Overview's bands are keyed by name ('items', 'log' ...), kept as text.
+                return Array.prototype.map.call(host.querySelectorAll(cardSelector), function (c) {
+                    var v = c.getAttribute(idAttr);
+                    return /^\d+$/.test(v) ? +v : v;
+                });
             }
             var before = order().join(',');
 
@@ -339,11 +360,11 @@
     async function drawClients() {
         var r = await SL.get('/api/solutions/' + Page.id + '/shares');
         var line = $('clientLine');
-        if (!line) return;
-        if (!r || !r.ok || !Array.isArray(r.data)) { line.textContent = window.LWAuth.errorText(r, 'Could not check.'); return; }
+        if (!r || !r.ok || !Array.isArray(r.data)) { if (line) line.textContent = window.LWAuth.errorText(r, 'Could not check.'); return; }
         var shared = r.data.filter(function (c) { return c.shared; });
         mSharedIds = shared.map(function (c) { return c.apiClientId; });
         $('btnBrief').hidden = !shared.length;
+        if (!line) return;               // its band is folded; the Brief button still knows who it is shared with
         if (!shared.length) { line.textContent = 'Nobody. This solution is visible only inside Echo.'; return; }
         // One line per client it is shared with, each with the Brief to hand that client.
         line.innerHTML = shared.map(function (c) {
@@ -574,6 +595,7 @@
             drawOverview();
         });
         $('btnBrief').addEventListener('click', briefFromBand);
+        $('btnOvFoldAll').addEventListener('click', function () { if (mOvFixed) window.SolutionOverview.foldAll($('ovBands'), mOvFixed); });
         slimHeader();
         $('sbCopyKey').addEventListener('click', function () { copyBrief(true); });
         $('sbCopyPlain').addEventListener('click', function () { copyBrief(false); });
@@ -594,7 +616,7 @@
             if (Page.active === 'items') { Page.printReport(+$('fItemProject').value || 0); return; }
             // The Testing tab prints its checklist as a clean table (ticks are buttons, which the page print strips).
             if (Page.tabs[Page.active] && Page.tabs[Page.active].print) { Page.tabs[Page.active].print(); return; }
-            var names = { overview: 'Overview', items: 'Items', log: 'Log', notes: 'Notes', terms: 'Terms', tests: 'Testing', qa: 'QA', config: 'Configuration', grid: 'Configuration II', files: 'Files', conversations: 'Conversations', web: 'Web', search: 'Search' };
+            var names = { overview: 'Overview', items: 'Items', log: 'Log', notes: 'Notes', topics: 'Topics', terms: 'Terms', tests: 'Testing', qa: 'QA', config: 'Configuration', grid: 'Configuration II', files: 'Files', conversations: 'Conversations', web: 'Web', search: 'Search' };
             window.Picasso.printThisPage({
                 selector: '#pane-' + Page.active,
                 title: (Page.solution ? Page.solution.name : 'Solution') + ' - ' + names[Page.active],
@@ -607,7 +629,7 @@
     async function resolveDeepLink() {
         var id = +SL.param('id') || 0, item = +SL.param('item') || 0, note = +SL.param('note') || +SL.param('doc') || 0, testPlan = +SL.param('testPlan') || 0,
             configProperty = +SL.param('configProperty') || 0, term = +SL.param('term') || 0, gridProperty = +SL.param('gridProperty') || 0,
-            file = +SL.param('file') || 0;
+            file = +SL.param('file') || 0, topic = +SL.param('topic') || 0;
         if (!id && item) {
             var ri = await SL.get('/api/solutions/items/' + item + '/locate');
             if (ri && ri.ok) id = ri.data.solutionId;
@@ -638,7 +660,11 @@
             var rf = await SL.get('/api/solutions/files/' + file);
             if (rf && rf.ok) id = rf.data.solutionId;
         }
-        return { id: id, item: item, note: note, term: term, file: file, testPlan: testPlan, testPlanTab: testPlanTab, configProperty: configProperty, gridProperty: gridProperty, conv: +SL.param('conv') || 0, tab: SL.param('tab') };
+        if (!id && topic) {
+            var rp = await SL.get('/api/solutions/topics/' + topic + '/locate');
+            if (rp && rp.ok) id = rp.data.solutionId;
+        }
+        return { id: id, item: item, note: note, term: term, file: file, topic: topic, testPlan: testPlan, testPlanTab: testPlanTab, configProperty: configProperty, gridProperty: gridProperty, conv: +SL.param('conv') || 0, tab: SL.param('tab') };
     }
 
     (async function () {
@@ -660,12 +686,14 @@
             return;
         }
         Object.keys(Page.tabs).forEach(function (n) { if (Page.tabs[n].init) Page.tabs[n].init(); });
+        if (window.SolutionOverview) window.SolutionOverview.visit();   // Since you were last here (2026-11-02)
 
         var remembered = '';
         try { remembered = sessionStorage.getItem('sl.tab.' + Page.id) || ''; } catch (e) { /* private mode */ }
         if (link.item)      { Page.go('items'); Page.tabs.items.flash(link.item); }
         else if (link.note) { Page.go('notes'); Page.tabs.notes.openNote(link.note); }
         else if (link.term) { Page.go('terms'); Page.tabs.terms.openTerm(link.term); }
+        else if (link.topic) { Page.go('topics'); Page.tabs.topics.openTopic(link.topic); }
         else if (link.file) { Page.go('files'); Page.tabs.files.openFile(link.file); }
         else if (link.testPlan) { Page.tabs[link.testPlanTab].choosePlan(link.testPlan); Page.go(link.testPlanTab); }
         else if (link.configProperty) { Page.tabs.config.flash(link.configProperty); Page.go('config'); }

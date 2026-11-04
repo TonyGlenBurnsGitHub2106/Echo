@@ -368,6 +368,7 @@
         $('termViewAnother').hidden = !mSurprise;
         drawViewStar();
         SL.open('termViewOverlay');
+        window.SolutionLinks.mount($('termViewLinks'), 'term', t.id, t.term);
     }
 
     function drawViewStar() {

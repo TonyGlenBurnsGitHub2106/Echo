@@ -274,6 +274,7 @@
         }).join('') : '';
         SL.open('itemViewOverlay');
         $('itemViewScroll').scrollTop = 0;
+        window.SolutionLinks.mount($('itemViewLinks'), 'item', i.id, i.title);
     }
 
     function closeItemView() { SL.close('itemViewOverlay'); mViewItemId = 0; }

@@ -262,11 +262,13 @@
             '<div id="noteMoreBar" hidden><button type="button" class="sl-link" id="noteMoreBtn" data-testid="notes-body-more">More</button></div>' +
             (steps || d.typeCode === 'runbook'
                 ? '<div class="sl-section-title">Steps</div>' + (steps || '<div class="sl-empty" style="padding:16px">No steps yet. Add one, or turn a log entry into one from the Log tab.</div>')
-                : '');
+                : '') +
+            '<div id="noteLinks" data-testid="notes-links"></div>';
         // The body may have been written by an outside agent: never innerHTML it. See SL.safeMarkdown.
         if (d.body) SL.renderMarkdown($('noteBody'), d.body);
         clipBody();
         bindSteps();
+        window.SolutionLinks.mount($('noteLinks'), 'note', d.id, d.title);
         SL.status(d.title + ' | version ' + d.currentVersionNumber + ' | ' + (d.steps || []).length + ' steps');
     }
 
@@ -383,6 +385,7 @@
         }).join('') : '';
         SL.open('noteViewOverlay');
         $('noteViewScroll').scrollTop = 0;
+        window.SolutionLinks.mount($('noteViewLinks'), 'note', d.id, d.title);
     }
 
     function closeView() { SL.close('noteViewOverlay'); mViewNote = null; }

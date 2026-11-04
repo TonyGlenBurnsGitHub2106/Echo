@@ -25,11 +25,13 @@ Date        Developer    Description
 
 09/22/2026  Felix        Solutions documents are now NOTES (SolutionDocument* -> SolutionNote*, Tony 09/22/2026).
 
+11/02/2026  Felix        Solution links: the entry's links go too (SolutionLink).
 */
 
 SET NOCOUNT ON
 
 UPDATE dbo.SolutionNoteStep SET SourceSolutionLogID = NULL WHERE SourceSolutionLogID = @prmSolutionLogID
+DELETE FROM dbo.SolutionLink WHERE (FromKind = 'log' AND FromID = @prmSolutionLogID) OR (ToKind = 'log' AND ToID = @prmSolutionLogID)
 DELETE FROM dbo.SolutionLog WHERE SolutionLogID = @prmSolutionLogID
 SELECT @@ROWCOUNT AS RowsAffected
 

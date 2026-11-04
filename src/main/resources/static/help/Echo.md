@@ -227,9 +227,11 @@ folded, in its database, so every browser you use sees the same menu.
 ### Solutions
 
 Main menu -> Solutions -> Solutions. Everything here works as it does in LeonardoWeb, tab for tab:
-Overview, Items, Log, Notes, Terms, Testing, QA, Configuration, Configuration II, Files,
+Overview, Items, Log, Notes, Topics, Terms, Testing, QA, Configuration, Configuration II, Files,
 Conversations, Web and Search, with Arrange, folding, the item tick, View and Edit on every record,
-and the printed report. Open a PDF, a picture or a text file in the **Reader** from the Files tab
+and the printed report. Since 11/04/2026 that includes the Overview's band for every tab, **Since you
+were last here**, **Links** (tie any item, note, log entry, file, term or topic to any other, from its
+View) and the **Topics** tab. Open a PDF, a picture or a text file in the **Reader** from the Files tab
 (**Reader** on the file): reading view, search, contents, bookmarks, highlights with notes, the
 Notebook and its Print, and Listen -- and it remembers where you stopped. See *Solutions* in Leonardo's help for the full walkthrough; it describes Echo's
 Solutions too.

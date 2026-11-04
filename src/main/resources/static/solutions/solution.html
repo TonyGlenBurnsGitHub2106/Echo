@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=46">
+    <link rel="stylesheet" href="solutions.css?v=48">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -39,10 +39,11 @@
     </div>
 
     <div class="sl-tabs" id="tabBar" data-testid="solution-tabs">
-        <button type="button" class="sl-tab active" data-tab="overview"      data-testid="solution-tab-overview">Overview</button>
+        <button type="button" class="sl-tab active" data-tab="overview"      data-testid="solution-tab-overview">Overview <span class="badge" id="badgeOverview" title="Changed since you were last here" data-testid="solution-since-badge"></span></button>
         <button type="button" class="sl-tab"        data-tab="items"         data-testid="solution-tab-items">Items <span class="badge" id="badgeItems"></span></button>
         <button type="button" class="sl-tab"        data-tab="log"           data-testid="solution-tab-log">Log</button>
         <button type="button" class="sl-tab"        data-tab="notes"         data-testid="solution-tab-notes">Notes</button>
+        <button type="button" class="sl-tab"        data-tab="topics"        data-testid="solution-tab-topics">Topics</button>
         <button type="button" class="sl-tab"        data-tab="terms"         data-testid="solution-tab-terms">Terms</button>
         <button type="button" class="sl-tab"        data-tab="tests"         data-testid="solution-tab-tests">Testing</button>
         <button type="button" class="sl-tab"        data-tab="qa"            data-testid="solution-tab-qa">QA</button>
@@ -63,6 +64,7 @@
         <button type="button" class="sl-btn" id="btnProjExpand" data-testid="solution-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnProjCollapse" data-testid="solution-collapse-all">Collapse all</button>
         <button type="button" class="sl-btn" id="btnProjView" data-testid="solution-view-toggle">Cards</button>
+        <button type="button" class="sl-btn" id="btnOvFoldAll" data-testid="overview-fold-all" title="Fold every band" aria-label="Fold every band">&#9656;&#9656;</button>
         <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects" title="Arrange -- drag to reorder" data-testid="solution-arrange-btn">&#8645;</button>
         <label class="check"><input type="checkbox" id="fProjOpen" data-testid="solution-open-only"> Open only</label>
         <span class="spacer"></span>
@@ -112,6 +114,18 @@
         <button type="button" class="sl-btn" id="btnNoteVersions" hidden data-testid="notes-versions-btn">Versions</button>
         <button type="button" class="sl-btn" id="btnNoteAddStep" hidden data-testid="notes-add-step-btn">+ Step</button>
         <button type="button" class="sl-btn danger" id="btnNoteDelete" hidden data-testid="notes-delete-btn">Delete</button>
+    </div>
+
+    <!-- The Topics tab (2026-11-02): named subjects that gather records from across the solution
+         (solution-topics.js). Its tools roll up, like the Search tab's. -->
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-topics" hidden data-testid="solution-toolbar-topics">
+        <button type="button" class="ef-tools-toggle" id="topicToolsToggle" aria-expanded="true" title="Fold the topic tools away, or bring them back" data-testid="topics-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="topicToolsSummary">Topics</span></button>
+        <div class="ef-tools sl-tools" data-testid="topics-tools">
+            <button type="button" class="sl-btn primary" id="btnAddTopic" data-testid="topics-add-btn">+ Topic</button>
+            <div class="grow"><label for="fTopicSearch">Search</label><input type="search" id="fTopicSearch" data-testid="topics-filter-search" placeholder="Search topic names and where they stand" autocomplete="off"></div>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn" id="btnTopicsFold" hidden data-testid="topics-fold-toggle">Collapse all</button>
+        </div>
     </div>
 
     <!-- The Terms tab: this solution's glossary, shaped like the Leonardo Dictionary (solution-terms.js). -->
@@ -257,6 +271,7 @@
             <div id="pane-items"         hidden data-testid="solution-pane-items"></div>
             <div id="pane-log"           hidden data-testid="solution-pane-log"></div>
             <div id="pane-notes"         hidden data-testid="solution-pane-notes"></div>
+            <div id="pane-topics"        hidden data-testid="solution-pane-topics"></div>
             <div id="pane-terms"         hidden data-testid="solution-pane-terms"></div>
             <div id="pane-tests"         hidden data-testid="solution-pane-tests"></div>
             <div id="pane-qa"            hidden data-testid="solution-pane-qa"></div>
@@ -361,6 +376,7 @@
         <h2 id="fvTitle" data-testid="file-view-title"></h2>
         <div class="sl-muted" id="fvMeta" data-testid="file-view-meta" style="margin:-8px 0 10px"></div>
         <div class="sl-fileview-body" id="fvBody" data-testid="file-view-body"></div>
+        <div class="sl-fileview-links" id="fvLinks" data-testid="file-view-links"></div>
         <div class="foot">
             <span class="left">
                 <button type="button" class="sl-btn" id="fvDownload" data-testid="file-view-download">Download</button>
@@ -427,6 +443,7 @@
             <div class="sl-sepia-meta" id="itemViewMeta" data-testid="item-view-meta"></div>
             <div class="sl-sepia-body" id="itemViewBody" data-testid="item-view-body"></div>
             <div id="itemViewSubs" data-testid="item-view-subs"></div>
+            <div id="itemViewLinks" data-testid="item-view-links"></div>
         </div>
         <div class="foot">
             <button type="button" class="sl-btn" id="itemViewCopy" data-testid="item-view-copy">Copy</button>
@@ -500,10 +517,69 @@
             <div class="sl-sepia-meta" id="noteViewMeta" data-testid="note-view-meta"></div>
             <div class="sl-sepia-body" id="noteViewBody" data-testid="note-view-body"></div>
             <div id="noteViewSteps" data-testid="note-view-steps"></div>
+            <div id="noteViewLinks" data-testid="note-view-links"></div>
         </div>
         <div class="foot">
             <button type="button" class="sl-btn" id="noteViewEdit" data-testid="note-view-edit">Edit</button>
             <button type="button" class="sl-btn primary" id="noteViewClose" data-testid="note-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Topics tab: add / edit one topic -->
+<div class="sl-overlay" id="topicOverlay" data-testid="topic-overlay">
+    <div class="sl-modal" style="width:min(640px,100%)">
+        <h2 id="topicTitleBar">New topic</h2>
+        <div class="warn" id="topicWarn" data-testid="topic-warn"></div>
+        <div class="fld"><label for="tpName">Name</label><input type="text" id="tpName" data-testid="topic-name" placeholder="The subject, e.g. Charset" autocomplete="off" maxlength="200"></div>
+        <div class="fld"><label for="tpSummary">Where it stands</label><textarea id="tpSummary" data-testid="topic-summary" placeholder="The current answer, in a line or a paragraph (optional)"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="topicCancel" data-testid="topic-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="topicSave" data-testid="topic-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Topics tab: read one topic -- where it stands, then every record linked to it (sepia, like every View) -->
+<div class="sl-overlay" id="topicViewOverlay" data-testid="topic-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="topicViewTitle">
+        <div class="sl-sepia-scroll" id="topicViewScroll" data-testid="topic-view-scroll">
+            <h2 id="topicViewTitle" data-testid="topic-view-title"></h2>
+            <div class="sl-sepia-meta" id="topicViewMeta" data-testid="topic-view-meta"></div>
+            <div class="sl-sepia-body" id="topicViewBody" data-testid="topic-view-body"></div>
+            <div id="topicViewLinks" data-testid="topic-view-links"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn danger" id="topicViewDelete" data-testid="topic-view-delete">Delete</button>
+            <button type="button" class="sl-btn" id="topicViewEdit" data-testid="topic-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="topicViewClose" data-testid="topic-view-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Link picker (solution-links.js): find a record of this solution, or name a new topic -->
+<div class="sl-overlay sl-overlay-top" id="linkOverlay" data-testid="link-overlay">
+    <div class="sl-modal" style="width:min(560px,100%)">
+        <h2>Link to</h2>
+        <div class="sl-muted" id="linkPickFor" data-testid="link-pick-for" style="margin:-8px 0 8px"></div>
+        <div class="warn" id="linkPickWarn" data-testid="link-pick-warn"></div>
+        <div class="fld"><label for="linkPickSearch">Find</label><input type="search" id="linkPickSearch" data-testid="link-pick-search" placeholder="A few words of an item, note, log entry, file, term or topic" autocomplete="off"></div>
+        <div class="sl-pick-list" id="linkPickList" data-testid="link-pick-list"></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="linkPickCancel" data-testid="link-pick-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Links of a record that has no View of its own (a log entry) -->
+<div class="sl-overlay" id="linksSheetOverlay" data-testid="links-sheet-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="linksSheetTitle">
+        <div class="sl-sepia-scroll" data-testid="links-sheet-scroll">
+            <h2 id="linksSheetTitle" data-testid="links-sheet-title"></h2>
+            <div id="linksSheetBody" data-testid="links-sheet-body"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn primary" id="linksSheetClose" data-testid="links-sheet-close">Close</button>
         </div>
     </div>
 </div>
@@ -535,6 +611,7 @@
             <div class="sl-sepia-meta" id="termViewMeta" data-testid="term-view-meta"></div>
             <div class="sl-sepia-body" id="termViewBody" data-testid="term-view-body"></div>
             <div id="termViewNotes" data-testid="term-view-notes"></div>
+            <div id="termViewLinks" data-testid="term-view-links"></div>
         </div>
         <div class="foot">
             <button type="button" class="sl-btn" id="termViewStar" data-testid="term-view-star">Favorite</button>
@@ -845,13 +922,16 @@
 <script src="/picasso-view-state.js?v=4"></script>
 <script src="/picasso-tags.js?v=5"></script>
 <script src="solutions-common.js?v=13"></script>
-<script src="solution.js?v=37"></script>
-<script src="solution-items.js?v=21"></script>
-<script src="solution-log.js?v=9"></script>
-<script src="solution-notes.js?v=21"></script>
-<script src="solution-terms.js?v=1"></script>
+<script src="solution.js?v=38"></script>
+<script src="solution-overview.js?v=3"></script>
+<script src="solution-items.js?v=22"></script>
+<script src="solution-log.js?v=10"></script>
+<script src="solution-notes.js?v=22"></script>
+<script src="solution-terms.js?v=2"></script>
+<script src="solution-links.js?v=3"></script>
+<script src="solution-topics.js?v=2"></script>
 <script src="solution-conv.js?v=8"></script>
-<script src="solution-files.js?v=20"></script>
+<script src="solution-files.js?v=22"></script>
 <script src="solution-tests.js?v=15"></script>
 <script src="solution-config.js?v=9"></script>
 <script src="solution-config-grid.js?v=3"></script>

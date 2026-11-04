@@ -25,6 +25,7 @@ Date        Developer    Description
 
 09/22/2026  Felix        Solutions documents are now NOTES (SolutionDocument* -> SolutionNote*, Tony 09/22/2026).
 
+11/02/2026  Felix        Solution links: the links of every item removed go too (SolutionLink).
 */
 
 SET NOCOUNT ON
@@ -44,6 +45,10 @@ BEGIN TRY
     WHERE  i.SolutionProjectID = @prmSolutionProjectID
     UPDATE dbo.SolutionLog      SET SolutionProjectID = NULL WHERE SolutionProjectID = @prmSolutionProjectID
     UPDATE dbo.SolutionNote SET SolutionProjectID = NULL WHERE SolutionProjectID = @prmSolutionProjectID
+    DELETE k FROM dbo.SolutionLink k
+    JOIN   dbo.SolutionProjectItem i
+           ON (k.FromKind = 'item' AND k.FromID = i.SolutionProjectItemID) OR (k.ToKind = 'item' AND k.ToID = i.SolutionProjectItemID)
+    WHERE  i.SolutionProjectID = @prmSolutionProjectID
     DELETE FROM dbo.SolutionProjectItem WHERE SolutionProjectID = @prmSolutionProjectID
     DELETE FROM dbo.SolutionProject     WHERE SolutionProjectID = @prmSolutionProjectID
     SET @rows = @@ROWCOUNT

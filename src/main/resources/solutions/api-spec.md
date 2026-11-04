@@ -17,6 +17,12 @@ working session; it is always current.
 > it uses, each with a definition. See *Terms* in section 4. Its types and categories belong to the
 > solution alone. Nothing else changed.
 
+> **Added 2026-11-02 -- Links, Topics, and Since you were last here.** Any two records of a solution
+> (item, note, log entry, file, term, topic) can now be LINKED, and a link shows from both ends. A
+> TOPIC is a named subject ("Charset") that records join by being linked to it. And `POST .../visit`
+> tells you what others changed since your last session. See *Links and topics* and *Since you were
+> last here* in section 4. Nothing else changed.
+
 ## 1. Connecting
 
 - Base URL: `{{BASE_URL}}`
@@ -176,6 +182,48 @@ with 409 and a sentence saying which term it already has.
 | `PUT /api/solutions/{id}/terms/types/{typeId}` | `{name}` -- rename a type (`/categories/{categoryId}` for a category). Refused if the solution already has one by that name. Answers with the new lookups. |
 | `DELETE /api/solutions/{id}/terms/types/{typeId}` | its terms are left with no type (`/categories/{categoryId}`: the category is taken off its terms). No term is removed. Answers with the new lookups. |
 
+### Links and topics
+
+A LINK joins two records of one solution. A record is named by its `kind` and its id: `item`,
+`note`, `log` (a log entry), `file`, `term` or `topic`. A link has no direction, so once item 42 is
+linked to note 7, item 42's links show note 7 AND note 7's links show item 42 -- a record's links are
+also its backlinks. Link instead of writing "see item X" or "file 211" into a text: a link survives
+a rename and opens the record in one tap.
+
+A TOPIC is a named subject inside the solution ("Charset", "Remit dupe") with a `summary` -- where
+it stands now, the current answer. A record joins a topic by being linked to it (`toKind: "topic"`),
+so a topic's records are simply its links. Use a topic when one subject runs across many projects,
+items, log entries and notes; keep its `summary` current when the answer changes.
+
+Both ends must be in the solution; a record never links to itself; a pair already linked (either way
+round) is refused with 409. A topic name is used once per solution (case and repeated spaces ignored).
+Deleting a record takes its links with it; deleting a topic takes its links, never the records.
+
+| Call | Note |
+|---|---|
+| `GET /api/solutions/{id}/links?kind=item&recordId=42` | `{kind, id, links, offset, pageSize, total}`. Each link is the OTHER end: `{linkId, kind, id, title, sub, recordDate, closed, linkedDate, linkedByCode, linkedByName}`. Topics first, then newest first. Optional `offset`, `pageSize` (default 50). `title` of a log entry reads `#<sequenceNumber> <its first words>`. |
+| `POST /api/solutions/{id}/links` | `{fromKind, fromId, toKind, toId}` -- all four required. Answers with the FROM record's links (as the GET above). |
+| `DELETE /api/solutions/{id}/links/{linkId}` | takes the link away; neither record is touched |
+| `GET /api/solutions/{id}/link-targets?q=charset` | records of the solution whose title holds the words, best first (a title starting with them, then topics, then newest), at most 30 (`pageSize` up to 100). Add `kind` and `recordId` of the record you are linking FROM: it is left out, and `alreadyLinked: true` marks what it is already joined to. Each row `{kind, id, title, sub, recordDate, closed, alreadyLinked}`. |
+| `GET /api/solutions/{id}/topics` | one page by name, `{topics, counts, offset, pageSize, total}`. Optional `search` (name and summary), `offset`, `pageSize`. Each topic `{id, solutionId, name, summary, truncated, memberCount, latestDate, authorCode, modifiedBy, createdDate, modifiedDate}`; `summary` is a 600-character preview (`truncated: true` when there is more). |
+| `GET /api/solutions/topics/{topicId}` | the whole topic. Its records: `GET /api/solutions/{id}/links?kind=topic&recordId={topicId}` |
+| `POST /api/solutions/{id}/topics` | `{name, summary}` -- `name` required |
+| `PUT /api/solutions/topics/{topicId}` | same fields. A merge: a field you leave out is kept; `"summary":""` clears it. |
+| `DELETE /api/solutions/topics/{topicId}` | the topic and its links; the records stay |
+
+### Since you were last here
+
+What OTHER people and agents changed in a solution since your last session -- items, log entries,
+notes, files, conversation messages, terms and topics -- newest first. Your own changes are left out.
+A session counts as new when your last call to `visit` was more than an hour before; within the hour
+the same "since" holds. On your first visit ever, "since" is a week back (`firstVisit: true`).
+
+| Call | Note |
+|---|---|
+| `POST /api/solutions/{id}/visit` | call it at the START of a working session. Counts the visit and answers `{since, firstVisit, changes, counts, offset, pageSize, total}`. Each change `{kind, id, title, sub, action, who, whoName, changedDate}`; `kind` is `item`, `log`, `note`, `file`, `message` (then `id` is the conversation), `term` or `topic`; `action` is `added`, `changed`, `wrote` or `corrected`. `counts`: `total` and `kind:<kind>`. |
+| `GET /api/solutions/{id}/since` | the same answer without counting a visit. Page with `offset`, `pageSize` (default 50). |
+| `POST /api/solutions/{id}/caught-up` | you have read it all: "since" starts now |
+
 ### Deleting
 
 | Call | Note |
@@ -193,7 +241,7 @@ Attach a file to the solution, optionally to one item. Upload is `multipart/form
 | Call | Note |
 |---|---|
 | `GET /api/solutions/{id}/files` | optional `?itemId=` |
-| `POST /api/solutions/{id}/files` | multipart fields: `file` (required), `title`, `notes`, `itemId`. At most 50 MB. |
+| `POST /api/solutions/{id}/files` | multipart fields: `file` (required), `title`, `notes`, `itemId`. At most 50 MB. A file the solution already holds -- the same bytes, under any name -- is refused with 409 and a message naming the copy that is there; nothing is added. A file whose name ends `.leosec` (an encrypted copy) is refused with 409 too: upload the original instead. |
 | `GET /api/solutions/files/{fileId}` | the file's details |
 | `PUT /api/solutions/files/{fileId}` | JSON `{title, notes, itemId}` |
 | `GET /api/solutions/files/{fileId}/content` | the bytes, always as a download (`application/octet-stream`) |
@@ -366,6 +414,9 @@ Nothing in a solution is hidden from you. To read all of it:
 | Notes (runbooks, strategies, references) | `GET /api/solutions/{id}/notes` | `GET /api/solutions/notes/{noteId}` -- body and steps |
 | Older wordings of a note | `GET /api/solutions/notes/{noteId}/versions` | `GET .../versions/{n}` |
 | Terms (the glossary) | `GET /api/solutions/{id}/terms?groupBy=none` (page with `offset`, `pageSize`; `total` says how many) | `GET /api/solutions/terms/{termId}` -- with its notes |
+| Topics, and what is in each | `GET /api/solutions/{id}/topics` | `GET /api/solutions/{id}/links?kind=topic&recordId={topicId}` |
+| What any record is linked to | `GET /api/solutions/{id}/links?kind={kind}&recordId={id}` | |
+| What changed since your last session | `POST /api/solutions/{id}/visit` | |
 | Files | `GET /api/solutions/{id}/files` (or `?itemId=`) | `GET /api/solutions/files/{fileId}/content` -- the bytes |
 | Conversations | `GET /api/solutions/{id}/conversations` | `GET /api/solutions/conversations/{convId}/messages` |
 | Testing checklists | `GET /api/solutions/{id}/test-plans` | `GET /api/solutions/test-plans/{planId}` -- the whole grid |
@@ -436,6 +487,23 @@ curl $H -X PUT    $B/api/solutions/terms/12/favorite      -H "Content-Type: appl
 curl $H -X PUT    $B/api/solutions/1/terms/types/3        -H "Content-Type: application/json" -d '{"name":"Abbreviation"}'
 curl $H -X DELETE $B/api/solutions/1/terms/categories/5
 curl $H -X DELETE $B/api/solutions/terms/12
+
+# ---- links and topics
+curl $H           "$B/api/solutions/1/link-targets?q=charset&kind=item&recordId=42"
+curl $H -X POST   $B/api/solutions/1/links               -H "Content-Type: application/json" -d '{"fromKind":"item","fromId":42,"toKind":"note","toId":7}'
+curl $H           "$B/api/solutions/1/links?kind=item&recordId=42"
+curl $H -X DELETE $B/api/solutions/1/links/15
+curl $H -X POST   $B/api/solutions/1/topics              -H "Content-Type: application/json" -d '{"name":"Charset","summary":"Read files as UTF-8; remit and submit stay windows-1252."}'
+curl $H           $B/api/solutions/1/topics
+curl $H -X POST   $B/api/solutions/1/links               -H "Content-Type: application/json" -d '{"fromKind":"log","fromId":505,"toKind":"topic","toId":3}'
+curl $H           "$B/api/solutions/1/links?kind=topic&recordId=3"
+curl $H -X PUT    $B/api/solutions/topics/3              -H "Content-Type: application/json" -d '{"summary":"Decided 23 Oct: UTF-8 in, windows-1252 for remit and submit."}'
+curl $H -X DELETE $B/api/solutions/topics/3
+
+# ---- since you were last here
+curl $H -X POST   $B/api/solutions/1/visit
+curl $H           "$B/api/solutions/1/since?offset=50&pageSize=50"
+curl $H -X POST   $B/api/solutions/1/caught-up
 
 # ---- files (upload is multipart, NOT json -- do not send a Content-Type header yourself)
 curl $H -X POST   $B/api/solutions/1/files               -F "file=@./build.log" -F "title=Build log" -F "itemId=42"
@@ -515,11 +583,13 @@ an id. Every delete answers 200 with a small confirmation.
 GET  /api/solutions/spec                                   read the contract
 GET  /api/solutions/whoami                                 confirm who you are
 GET  /api/solutions                                        pick the solution -> id 1
+POST /api/solutions/1/visit                                what others changed since my last session
 GET  /api/solutions/1/items                                see what is open and what is yours
 POST /api/solutions/items/42/status   {"statusCode":"inprogress"}
   ... do the work ...
 POST /api/solutions/1/log   {"typeCode":"command","itemId":42,"text":"mvn -q clean verify"}
 POST /api/solutions/1/log   {"typeCode":"result","itemId":42,"text":"BUILD SUCCESS, 412 tests"}
+POST /api/solutions/1/links {"fromKind":"item","fromId":42,"toKind":"topic","toId":3}   it belongs to the Charset topic
 POST /api/solutions/items/42/status   {"statusCode":"done"}
 GET  /api/solutions/conversations/7/messages?since=19      any answer to my question yet?
 ```

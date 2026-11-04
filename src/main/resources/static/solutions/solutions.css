@@ -618,3 +618,75 @@ table.sl-table th { color: #6B7280; font-weight: 700; background: #F9FAFB; }
 .sl-hit mark, .sl-hit-snippet mark { background: #FDE68A; color: #111827; padding: 0 1px; border-radius: 2px; }
 /* A row the Search tab jumped to on another tab flashes the same way an item does. */
 .sl-entry.flash, .sl-tp-row.flash, .ef-row.flash { animation: slFlash 2s ease-out; }
+
+/* ---- Overview bands (Story 5667): every tab as a band under the summary card ---------------- */
+.sl-ov { display: flex; flex-direction: column; gap: 8px; }
+.sl-ov-band { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.sl-ov-band.dragging { opacity: .6; border-color: #93C5FD; }
+.sl-ov-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+.sl-ov-toggle { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+                background: none; border: 0; padding: 4px 2px; font: inherit; color: #111827; cursor: pointer; text-align: left; }
+.sl-ov-title { font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: #374151; }
+.sl-ov-count { font-size: 12px; color: #6B7280; }
+.sl-ov-body { padding: 0 10px 10px; border-top: 1px solid #EEF0F4; }
+.sl-ov-band[data-ov-band="projects"] .sl-ov-body { padding-top: 8px; }
+.sl-ov-dragging .sl-ov-body { display: none; }
+.sl-ov-row { display: flex; flex-direction: column; gap: 2px; width: 100%; box-sizing: border-box; text-align: left;
+             background: none; border: 0; border-bottom: 1px solid #F1F3F6; padding: 7px 4px; font: inherit; cursor: pointer; color: #111827; }
+.sl-ov-row:hover { background: #F5F8FF; }
+.sl-ov-main { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.sl-ov-main .sl-pill { margin-right: 4px; }
+.sl-ov-sub { font-size: 12px; color: #6B7280; overflow-wrap: anywhere; }
+.sl-ov-more { display: block; margin-top: 6px; background: none; border: 0; padding: 4px; font: inherit; font-size: 12px;
+              color: #1D4ED8; cursor: pointer; text-decoration: underline; }
+.sl-ov-note { font-size: 13px; padding: 8px 2px 0; }
+.sl-ov-error { color: #B91C1C; }
+.sl-ov-chips { padding-top: 8px; }
+
+/* ---- Links, Topics, Since you were last here (2026-11-02) ------------------------------------
+   A Linked section sits at the foot of a record's own View, never on a list row, so no screen
+   row is spent on it. The Link picker opens above any sheet. */
+.sl-overlay.sl-overlay-top { z-index: 70; }
+.sl-links { margin-top: 18px; border-top: 1px solid rgba(0,0,0,.12); padding-top: 6px; }
+.sl-links-head { display: flex; align-items: center; gap: 8px; }
+.sl-links-toggle { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; background: none; border: 0;
+                   padding: 4px 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.sl-links-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; opacity: .8; }
+.sl-links-body { display: flex; flex-direction: column; }
+.sl-link-row { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,.07); }
+.sl-link-row .sl-iconbtn { min-width: 26px; width: 26px; height: 26px; padding: 0; font-size: 12px; flex: 0 0 auto; }
+.sl-link-open, .sl-pick-row { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px;
+                              background: none; border: 0; padding: 7px 2px; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.sl-link-open:hover, .sl-pick-row:hover { background: rgba(37,99,235,.06); }
+.sl-link-title { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.sl-link-sub { flex-basis: 100%; font-size: 12px; opacity: .7; overflow-wrap: anywhere; }
+.sl-link-row.closed .sl-link-title { opacity: .75; }
+.sl-link-tick { color: #15803D; font-weight: 700; }
+.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: 700;
+           background: #E5E7EB; color: #374151; }
+.sl-kind.item { background: #DBEAFE; color: #1E40AF; }
+.sl-kind.note { background: #EDE9FE; color: #5B21B6; }
+.sl-kind.log { background: #FEF3C7; color: #92400E; }
+.sl-kind.file { background: #E0F2FE; color: #075985; }
+.sl-kind.term { background: #FCE7F3; color: #9D174D; }
+.sl-kind.topic { background: #DCFCE7; color: #166534; }
+.sl-kind.message { background: #F3F4F6; color: #374151; }
+.sl-pick-list { max-height: 50vh; max-height: 50dvh; overflow: auto; border: 1px solid #E5E7EB; border-radius: 6px; }
+.sl-pick-row { width: 100%; box-sizing: border-box; border-bottom: 1px solid #F1F3F6; padding: 8px 8px; }
+.sl-pick-row.linked { cursor: default; opacity: .6; }
+.sl-pick-row.new .sl-link-title { font-weight: 700; color: #166534; }
+.sl-pick-none { padding: 10px; }
+.sl-modal.sl-fileview .sl-fileview-links { flex: 0 1 auto; max-height: 30%; overflow: auto; }
+.sl-modal.sl-fileview .sl-fileview-links .sl-links { margin-top: 8px; }
+
+.sl-topic { background: #fff; border: 1px solid #DDE1E8; border-radius: 8px; padding: 6px 10px; margin: 6px 0; }
+.sl-topic-head { display: flex; align-items: center; gap: 8px; }
+.sl-topic-name { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 4px 0;
+                 font: inherit; font-size: 15px; font-weight: 700; color: #111827; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.sl-topic-head .tools { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.sl-topic-head .tools .sl-iconbtn { min-width: 26px; width: 26px; height: 26px; padding: 0; font-size: 12px; line-height: 1; }
+.sl-topic-body { padding: 2px 0 6px 22px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+
+.sl-since-row { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.sl-since-row .sl-ov-sub { flex-basis: 100%; }
+.sl-since-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 8px; }
