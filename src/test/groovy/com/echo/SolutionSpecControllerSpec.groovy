@@ -36,6 +36,7 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
     private static final List<Class<?>> AGENT_CONTROLLERS = [SolutionController, SolutionItemController, SolutionLogController,
                                                              SolutionNoteController, SolutionSpecController,
                                                              // Story 5695: links and topics, questions and decisions, the summary age
+                                                             // (Release 4: SolutionOrientationController also maps lens, left-off and activity)
                                                              SolutionLinkController, SolutionDecisionController, SolutionOrientationController,
                                                              // Story 5695 Release 3: kinds of topic and the premise switch, what items wait on
                                                              SolutionTopicKindController, SolutionDependencyController]
@@ -149,7 +150,7 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
         Set<String> mine = mappedEndpoints(AGENT_CONTROLLERS).collect { String e -> loosen(e) } as Set
         Matcher m = (raw() =~ /`(GET|POST|PUT|DELETE) (\/api\/solutions[^`?\s]*)/)
         List<String> documented = m.collect { List<String> g -> loosen(g[1] + ' ' + g[2]) }
-        String ours = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age).*|\/(topics|topic-types|waits|questions|decisions)\/.*|\/topic-kinds)$/
+        String ours = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|topic-types|waits|visit|since|caught-up|questions|decisions|summary-age|lens|left-off|activity).*|\/(topics|topic-types|waits|questions|decisions)\/.*|\/topic-kinds)$/
         List<String> unknown = documented.findAll { String d -> d ==~ ours && !(d in mine) }.unique()
 
         expect:

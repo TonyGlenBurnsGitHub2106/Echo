@@ -744,3 +744,10 @@ span.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-rad
 .sl-tag button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 12px; padding: 0 4px; line-height: 1; }
 .sl-tag-offer { border: 1px dashed #9CA3AF; background: #fff; color: #374151; border-radius: 12px; padding: 2px 10px; font: inherit;
                 font-size: 12px; cursor: pointer; }
+
+/* ---- Story 5695 (Echo), Release 4: the lens, the activity sheet, the note for next time ------------- */
+.sl-lens-row .sl-ov-sub .sl-chip, .sl-lens-row .sl-ov-sub .sl-pill { margin-left: 4px; }
+.sl-act-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.sl-act-filters .fld { flex: 1 1 140px; min-width: 120px; }
+.sl-act-list { max-height: 60vh; max-height: 60dvh; overflow: auto; border: 1px solid #E5E7EB; border-radius: 6px; }
+.sl-leftoff { background: #FFFBEB; border-left: 3px solid #F59E0B; padding: 6px 10px; border-radius: 4px; }

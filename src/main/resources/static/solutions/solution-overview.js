@@ -18,7 +18,11 @@
     var ROWS = 6;
 
     var BANDS = [
+        // Story 5695 (Echo), Release 4: your note for next time, your Now, and everyone's activity.
+        { key: 'leftoff',       title: 'Where I left off' },
         { key: 'since',         title: 'Since you were last here' },
+        { key: 'now',           title: 'Now',              tab: 'items', view: 'now' },
+        { key: 'activity',      title: 'Activity' },
         { key: 'projects',      title: 'Projects' },
         { key: 'items',         title: 'Items',            tab: 'items' },
         { key: 'conversations', title: 'Conversations',    tab: 'conversations' },
@@ -133,6 +137,8 @@
     var ACTIONS = {
         'since-all': function () { mSince.showAll = true; mData.since = sinceBand(); return true; },
         'since-more': async function () { mData.since = await readSince(Page.id, true); mSince.showAll = true; mData.since = sinceBand(); return true; },
+        'leftoff-edit': function () { window.SolutionActivity.editNote(); return false; },      // Story 5695 (Echo)
+        'activity-all': function () { window.SolutionActivity.openFeed(); return false; },
         'since-done': async function () {
             mSinceSeq++;
             var r = await SL.post('/api/solutions/' + Page.id + '/caught-up', {});
@@ -201,6 +207,45 @@
                              sub: ['#' + e.sequenceNumber, SL.date(e.logDate || e.createdDate), e.authorName, e.typeName].filter(Boolean).map(esc).join(' | ') };
                 })
             };
+        },
+        // Story 5695 (Echo), Release 4: the note for next time (shown when there is one), the caller's Now, the
+        // last week's activity (everyone's).
+        leftoff: async function () {
+            var n = await window.SolutionActivity.note();
+            if (!n || !n.note) return { total: 0, rows: [] };
+            return { total: 1, count: 'written ' + SL.dateTime(n.writtenDate),
+                     html: '<div class="sl-md sl-leftoff" data-testid="overview-leftoff-note">' + SL.md(n.note) + '</div>' +
+                           '<div class="sl-since-tools"><button type="button" class="sl-btn small" data-ov-act="leftoff-edit" data-testid="overview-leftoff-edit">Change it</button></div>',
+                     rows: [] };
+        },
+        now: async function (sid) {
+            var r = await SL.get('/api/solutions/' + sid + '/lens?pageSize=' + ROWS);
+            if (!r || !r.ok || !r.data) return failed(r, 'Could not read Now');
+            var c = r.data.counts || {}, rows = (r.data.items || []).filter(function (i) { return i.bucket === 'now'; });
+            var idle = rows.filter(function (i) { return i.idle; }).length;
+            return {
+                total: c.now || 0, count: (c.now || 0) + ' now | ' + (c.waiting || 0) + ' waiting | ' + (c.next || 0) + ' next' + (idle ? ' | ' + idle + ' idle' : ''),
+                more: c.now || 0,
+                rows: rows.map(function (i) {
+                    return { id: i.id, main: SL.pill(i.statusName, i.colorHex) + ' ' + esc(SL.plain(i.title, 140)),
+                             sub: [i.projectName, i.dueDate ? (i.overdue ? 'overdue ' : 'due ') + SL.date(i.dueDate) : '', i.assigneeName,
+                                   i.idle ? 'idle ' + i.idleDays + ' days' : ''].filter(Boolean).map(esc).join(' | ') };
+                })
+            };
+        },
+        activity: async function (sid) {
+            var r = await SL.get('/api/solutions/' + sid + '/activity?days=7&pageSize=' + ROWS);
+            if (!r || !r.ok || !r.data) return failed(r, 'Could not read the activity');
+            var total = r.data.total || 0;
+            var html = (r.data.changes || []).map(function (c) {
+                return '<button type="button" class="sl-ov-row sl-since-row" data-ov-go="since-' + esc(c.kind) + '" data-ov-id="' + c.id + '" data-testid="overview-activity-row">' +
+                    '<span class="sl-kind ' + esc(c.kind) + '">' + esc(KIND[c.kind] || c.kind) + '</span>' +
+                    '<span class="sl-ov-main">' + esc(SL.plain(c.title || '', 140)) + '</span>' +
+                    '<span class="sl-ov-sub">' + esc([(c.whoName || c.who || 'Someone') + ' ' + c.action, SL.dateTime(c.changedDate)].join(' | ')) + '</span></button>';
+            }).join('');
+            return { total: total, count: total + (total === 1 ? ' change' : ' changes') + ' this week',
+                     html: html + '<div class="sl-since-tools"><button type="button" class="sl-ov-more" data-ov-act="activity-all" data-testid="overview-activity-all">Show all, with filters</button></div>',
+                     rows: [] };
         },
         // Story 5695 (Echo): the open questions, newest first; the current decisions, proposed ones first.
         questions: async function (sid) {
@@ -421,7 +466,8 @@
         Array.prototype.forEach.call(host.querySelectorAll('[data-ov-open]'), function (b) {
             b.addEventListener('click', function () {
                 // Story 5695 (Echo): a band that is one of the Log tab's views opens the tab on that view.
-                if (b.getAttribute('data-ov-view') && Page.tabs.log && Page.tabs.log.openView) Page.tabs.log.openView(b.getAttribute('data-ov-view'));
+                var target = Page.tabs[b.getAttribute('data-ov-open')];
+                if (b.getAttribute('data-ov-view') && target && target.openView) target.openView(b.getAttribute('data-ov-view'));
                 Page.go(b.getAttribute('data-ov-open'));
             });
         });
@@ -464,6 +510,7 @@
             case 'terms':         Page.go('terms'); t.terms.openTerm(id); break;
             case 'topics':        Page.go('topics'); t.topics.openTopic(id); break;
             case 'questions':     window.SolutionDecisions.openQuestion(id); break;   // Story 5695 (Echo)
+            case 'now':           t.items.showInTree(id); break;
             case 'decisions':     window.SolutionDecisions.openDecision(id); break;
             default:              Page.go(key);
         }

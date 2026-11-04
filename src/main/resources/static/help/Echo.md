@@ -303,6 +303,28 @@ of the solution, and the View also lists the items waiting on this one. While so
 still open, its row on the Items tab says "waits on 1" (or 2, 3 ...). Echo refuses a wait that would go
 round in a circle, so two items can never end up waiting on each other.
 
+**Now, Waiting and Next.** The **Items** tab has two views on its tool row: **Projects** (the tree, as
+before) and **Now**. Now puts every open item in one of three groups:
+
+- **Now**: in progress, or due within a week. Overdue items come first and say so, then the soonest
+  due, with your own before others'.
+- **Waiting**: blocked, or waiting on an item that is still open.
+- **Next**: everything else still open.
+
+An item in Now that nobody has changed for a week says **idle** and for how long, so a quiet item is
+easy to catch at the weekly look. Tap a row to see the item in its place in the tree. The Overview has a
+**Now** band too, with all three counts.
+
+**A note for next time.** **Note for next time** on the Overview's tool row lets you write yourself a
+short note ("Next time, start with the charset sign-off"). The next time you open the solution it is the
+first thing on the Overview, under **Where I left off**. Only you see yours, and Rex has his own. **Change
+it** writes a new one, and saving it empty takes it away.
+
+**Activity.** The Overview's **Activity** band lists the last week's changes by everyone, you included.
+**Show all, with filters** opens the whole feed, newest first, which narrows by who, what kind of record,
+how far back (a week, 30 days, 90 days, a year) and topic (that topic and everything linked to it). Tap a
+change to open the record.
+
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
 button. It counts from when the words were written, not from when the solution was last saved. A

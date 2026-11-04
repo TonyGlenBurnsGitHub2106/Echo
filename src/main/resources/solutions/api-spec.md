@@ -34,6 +34,12 @@ working session; it is always current.
 > an environment -- with a kind of part, a status and a number) or `assumption` (something the plan rests
 > on; proving it false cancels the open items resting on it in one act). And an item can WAIT ON another.
 > See *Kinds of topic* and *Waits* in section 4. Existing topic calls work as before.
+>
+> **Added 2026-11-04 -- Now / Next / Waiting, a note for next time, and the activity feed.**
+> `GET .../lens` sorts the open items into now, waiting and next, and flags idle ones. `GET` / `PUT
+> .../left-off` keeps ONE note per member per solution for their next session: write one at the end of
+> every session ("Next time, start with ...") and read yours at the start. `GET .../activity` lists
+> everyone's changes, yours too, narrowed by who, kind, days and topic. See *Orientation* in section 4.
 
 ## 1. Connecting
 
@@ -126,6 +132,10 @@ cannot blank a name, a title or a status by accident.
 | `GET /api/solutions/by-alias/{alias}` | the same, found by its `alias` -- the short name people say out loud ("claims"). When your human names a solution by a short word, look it up here. 404 if there is none you may see. |
 | `PUT /api/solutions/{id}` | update it -- body `{name, description, statusCode, ownerCode, statusSummary, targetDate, alias}`. `alias` is lower-case letters, digits and hyphens with at least one letter, unique; send `""` to clear it. Use `statusSummary` for the one-paragraph "where are we". |
 | `GET /api/solutions/{id}/summary-age` | how old `statusSummary` is: `{writtenDate, ageDays, stale}` -- when its text was last WRITTEN (not when the solution was last saved). `stale: true` at 14 days or more: if you know the state of play, write a fresh `statusSummary`. All null without a summary. |
+| `GET /api/solutions/{id}/lens` | the OPEN items sorted for action: `{items, counts:{now,waiting,next}, bucket, offset, pageSize}`. Each item: `{id, title, parentItemId, projectId, projectName, statusCode, statusName, colorHex, priority, dueDate, assigneeCode, assigneeName, bucket, idleDays, idle, mine, overdue, openWaits, rowInBucket, totalInBucket}`. `now` = in progress or due within 7 days (overdue first); `waiting` = blocked or waits on an open item; `next` = the rest. `idle: true` = a `now` item unchanged for 7 days or more. With no `bucket`, the first `pageSize` (default 50) of each bucket; `?bucket=next&offset=50` pages one. 400 for any other bucket. |
+| `GET /api/solutions/{id}/left-off` | YOUR note for next time on this solution: `{note, writtenDate}`, both null when there is none. Read it at the start of a session. |
+| `PUT /api/solutions/{id}/left-off` | write it -- body `{note}`, at most 1,000 characters (400 over that). It replaces your last one, and `""` takes it away. Each member has their own, so yours never touches your human's. Write one before you stop: where you were and what comes first next time. |
+| `GET /api/solutions/{id}/activity` | everyone's changes, yours included, newest first: `{changes, since, offset, pageSize, total}`. Each change: `{kind, id, title, sub, action, who, whoName, changedDate}` (for `message`, `id` is the conversation). Query: `days` (default 30, at most 3650), `who` (a member code), `kind` (item, note, log, file, term, topic, question, decision, message -- 400 for any other), `topicId` (that topic and every record linked to it), `offset`, `pageSize` (default 50, at most 500). Unlike `since`, this is not about you: it is the solution's whole story. |
 
 ### Projects
 
@@ -619,6 +629,13 @@ curl $H           "$B/api/solutions/1/decisions?status=current"
 curl $H -X POST   $B/api/solutions/log/505/decision
 curl $H           $B/api/solutions/1/summary-age
 
+# ---- now / next / waiting, the note for next time, the activity feed
+curl $H           $B/api/solutions/1/lens
+curl $H           "$B/api/solutions/1/lens?bucket=next&offset=50&pageSize=50"
+curl $H           $B/api/solutions/1/left-off
+curl $H -X PUT    $B/api/solutions/1/left-off            -H "Content-Type: application/json" -d '{"note":"Next time: rerun the 835 parse, Calvin owes the QA dump."}'
+curl $H           "$B/api/solutions/1/activity?days=7&who=tony&kind=log"
+
 # ---- kinds of topic, the premise switch, waits
 curl $H -X POST   $B/api/solutions/1/topics              -H "Content-Type: application/json" -d '{"name":"QA environment","kind":"part","typeName":"Environment","statusCode":"inprogress"}'
 curl $H -X POST   $B/api/solutions/1/topics              -H "Content-Type: application/json" -d '{"name":"The 837 submit path is live","kind":"assumption"}'
@@ -712,6 +729,8 @@ GET  /api/solutions/spec                                   read the contract
 GET  /api/solutions/whoami                                 confirm who you are
 GET  /api/solutions                                        pick the solution -> id 1
 POST /api/solutions/1/visit                                what others changed since my last session
+GET  /api/solutions/1/left-off                             my own note from last time
+GET  /api/solutions/1/lens                                 what is now, what is waiting
 GET  /api/solutions/1/items                                see what is open and what is yours
 POST /api/solutions/items/42/status   {"statusCode":"inprogress"}
   ... do the work ...
@@ -720,4 +739,5 @@ POST /api/solutions/1/log   {"typeCode":"result","itemId":42,"text":"BUILD SUCCE
 POST /api/solutions/1/links {"fromKind":"item","fromId":42,"toKind":"topic","toId":3}   it belongs to the Charset topic
 POST /api/solutions/items/42/status   {"statusCode":"done"}
 GET  /api/solutions/conversations/7/messages?since=19      any answer to my question yet?
+PUT  /api/solutions/1/left-off {"note":"Next: the 835 parser. 42 is done."}   for my next session
 ```

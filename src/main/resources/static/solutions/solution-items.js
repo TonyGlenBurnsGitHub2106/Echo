@@ -21,6 +21,18 @@
     var mStatusItemId = 0;
     var mFlashId = 0;
     var mFilter = { project: '', status: '', assignee: '', hideClosed: false };
+    // Story 5695 (Echo), Release 4: the tab's two views -- the project tree, and the Now / Next / Waiting lens
+    // (solution-lens.js). Remembered for the browser session.
+    function viewKey() { return 'sl.items.view.' + Page.id; }
+    function currentView() { var v = ''; try { v = sessionStorage.getItem(viewKey()) || ''; } catch (e) { /* private mode */ } return v === 'now' ? 'now' : 'tree'; }
+    function setView(v) { try { sessionStorage.setItem(viewKey(), v === 'now' ? 'now' : 'tree'); } catch (e) { /* private mode */ } }
+    function paintViewSwitch(v) {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-items-view]'), function (b) {
+            var on = b.getAttribute('data-items-view') === v;
+            b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        $('itemTreeTools').hidden = v !== 'tree';
+    }
     function filterKey() { return 'sl.items.filter.' + Page.id; }
     function loadFilter() { try { var s = sessionStorage.getItem(filterKey()); if (s) mFilter = Object.assign(mFilter, JSON.parse(s)); } catch (e) { /* private mode */ } }
     function saveFilter() { try { sessionStorage.setItem(filterKey(), JSON.stringify(mFilter)); } catch (e) { /* private mode */ } }
@@ -652,6 +664,9 @@
                 Page.fold().set('band:' + first, false);
                 openItem(0, first, null);
             });
+            Array.prototype.forEach.call(document.querySelectorAll('[data-items-view]'), function (b) {
+                b.addEventListener('click', function () { setView(b.getAttribute('data-items-view')); Page.tabs.items.show(); });
+            });
             $('btnItemsExpand').addEventListener('click', function () { setAll(false); });
             $('btnItemsCollapse').addEventListener('click', function () { setAll(true); });
             $('itemCancel').addEventListener('click', function () { SL.close('itemOverlay'); });
@@ -666,7 +681,21 @@
                 if (e.key === 'Escape' && $('itemViewOverlay').classList.contains('open')) closeItemView();
             });
         },
-        show: function () { fillFilters(); load(); },
+        show: function () {
+            var v = currentView();
+            paintViewSwitch(v);
+            if (v === 'now' && window.SolutionLens) { window.SolutionLens.show($('pane-items')); return; }
+            if (window.SolutionLens) window.SolutionLens.hide();
+            fillFilters(); load();
+        },
+        /** Story 5695 (Echo): the view the tab opens on next -- 'tree' or 'now'. */
+        openView: function (v) { setView(v); },
+        /** Story 5695 (Echo): from the lens or the Now band -- the item in its place in the tree, flashed. */
+        showInTree: function (itemId) {
+            // A filter could hide it: the project, status and person filters step aside (Hide closed stays, the item is open).
+            mFilter.project = ''; mFilter.status = ''; mFilter.assignee = ''; saveFilter();
+            setView('tree'); mFlashId = itemId; Page.go('items');
+        },
         /** From the Overview: open Items narrowed to one project, with that band open. */
         openProject: function (projectId) {
             mFilter.project = String(projectId);

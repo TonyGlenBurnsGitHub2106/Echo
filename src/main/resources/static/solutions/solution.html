@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=50">
+    <link rel="stylesheet" href="solutions.css?v=51">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -60,6 +60,7 @@
         <button type="button" class="sl-btn primary" id="btnAddProject" data-testid="solution-add-project">+ Project</button>
         <button type="button" class="sl-btn" id="btnEditSolution" data-testid="solution-edit-btn" title="Edit this solution: name, status, owner, target date, where things stand">Edit</button>
         <button type="button" class="sl-btn" id="btnShare" data-testid="solution-share-btn" title="Share this solution with an outside agent">Share</button>
+        <button type="button" class="sl-btn" id="btnLeftOff" data-testid="solution-leftoff-btn" title="A note to yourself for the next time you open this solution">Note for next time</button>
         <button type="button" class="sl-btn" id="btnBrief" data-testid="solution-brief-top" title="The instructions to hand the agent this solution is shared with" hidden>Brief</button>
         <button type="button" class="sl-btn" id="btnProjExpand" data-testid="solution-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnProjCollapse" data-testid="solution-collapse-all">Collapse all</button>
@@ -73,6 +74,12 @@
     </div>
 
     <div class="sl-toolbar" id="toolbar-items" hidden data-testid="solution-toolbar-items">
+        <!-- Story 5695 (Echo): the project tree, or the Now / Next / Waiting lens (solution-lens.js) -->
+        <div class="sl-seg" role="tablist" aria-label="How the Items tab shows them" data-testid="items-views">
+            <button type="button" role="tab" data-items-view="tree" aria-selected="true" data-testid="items-view-tree">Projects</button>
+            <button type="button" role="tab" data-items-view="now" aria-selected="false" data-testid="items-view-now">Now</button>
+        </div>
+        <div class="sl-contents" id="itemTreeTools" data-testid="items-tree-tools">
         <div class="fld"><label for="fItemProject">Project</label><select id="fItemProject" data-ps-placeholder="All projects" data-testid="items-filter-project"></select></div>
         <div class="fld"><label for="fItemStatus">Status</label><select id="fItemStatus" data-ps-placeholder="Any status" data-testid="items-filter-status"></select></div>
         <div class="fld"><label for="fItemAssignee">Assigned to</label><select id="fItemAssignee" data-ps-placeholder="Anyone" data-testid="items-filter-assignee"></select></div>
@@ -81,6 +88,7 @@
         <button type="button" class="sl-btn" id="btnItemsExpand" data-testid="items-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnItemsCollapse" data-testid="items-collapse-all">Collapse all</button>
         <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects and items" title="Arrange -- drag to reorder" data-testid="items-arrange-btn">&#8645;</button>
+        </div>
         <button type="button" class="sl-btn primary" id="btnAddItem" data-testid="items-add-btn">+ Item</button>
     </div>
 
@@ -611,6 +619,35 @@
     </div>
 </div>
 
+<!-- Story 5695 (Echo), Release 4: everyone's activity, narrowed by who, kind, time and topic -->
+<div class="sl-overlay" id="activityOverlay" data-testid="activity-overlay">
+    <div class="sl-modal" style="width:min(760px,100%)">
+        <h2>Activity <span class="sl-muted" id="actCount" data-testid="activity-count" style="font-size:13px;font-weight:400"></span></h2>
+        <div class="sl-act-filters">
+            <div class="fld"><label for="actWho">Who</label><select id="actWho" data-ps-placeholder="Everyone" data-testid="activity-who"></select></div>
+            <div class="fld"><label for="actKind">Kind</label><select id="actKind" data-ps-placeholder="Every kind" data-testid="activity-kind"></select></div>
+            <div class="fld"><label for="actDays">When</label><select id="actDays" data-testid="activity-days"></select></div>
+            <div class="fld"><label for="actTopic">Topic</label><select id="actTopic" data-ps-placeholder="Any topic" data-testid="activity-topic"></select></div>
+        </div>
+        <div class="sl-act-list" id="actList" data-testid="activity-list"></div>
+        <div class="foot"><button type="button" class="sl-btn primary" id="actClose" data-testid="activity-close">Close</button></div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo), Release 4: a note to yourself for the next time you open this solution -->
+<div class="sl-overlay" id="leftOffOverlay" data-testid="leftoff-overlay">
+    <div class="sl-modal" style="width:min(600px,100%)">
+        <h2>Note for next time</h2>
+        <div class="sl-muted" style="margin:-8px 0 8px">Shown first on the Overview the next time you open this solution. Only you see yours.</div>
+        <div class="warn" id="leftOffWarn" data-testid="leftoff-warn"></div>
+        <div class="fld"><label for="leftOffText">Next time, start with</label><textarea id="leftOffText" maxlength="1000" data-testid="leftoff-text" placeholder="Where you stopped and what comes first, e.g. Calvin owes the QA property dump"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="leftOffCancel" data-testid="leftoff-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="leftOffSave" data-testid="leftoff-save">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- Story 5695 (Echo): the premise switch -- an assumption is proved false; the open items resting on it are cancelled -->
 <div class="sl-overlay sl-overlay-top" id="premiseOverlay" data-testid="premise-overlay">
     <div class="sl-modal" style="width:min(640px,100%)">
@@ -1019,14 +1056,16 @@
 <script src="/picasso-tags.js?v=5"></script>
 <script src="solutions-common.js?v=13"></script>
 <script src="solution.js?v=39"></script>
-<script src="solution-overview.js?v=4"></script>
-<script src="solution-items.js?v=23"></script>
+<script src="solution-overview.js?v=5"></script>
+<script src="solution-items.js?v=24"></script>
 <script src="solution-log.js?v=11"></script>
 <script src="solution-notes.js?v=22"></script>
 <script src="solution-terms.js?v=2"></script>
 <script src="solution-links.js?v=5"></script>
 <script src="solution-topics.js?v=3"></script>
 <script src="solution-decisions.js?v=1"></script>
+<script src="solution-lens.js?v=1"></script>
+<script src="solution-activity.js?v=1"></script>
 <script src="solution-conv.js?v=8"></script>
 <script src="solution-files.js?v=22"></script>
 <script src="solution-tests.js?v=15"></script>

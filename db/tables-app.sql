@@ -364,3 +364,14 @@ BEGIN
     );
 END;
 GO
+
+-- ---- Where I left off (Story 5695 Release 4, 2026-11-04) ----
+-- A member's note to themself for the next time they open the solution ("Next time, start with ..."),
+-- kept on their visit row. From the deep review: the Status note, Felix Next Steps and the weekly HTML logs
+-- "are all people doing this by hand". One note per member per solution; writing a new one replaces it.
+IF COL_LENGTH('dbo.SolutionMemberVisit', 'PartingNote') IS NULL
+    ALTER TABLE dbo.SolutionMemberVisit ADD PartingNote NVARCHAR(1000) NULL, PartingNoteDate DATETIME NULL;
+GO
+IF COL_LENGTH('dbo.SolutionMemberVisit_LOG', 'PartingNote') IS NULL
+    ALTER TABLE dbo.SolutionMemberVisit_LOG ADD PartingNote NVARCHAR(1000) NULL, PartingNoteDate DATETIME NULL;
+GO

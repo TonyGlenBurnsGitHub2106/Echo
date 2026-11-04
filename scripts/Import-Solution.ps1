@@ -203,6 +203,14 @@ try {
         $cmd = $c.CreateCommand(); $cmd.Transaction = $tran; $cmd.CommandText = "SELECT * FROM dbo.$($p.Table) WHERE 1 = 0"
         $da = New-Object System.Data.SqlClient.SqlDataAdapter $cmd
         [void]$da.FillSchema($dt, [System.Data.SchemaType]::Source)
+        # Story 5695 (Echo): a column this Echo has but the export does not (an export from Leonardo, or from an
+        # older Echo) is left out of the copy, so it takes its default. With KeepNulls it would be sent as NULL,
+        # and a NOT NULL column such as SolutionTopic.TopicKindCode would refuse the whole import.
+        $present = @{}
+        foreach ($row in $p.Rows) { foreach ($k in $row.Keys) { $present[$k] = 1 } }
+        foreach ($name in @($dt.Columns | ForEach-Object { $_.ColumnName })) {
+            if (-not $present.ContainsKey($name)) { [void]$dt.Columns.Remove($name) }
+        }
         foreach ($col in $dt.Columns) { $col.ReadOnly = $false; $col.AutoIncrement = $false; $col.AllowDBNull = $true }
         foreach ($row in $p.Rows) {
             $dr = $dt.NewRow()
