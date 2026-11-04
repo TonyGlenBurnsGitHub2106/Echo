@@ -18,7 +18,8 @@ import spock.lang.Unroll
  * stp_SolutionLinkTarget_Search, stp_SolutionTopic*, stp_SolutionMemberVisit*, stp_SolutionActivity*) --
  * a pair stored once in fixed order, the procs' refusals, paging and counts, the Link picker, topics,
  * visits and "since", and that the delete procs of every linkable record (and of a solution) take that
- * record's links with them. Every feature is rolled back by EchoDbITSpec.
+ * record's links with them. Every feature is rolled back by EchoDbITSpec. Release 3: topics, counts and the
+ * picker take a kind (null = every kind), so these features ask for every kind and the counts carry kind buckets.
  */
 class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
 
@@ -230,7 +231,9 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         page.links()[0].kind() == 'topic'
         page.links()[0].id() == topic
         page.links()[0].title() == 'Charset'
+        page.links()[0].topicKind() == 'subject'
         page.links()[0].linkedByCode() == null
+        page.links().findAll { Link l -> l.kind() != 'topic' }*.topicKind() == [null, null, null, null]
         page.links().collect { Link l -> l.kind() + ':' + l.id() } as Set ==
             ['note:' + note, 'log:' + log, 'term:' + term, 'file:' + file, 'topic:' + topic] as Set
         page.links().findAll { Link l -> l.kind() != 'topic' }*.linkedByCode() == ['tony', 'tony', 'tony', 'tony']
@@ -321,7 +324,7 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         repo.link(sid, 'item', item, 'topic', topic, 'tony')
 
         when:
-        List<LinkTarget> got = repo.targets(sid, 'CHARSET', 'item', item, 30)
+        List<LinkTarget> got = repo.targets(sid, 'CHARSET', 'item', item, 30, null)
 
         then:
         got*.kind() == ['topic', 'note', 'log']
@@ -337,9 +340,9 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         int item = newItem(project, 'Source item')
 
         expect:
-        repo.targets(sid, 'source', 'item', item, 30).isEmpty()
-        repo.targets(sid, 'source', null, null, 30)*.id() == [item]
-        repo.targets(sid, 'source', 'note', item, 30)*.id() == [item]
+        repo.targets(sid, 'source', 'item', item, 30, null).isEmpty()
+        repo.targets(sid, 'source', null, null, 30, null)*.id() == [item]
+        repo.targets(sid, 'source', 'note', item, 30, null)*.id() == [item]
     }
 
     def "targets should offer the topics first and then everything else when nothing is typed"() {
@@ -351,7 +354,7 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         int topic = newTopic(repo, sid, 'A topic')
 
         when:
-        List<LinkTarget> all = repo.targets(sid, null, null, null, 30)
+        List<LinkTarget> all = repo.targets(sid, null, null, null, 30, null)
 
         then:
         all.size() == 4
@@ -359,10 +362,10 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         all[0].id() == topic
         all*.kind() as Set == ['item', 'note', 'term', 'topic'] as Set
         !all.any { LinkTarget t -> t.alreadyLinked() }
-        repo.targets(sid, '', null, null, 30).size() == 4
-        repo.targets(sid, null, null, null, 2).size() == 2
-        repo.targets(sid, null, null, null, 0).size() == 4
-        repo.targets(sid, 'nothing is called this', null, null, 30).isEmpty()
+        repo.targets(sid, '', null, null, 30, null).size() == 4
+        repo.targets(sid, null, null, null, 2, null).size() == 2
+        repo.targets(sid, null, null, null, 0, null).size() == 4
+        repo.targets(sid, 'nothing is called this', null, null, 30, null).isEmpty()
     }
 
     def "targets should match LIKE wildcards in what was typed as themselves"() {
@@ -373,9 +376,9 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         newTerm(this, sid, 'Brackets', 'tony')
 
         expect:
-        repo.targets(sid, '0%', null, null, 30)*.id() == [pct]
-        repo.targets(sid, '_0', null, null, 30).isEmpty()
-        repo.targets(sid, '[b]', null, null, 30).isEmpty()
+        repo.targets(sid, '0%', null, null, 30, null)*.id() == [pct]
+        repo.targets(sid, '_0', null, null, 30, null).isEmpty()
+        repo.targets(sid, '[b]', null, null, 30, null).isEmpty()
     }
 
     // ---- topics ----
@@ -550,7 +553,7 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         repo.link(sid, 'topic', alpha, 'note', newNote(this, sid, 'Runbook'), 'tony')
 
         when:
-        List<Topic> list = repo.topics(sid, null, 0, 50)
+        List<Topic> list = repo.topics(sid, null, null, 0, 50)
 
         then:
         list*.id() == [alpha, beta, gamma]
@@ -561,8 +564,8 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         list*.memberCount() == [2, 0, 0]
         list[0].latestDate() != null
         list[2].latestDate() == null
-        repo.topics(sid, null, 1, 1)*.name() == ['Beta']
-        repo.topics(sid, null, 0, 0).size() == 3
+        repo.topics(sid, null, null, 1, 1)*.name() == ['Beta']
+        repo.topics(sid, null, null, 0, 0).size() == 3
     }
 
     def "topics and topicCounts should match the name or the summary with LIKE wildcards literal when searching"() {
@@ -574,13 +577,13 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         newTopic(repo, sid, '500 rule')
 
         expect:
-        repo.topics(sid, 'CHARSET', 0, 50)*.name() == ['Charset', 'Other']
-        repo.topicCounts(sid, 'charset') == [total: 2, all: 4]
-        repo.topicCounts(sid, null) == [total: 4, all: 4]
-        repo.topics(sid, '0%', 0, 50)*.name() == ['50% rule']
-        repo.topics(sid, '_0', 0, 50).isEmpty()
-        repo.topicCounts(sid, 'nothing matches') == [total: 0, all: 4]
-        repo.topicCounts(newSolution(), null) == [total: 0, all: 0]
+        repo.topics(sid, 'CHARSET', null, 0, 50)*.name() == ['Charset', 'Other']
+        repo.topicCounts(sid, 'charset', null) == [total: 2, 'kind:subject': 2, all: 4]
+        repo.topicCounts(sid, null, null) == [total: 4, 'kind:subject': 4, all: 4]
+        repo.topics(sid, '0%', null, 0, 50)*.name() == ['50% rule']
+        repo.topics(sid, '_0', null, 0, 50).isEmpty()
+        repo.topicCounts(sid, 'nothing matches', null) == [total: 0, all: 4]
+        repo.topicCounts(newSolution(), null, null) == [total: 0, all: 0]
     }
 
     def "deleteTopic should remove the topic and its links but leave the records, answering false the second time"() {

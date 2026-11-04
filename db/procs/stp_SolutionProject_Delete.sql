@@ -45,6 +45,10 @@ BEGIN TRY
     WHERE  i.SolutionProjectID = @prmSolutionProjectID
     UPDATE dbo.SolutionLog      SET SolutionProjectID = NULL WHERE SolutionProjectID = @prmSolutionProjectID
     UPDATE dbo.SolutionNote SET SolutionProjectID = NULL WHERE SolutionProjectID = @prmSolutionProjectID
+    -- Story 5695 (Echo): the waits of its items.
+    DELETE d FROM dbo.SolutionItemDependency d
+    JOIN   dbo.SolutionProjectItem i ON i.SolutionProjectItemID IN (d.SolutionProjectItemID, d.DependsOnSolutionProjectItemID)
+    WHERE  i.SolutionProjectID = @prmSolutionProjectID
     DELETE k FROM dbo.SolutionLink k
     JOIN   dbo.SolutionProjectItem i
            ON (k.FromKind = 'item' AND k.FromID = i.SolutionProjectItemID) OR (k.ToKind = 'item' AND k.ToID = i.SolutionProjectItemID)

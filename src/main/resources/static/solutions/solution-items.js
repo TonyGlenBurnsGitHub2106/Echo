@@ -28,13 +28,25 @@
     // ---- load -------------------------------------------------------------------
 
     async function load() {
-        var r = await SL.get('/api/solutions/' + Page.id + '/items');
+        var both = await Promise.all([SL.get('/api/solutions/' + Page.id + '/items'), SL.get('/api/solutions/' + Page.id + '/waits')]);
+        var r = both[0];
         if (!r || !r.ok || !Array.isArray(r.data)) {
             $('pane-items').innerHTML = '<div class="sl-empty">' + esc(SL.failText(r, 'Could not load the items.')) + '</div>';
             return;
         }
         mItems = r.data;
+        // Story 5695 (Echo): which items wait on others, and how many of those are still open.
+        mWaits = {};
+        if (both[1] && both[1].ok && Array.isArray(both[1].data)) both[1].data.forEach(function (w) { mWaits[w.itemId] = w; });
         draw();
+    }
+
+    var mWaits = {};
+
+    function waitsChip(i) {
+        var w = mWaits[i.id];
+        if (!w || !w.openWaits || i.closed) return '';
+        return '<span class="sl-chip waits" title="Still waiting on ' + w.openWaits + ' open ' + (w.openWaits === 1 ? 'item' : 'items') + '" data-testid="items-waits">waits on ' + w.openWaits + '</span>';
     }
 
     // ---- fold state -----------------------------------------------------------------
@@ -147,7 +159,7 @@
         var head = grip + tick + '<button type="button" class="sl-pill" style="background:' + esc(s.colorHex || '#6B7280') + '" data-status-of="' + i.id +
                 '" data-testid="items-status-btn">' + esc(i.statusName) + '</button>' +
             '<div class="main" data-fold="' + i.id + '" data-testid="items-title">' +
-                '<div class="title"><span class="chev' + (folded ? ' folded' : '') + '">&#9660;</span> ' + esc(i.title) + ' ' + subs + '</div>';
+                '<div class="title"><span class="chev' + (folded ? ' folded' : '') + '">&#9660;</span> ' + esc(i.title) + ' ' + subs + waitsChip(i) + '</div>';
         // Every row carries the same tool strip, folded or not (Tony, 2026-10-12: a folded row had none, so
         // most rows -- they start folded -- could not be edited, viewed or copied without unfolding first).
         var tools = '<div class="tools">' +
@@ -275,6 +287,57 @@
         SL.open('itemViewOverlay');
         $('itemViewScroll').scrollTop = 0;
         window.SolutionLinks.mount($('itemViewLinks'), 'item', i.id, i.title);
+        drawWaits(i);
+    }
+
+    // ---- what an item waits on (Story 5695, Echo) ---------------------------------------------------
+    // A wait has a direction: this item waits on that one. Its View lists both ways -- what it waits on
+    // and what waits on it -- each with its status, and + Waits on picks another item of the solution.
+
+    async function drawWaits(i) {
+        var host = $('itemViewWaits');
+        if (!host) return;
+        var r = await SL.get('/api/solutions/items/' + i.id + '/waits');
+        if (mViewItemId !== i.id) return;
+        var rows = r && r.ok && Array.isArray(r.data) ? r.data : [];
+        var on = rows.filter(function (w) { return w.direction === 'waitsOn'; }), by = rows.filter(function (w) { return w.direction === 'blocks'; });
+        function line(w) {
+            return '<div class="sl-link-row' + (w.closed ? ' closed' : '') + '" data-testid="item-wait-row">' +
+                '<button type="button" class="sl-link-open" data-wait-open="' + w.itemId + '" data-testid="item-wait-open">' +
+                    SL.pill(w.statusName, w.colorHex) + (w.closed ? '<span class="sl-link-tick" aria-label="Closed">&#10003;</span>' : '') +
+                    '<span class="sl-link-title">' + esc(w.title) + '</span><span class="sl-link-sub">' + esc(w.projectName || '') + '</span></button>' +
+                (w.direction === 'waitsOn' ? '<button type="button" class="sl-iconbtn" data-wait-remove="' + w.id + '" title="Stop waiting on it" aria-label="Stop waiting on ' +
+                    esc(w.title) + '" data-testid="item-wait-remove">&#10005;</button>' : '') + '</div>';
+        }
+        host.innerHTML = '<section class="sl-waits" data-testid="item-waits">' +
+            '<div class="sl-waits-head"><span class="sl-waits-title">Waits on</span><span class="sl-chip">' + on.length + '</span>' +
+                '<button type="button" class="sl-btn small" id="btnWaitAdd" data-testid="item-wait-add">+ Waits on</button></div>' +
+            on.map(line).join('') +
+            (by.length ? '<div class="sl-muted" style="margin-top:8px">Waiting on this one:</div>' + by.map(line).join('') : '') + '</section>';
+        $('btnWaitAdd').addEventListener('click', function () {
+            window.SolutionLinks.pick({ kind: 'item', id: i.id, title: i.title, targetKind: 'item', heading: 'What does "' + SL.plain(i.title, 80) + '" wait on?',
+                onPick: async function (kind, otherId) {
+                    var a = await SL.post('/api/solutions/items/' + i.id + '/waits', { dependsOnItemId: otherId });
+                    if (!a || !a.ok) { window.Picasso.error(SL.failText(a, 'The wait could not be added.')); return; }
+                    await load();
+                    drawWaits(i);
+                } });
+        });
+        Array.prototype.forEach.call(host.querySelectorAll('[data-wait-open]'), function (b) {
+            b.addEventListener('click', function () { var id = +b.getAttribute('data-wait-open'); closeItemView(); mFlashId = id; draw(); });
+        });
+        Array.prototype.forEach.call(host.querySelectorAll('[data-wait-remove]'), function (b) {
+            b.addEventListener('click', async function () {
+                var w = on.filter(function (x) { return x.id === +b.getAttribute('data-wait-remove'); })[0];
+                if (!w) return;
+                var ok = await window.Picasso.confirmDelete('Both items stay as they are.', { title: 'Stop waiting: "' + SL.plain(i.title, 60) + '" waits on "' + SL.plain(w.title, 60) + '"?' });
+                if (!ok) return;
+                var d = await SL.del('/api/solutions/waits/' + w.id);
+                if (!d || !d.ok) { window.Picasso.error(SL.failText(d, 'The wait could not be taken away.')); return; }
+                await load();
+                drawWaits(i);
+            });
+        });
     }
 
     function closeItemView() { SL.close('itemViewOverlay'); mViewItemId = 0; }

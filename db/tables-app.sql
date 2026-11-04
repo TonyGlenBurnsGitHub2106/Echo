@@ -269,3 +269,98 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionLink
     ALTER TABLE dbo.SolutionLink ADD CONSTRAINT CK_SolutionLink_ToKind
         CHECK (ToKind IN ('item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision'));
 GO
+
+-- ---- Kinds of topic, and what an item waits on (Story 5695 Release 3, 2026-11-04) ----
+-- From the deep review of 11/02: "The thing being worked has no home in the tool" (chapters and characters of a
+-- book, the accounts of a debt, a program's environments), "a premise change was applied by hand" (the dead 837
+-- path, pasted into 20 items), and "Tags you can search across everything, OneNote style".
+--
+-- A topic now has a KIND:
+--   subject     a subject that runs across the solution ("Charset") -- what every topic was until now
+--   tag         a flag put on records ("Important", "Risk", "Idea", "Parking lot")
+--   part        a part of what the solution is made of -- the spine: a chapter, a character, an account, an
+--               environment. It has a type (SolutionTopicType, per solution: Chapter, Character ...), a status,
+--               an optional number (words, a balance ...) and an order within its type.
+--   assumption  something the plan rests on ("The 837 submit path is live"). AssumptionHolds 1 = it holds,
+--               0 = proved false. Marking it false is the PREMISE SWITCH: it shows the open items linked to it and
+--               cancels the chosen ones in one act, with one reason.
+--
+--   SolutionItemDependency   an item WAITS ON another item (direction matters, so it is not a link). Both items
+--                            are in one solution. An item cannot wait on itself, and a wait cannot go round in a
+--                            circle (stp_SolutionItemDependency_Save refuses).
+IF COL_LENGTH('dbo.SolutionTopic', 'TopicKindCode') IS NULL
+    ALTER TABLE dbo.SolutionTopic ADD TopicKindCode VARCHAR(20) NOT NULL CONSTRAINT DF_SolutionTopic_TopicKindCode DEFAULT ('subject');
+GO
+IF COL_LENGTH('dbo.SolutionTopic', 'SolutionTopicTypeID') IS NULL ALTER TABLE dbo.SolutionTopic ADD SolutionTopicTypeID INT NULL;
+IF COL_LENGTH('dbo.SolutionTopic', 'SolutionStatusID')    IS NULL ALTER TABLE dbo.SolutionTopic ADD SolutionStatusID INT NULL;
+IF COL_LENGTH('dbo.SolutionTopic', 'FigureValue')         IS NULL ALTER TABLE dbo.SolutionTopic ADD FigureValue DECIMAL(18, 2) NULL;
+IF COL_LENGTH('dbo.SolutionTopic', 'AssumptionHolds')     IS NULL ALTER TABLE dbo.SolutionTopic ADD AssumptionHolds BIT NULL;
+GO
+IF COL_LENGTH('dbo.SolutionTopic', 'SortOrder') IS NULL
+    ALTER TABLE dbo.SolutionTopic ADD SortOrder INT NOT NULL CONSTRAINT DF_SolutionTopic_SortOrder DEFAULT (0);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionTopic_TopicKindCode')
+    ALTER TABLE dbo.SolutionTopic ADD CONSTRAINT CK_SolutionTopic_TopicKindCode CHECK (TopicKindCode IN ('subject', 'tag', 'part', 'assumption'));
+GO
+IF COL_LENGTH('dbo.SolutionTopic_LOG', 'TopicKindCode') IS NULL
+    ALTER TABLE dbo.SolutionTopic_LOG ADD TopicKindCode VARCHAR(20) NULL, SolutionTopicTypeID INT NULL, SolutionStatusID INT NULL,
+                                          FigureValue DECIMAL(18, 2) NULL, AssumptionHolds BIT NULL, SortOrder INT NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionTopicType')
+BEGIN
+    CREATE TABLE dbo.SolutionTopicType (
+        SolutionTopicTypeID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionTopicType PRIMARY KEY CLUSTERED,
+        SolutionID          INT           NOT NULL,
+        TypeName            NVARCHAR(100) NOT NULL,     -- Chapter, Character, Account, Environment ...
+        NormalizedName      NVARCHAR(100) NOT NULL,
+        FigureLabel         NVARCHAR(40)  NULL,         -- what a part's number counts: words, dollars ...
+        SortOrder           INT           NOT NULL CONSTRAINT DF_SolutionTopicType_SortOrder DEFAULT (0),
+        CreatedDate         DATETIME      NOT NULL CONSTRAINT DF_SolutionTopicType_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate        DATETIME      NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionTopicType_Name' AND object_id = OBJECT_ID('dbo.SolutionTopicType'))
+    CREATE UNIQUE INDEX UX_SolutionTopicType_Name ON dbo.SolutionTopicType (SolutionID, NormalizedName);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionTopicType_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionTopicType_LOG (
+        SolutionTopicType_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionTopicType_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionTopicType_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionTopicType_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionTopicTypeID INT NULL, SolutionID INT NULL, TypeName NVARCHAR(100) NULL, NormalizedName NVARCHAR(100) NULL,
+        FigureLabel NVARCHAR(40) NULL, SortOrder INT NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionItemDependency')
+BEGIN
+    CREATE TABLE dbo.SolutionItemDependency (
+        SolutionItemDependencyID      INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionItemDependency PRIMARY KEY CLUSTERED,
+        SolutionProjectItemID         INT      NOT NULL,     -- the item that waits
+        DependsOnSolutionProjectItemID INT     NOT NULL,     -- what it waits on
+        CreatedByMemberID             INT      NULL,
+        CreatedDate                   DATETIME NOT NULL CONSTRAINT DF_SolutionItemDependency_CreatedDate DEFAULT (GETDATE())
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SolutionItemDependency_Pair' AND object_id = OBJECT_ID('dbo.SolutionItemDependency'))
+    CREATE UNIQUE INDEX UX_SolutionItemDependency_Pair ON dbo.SolutionItemDependency (SolutionProjectItemID, DependsOnSolutionProjectItemID);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionItemDependency_On' AND object_id = OBJECT_ID('dbo.SolutionItemDependency'))
+    CREATE INDEX IX_SolutionItemDependency_On ON dbo.SolutionItemDependency (DependsOnSolutionProjectItemID);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionItemDependency_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionItemDependency_LOG (
+        SolutionItemDependency_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionItemDependency_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionItemDependency_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionItemDependency_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionItemDependencyID INT NULL, SolutionProjectItemID INT NULL, DependsOnSolutionProjectItemID INT NULL,
+        CreatedByMemberID INT NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO

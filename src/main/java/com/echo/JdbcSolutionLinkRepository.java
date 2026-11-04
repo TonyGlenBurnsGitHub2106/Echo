@@ -61,20 +61,20 @@ public class JdbcSolutionLinkRepository implements SolutionLinkRepository {
     }
 
     @Override
-    public List<LinkTarget> targets(int solutionId, String search, String kind, Integer id, int pageSize) {
-        return db.list("EXEC dbo.stp_SolutionLinkTarget_Search ?, ?, ?, ?, ?", LinkTarget::of, solutionId, search, kind, id, pageSize);
+    public List<LinkTarget> targets(int solutionId, String search, String kind, Integer id, int pageSize, String targetKind) {
+        return db.list("EXEC dbo.stp_SolutionLinkTarget_Search ?, ?, ?, ?, ?, ?", LinkTarget::of, solutionId, search, kind, id, pageSize, targetKind);
     }
 
     // ---- topics ----
 
     @Override
-    public List<Topic> topics(int solutionId, String search, int offset, int pageSize) {
-        return db.list("EXEC dbo.stp_SolutionTopic_ListForSolution ?, ?, ?, ?", Topic::of, solutionId, search, offset, pageSize);
+    public List<Topic> topics(int solutionId, String search, String kind, int offset, int pageSize) {
+        return db.list("EXEC dbo.stp_SolutionTopic_ListForSolution ?, ?, ?, ?, ?", Topic::of, solutionId, search, offset, pageSize, kind);
     }
 
     @Override
-    public Map<String, Integer> topicCounts(int solutionId, String search) {
-        return buckets(db.list("EXEC dbo.stp_SolutionTopic_Counts ?, ?", r -> r, solutionId, search));
+    public Map<String, Integer> topicCounts(int solutionId, String search, String kind) {
+        return buckets(db.list("EXEC dbo.stp_SolutionTopic_Counts ?, ?, ?", r -> r, solutionId, search, kind));
     }
 
     @Override
@@ -82,8 +82,10 @@ public class JdbcSolutionLinkRepository implements SolutionLinkRepository {
 
     @Override
     public int saveTopic(TopicDraft d, String memberCode) {
-        return db.number("EXEC dbo.stp_SolutionTopic_Save ?, ?, ?, ?, ?", "SolutionTopicID",
-            d.id(), d.solutionId(), d.name(), d.summary(), memberCode);
+        // Story 5695 (Echo): the kind and what it carries ride after Leonardo's five parameters.
+        return db.number("EXEC dbo.stp_SolutionTopic_Save ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?", "SolutionTopicID",
+            d.id(), d.solutionId(), d.name(), d.summary(), memberCode, d.kindCode(), d.typeName(), d.statusCode(),
+            d.figure(), d.clearFigure() ? 1 : 0, d.holds() == null ? null : (d.holds() ? 1 : 0));
     }
 
     @Override

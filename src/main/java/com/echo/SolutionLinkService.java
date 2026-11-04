@@ -61,20 +61,41 @@ public class SolutionLinkService {
     }
 
     public List<LinkTarget> targets(SolutionCaller caller, int solutionId, String search, String kind, Integer id, int pageSize) {
+        return targets(caller, solutionId, search, kind, id, pageSize, null);
+    }
+
+    /** Story 5695 (Echo): targetKind (null or blank = any) narrows the picker to one kind -- items to wait on. */
+    public List<LinkTarget> targets(SolutionCaller caller, int solutionId, String search, String kind, Integer id, int pageSize, String targetKind) {
         access.requireSolution(caller, solutionId);
         String k = (kind == null || kind.isBlank()) ? null : kind(kind);
+        String t = (targetKind == null || targetKind.isBlank()) ? null : kind(targetKind);
         String q = (search == null || search.isBlank()) ? null : search.trim();
-        return links.targets(solutionId, q, k, id, SolutionLinkModels.page(pageSize <= 0 ? 30 : pageSize, 100));
+        return links.targets(solutionId, q, k, id, SolutionLinkModels.page(pageSize <= 0 ? 30 : pageSize, 100), t);
     }
 
     // ---- topics ---------------------------------------------------------------------
 
     public TopicPage topics(SolutionCaller caller, int solutionId, String search, int offset, int pageSize) {
+        return topics(caller, solutionId, search, null, offset, pageSize);
+    }
+
+    /** Story 5695 (Echo): one kind of topic only (subject, tag, part, assumption); null or blank = every kind. */
+    public TopicPage topics(SolutionCaller caller, int solutionId, String search, String kind, int offset, int pageSize) {
         access.requireSolution(caller, solutionId);
         String q = (search == null || search.isBlank()) ? null : search.trim();
+        String k = topicKind(kind, true);
         int size = SolutionLinkModels.page(pageSize, 500), from = Math.max(0, offset);
-        Map<String, Integer> counts = links.topicCounts(solutionId, q);
-        return new TopicPage(links.topics(solutionId, q, from, size), counts, from, size, counts.getOrDefault("total", 0));
+        Map<String, Integer> counts = links.topicCounts(solutionId, q, k);
+        return new TopicPage(links.topics(solutionId, q, k, from, size), counts, from, size, counts.getOrDefault("total", 0));
+    }
+
+    /** Story 5695 (Echo): one of the four kinds of topic, or a 400. blankIsNull: blank means "no change" / "every kind". */
+    static String topicKind(String kind, boolean blankIsNull) {
+        String k = kind == null ? "" : kind.trim().toLowerCase();
+        if (k.isEmpty() && blankIsNull) return null;
+        if (!java.util.Set.of("subject", "tag", "part", "assumption").contains(k))
+            throw new IllegalArgumentException("A topic's kind is one of subject, tag, part, assumption.");
+        return k;
     }
 
     public Topic topic(SolutionCaller caller, int topicId) {
@@ -87,6 +108,7 @@ public class SolutionLinkService {
     public Topic saveTopic(SolutionCaller caller, TopicDraft draft) {
         if (draft.id() > 0) topic(caller, draft.id());
         else access.requireSolution(caller, draft.solutionId());
+        topicKind(draft.kindCode(), true);           // Story 5695 (Echo): a bad kind is a 400 before anything is written
         int id = links.saveTopic(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Topic");
         return links.findTopic(id);

@@ -109,6 +109,11 @@ BEGIN TRY
     -- Story 5695 (Echo): its questions and decisions.
     DELETE FROM dbo.SolutionQuestion    WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionDecision    WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionTopicType   WHERE SolutionID = @prmSolutionID
+    DELETE d FROM dbo.SolutionItemDependency d
+    JOIN   dbo.SolutionProjectItem i ON i.SolutionProjectItemID = d.SolutionProjectItemID
+    JOIN   dbo.SolutionProject p ON p.SolutionProjectID = i.SolutionProjectID
+    WHERE  p.SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionNote WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionLog      WHERE SolutionID = @prmSolutionID
     DELETE fl FROM dbo.SolutionFileFiling fl

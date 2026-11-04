@@ -19,7 +19,8 @@ import spock.lang.Unroll
 /**
  * Story 5695: the shapes of Solution links, topics and "Since you were last here" -- the row mappers
  * (Link, StoredLink, LinkTarget, Topic, Change, Visit), the eight kinds a link may join (Story 5695 added question and decision), and the page-size
- * rule every list shares.
+ * rule every list shares. Release 3: a link's topicKind, a topic's kind with what a part or an assumption carries,
+ * and TopicDraft's four-field constructor.
  */
 class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
 
@@ -100,13 +101,24 @@ class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
                           LinkedByName: 'Rex', TotalCount: 9])
 
         then:
-        l == new Link(40, 'note', 300, 'Runbook', 'Runbook type', T, true, U, 'rex', 'Rex')
+        l == new Link(40, 'note', 300, 'Runbook', 'Runbook type', T, true, U, 'rex', 'Rex', null)
+    }
+
+    def "Link.of should read the linked topic's kind when the other end is a topic"() {
+
+        when:
+        Link l = Link.of([SolutionLinkID: 41, Kind: 'topic', RecordID: 5, Title: 'Risk', Sub: 'Tag', RecordDate: T, IsClosed: 0,
+                          LinkedDate: U, LinkedByCode: 'tony', LinkedByName: 'Tony', TopicKind: 'tag', TotalCount: 1])
+
+        then:
+        l == new Link(41, 'topic', 5, 'Risk', 'Tag', T, false, U, 'tony', 'Tony', 'tag')
+        l.topicKind() == 'tag'
     }
 
     def "Link.of should answer zeros, nulls and false when the row is empty"() {
 
         expect:
-        Link.of([:]) == new Link(0, null, 0, null, null, null, false, null, null, null)
+        Link.of([:]) == new Link(0, null, 0, null, null, null, false, null, null, null, null)
     }
 
     @Unroll
@@ -197,13 +209,76 @@ class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
                             ModifiedDate: '2026-11-03 08:30:00', MemberCount: 4, LatestDate: Timestamp.valueOf(U)])
 
         then:
-        t == new Topic(5, 1, 'Charset', 'windows-1252', true, 'rex', 'Rex', 'tony', T, U, 4, U)
+        t == new Topic(5, 1, 'Charset', 'windows-1252', true, 'rex', 'Rex', 'tony', T, U, 4, U,
+                       'subject', null, null, null, null, null, null, false, null, null, 0)
     }
 
-    def "Topic.of should answer zeros, nulls and false when the row is empty"() {
+    def "Topic.of should read a part's kind of part, status, number and order when the row is a part"() {
+
+        when:
+        Topic t = Topic.of([SolutionTopicID: 9, SolutionID: 1, TopicName: 'Cherry Creek', TopicKindCode: 'part', SolutionTopicTypeID: 3,
+                            TypeName: 'Chapter', FigureLabel: 'words', StatusCode: 'done', StatusName: 'Done', ColorHex: '#16A34A',
+                            IsClosed: 1, FigureValue: new BigDecimal('4200.50'), AssumptionHolds: null, SortOrder: 2])
+
+        then:
+        t == new Topic(9, 1, 'Cherry Creek', null, false, null, null, null, null, null, 0, null,
+                       'part', 3, 'Chapter', 'words', 'done', 'Done', '#16A34A', true, new BigDecimal('4200.50'), null, 2)
+    }
+
+    @Unroll
+    def "Topic.of should read holds as #expected when an assumption's column is #scenario"() {
+
+        when:
+        Topic t = Topic.of([SolutionTopicID: 5, TopicKindCode: 'assumption', AssumptionHolds: value])
+
+        then:
+        t.kindCode() == 'assumption'
+        t.holds() == expected
+
+        where:
+        scenario          | value || expected
+        'boolean true'    | true  || true
+        'boolean false'   | false || false
+        'number one'      | 1     || true
+        'number zero'     | 0     || false
+        'null'            | null  || null
+    }
+
+    @Unroll
+    def "Topic.of should read the number as #expected when the driver answers #scenario"() {
+
+        when:
+        Topic t = Topic.of([SolutionTopicID: 9, TopicKindCode: 'part', FigureValue: value])
+
+        then:
+        t.figure() == expected
+
+        where:
+        scenario       | value || expected
+        'a BigDecimal' | 12.5  || 12.5
+        'an integer'   | 7     || 7
+        'a null'       | null  || null
+        'a word'       | 'ten' || null
+    }
+
+    @Unroll
+    def "Topic.of should answer type id #expected when the column is #scenario"() {
 
         expect:
-        Topic.of([:]) == new Topic(0, 0, null, null, false, null, null, null, null, null, 0, null)
+        Topic.of([SolutionTopicID: 9, SolutionTopicTypeID: value]).typeId() == expected
+
+        where:
+        scenario   | value || expected
+        'positive' | 3     || 3
+        'zero'     | 0     || null
+        'missing'  | null  || null
+    }
+
+    def "Topic.of should answer zeros, nulls and false, and the kind subject, when the row is empty"() {
+
+        expect:
+        Topic.of([:]) == new Topic(0, 0, null, null, false, null, null, null, null, null, 0, null,
+                                   'subject', null, null, null, null, null, null, false, null, null, 0)
     }
 
     def "Topic.of should read a numeric text count when the driver answers text"() {
@@ -250,7 +325,7 @@ class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
     def "the plain records should keep what they are given when built"() {
 
         given:
-        Link l = new Link(40, 'note', 300, 'Runbook', null, T, false, U, 'rex', 'Rex')
+        Link l = new Link(40, 'note', 300, 'Runbook', null, T, false, U, 'rex', 'Rex', null)
 
         expect:
         new LinkPage('item', 100, [l], 10, 20, 31).links() == [l]
@@ -258,6 +333,9 @@ class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
         new TopicPage([], [total: 3, all: 9], 0, 50, 3).counts() == [total: 3, all: 9]
         new TopicDraft(0, 1, 'Charset', null).summary() == null
         new TopicDraft(5, 0, null, '').summary() == ''
+        new TopicDraft(5, 0, null, '') == new TopicDraft(5, 0, null, '', null, null, null, null, false, null)
+        new TopicDraft(9, 1, 'Cherry Creek', null, 'part', 'Chapter', 'done', 12.5, true, null).figure() == 12.5
+        new TopicDraft(5, 1, 'P', null, 'assumption', null, null, null, false, false).holds() == Boolean.FALSE
         new SincePage(T, true, [], [total: 0], 0, 50, 0).firstVisit()
         new SincePage(T, false, [], [total: 0], 0, 50, 0).since() == T
     }

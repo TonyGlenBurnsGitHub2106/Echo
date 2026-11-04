@@ -23,7 +23,9 @@
     var PAGE_SIZE = 50, TYPING_PAUSE_MS = 250;
 
     var mFolds = null;
-    var mPick = null;          // { kind, id, title, host } while the picker is open
+    var mPick = null;          // { kind, id, title, host } while the picker is open; Story 5695: { pick: true, targetKind, onPick } in pick mode
+    var mTags = null;          // Story 5695 (Echo): this solution's tags [{id, name}], read once a page, again after a new one
+    var mStarterTags = ['Important', 'Risk', 'Idea', 'Parking lot'];
     var mAsk = 0, mTimer = null;
     var mMounted = [];         // every section on screen, so a change redraws each of them
 
@@ -41,7 +43,8 @@
         var state = { host: host, kind: kind, id: id, title: title || '', links: [], total: 0, loading: true };
         mMounted.push(state);
         draw(state);
-        await load(state, false);
+        await Promise.all([load(state, false), loadTags(false)]);
+        draw(state);
     }
 
     async function load(state, more) {
@@ -69,12 +72,56 @@
             '</div>';
         if (open) {
             if (state.error) html += '<div class="sl-ov-note sl-ov-error" data-testid="links-error">' + esc(state.error) + '</div>';
-            html += '<div class="sl-links-body">' + state.links.map(row).join('') + '</div>';
+            // Story 5695 (Echo): tags are chips at the top, with the solution's other tags offered for one tap.
+            var tags = state.links.filter(isTag), rest = state.links.filter(function (l) { return !isTag(l); });
+            if (state.kind !== 'topic') html += tagRow(state, tags);
+            html += '<div class="sl-links-body">' + rest.map(row).join('') + '</div>';
             if (state.links.length < state.total)
                 html += '<button type="button" class="sl-ov-more" data-links-more data-testid="links-more">' + (state.total - state.links.length) + ' more</button>';
         }
         host.innerHTML = html + '</section>';
         wire(state);
+    }
+
+    // ---- tags (Story 5695, Echo) ---------------------------------------------------------------------
+    // A tag is a topic of kind "tag". On a record it is a chip (x takes it off); the row of dashed chips
+    // offers the solution's other tags and the four starters, made the first time one is tapped.
+
+    function isTag(l) { return l.kind === 'topic' && l.topicKind === 'tag'; }
+
+    function tagRow(state, tags) {
+        var on = {};
+        tags.forEach(function (t) { on[String(t.title || '').toLowerCase()] = true; });
+        var offers = (mTags || []).filter(function (t) { return !on[t.name.toLowerCase()]; }).map(function (t) { return { id: t.id, name: t.name }; });
+        mStarterTags.forEach(function (n) {
+            if (!on[n.toLowerCase()] && !(mTags || []).some(function (t) { return t.name.toLowerCase() === n.toLowerCase(); })) offers.push({ id: 0, name: n });
+        });
+        return '<div class="sl-tag-row" data-testid="links-tags">' +
+            tags.map(function (t) {
+                return '<span class="sl-tag" data-testid="links-tag">' + esc(t.title) +
+                    '<button type="button" data-link-remove="' + t.linkId + '" title="Take the tag off" aria-label="Take the tag ' + esc(t.title) + ' off" data-testid="links-tag-remove">&#10005;</button></span>';
+            }).join('') +
+            offers.slice(0, 8).map(function (o) {
+                return '<button type="button" class="sl-tag-offer" data-tag-offer="' + o.id + '" data-tag-name="' + esc(o.name) + '" data-testid="links-tag-offer">+ ' + esc(o.name) + '</button>';
+            }).join('') + '</div>';
+    }
+
+    async function loadTags(force) {
+        if (mTags && !force) return;
+        var r = await SL.get('/api/solutions/' + Page.id + '/topics?kind=tag&pageSize=100');
+        mTags = r && r.ok && r.data ? (r.data.topics || []).map(function (t) { return { id: t.id, name: t.name }; }) : [];
+    }
+
+    async function addTag(state, id, name) {
+        if (!id) {
+            var t = await SL.post('/api/solutions/' + Page.id + '/topics', { name: name, kind: 'tag' });
+            if (!t || !t.ok || !t.data) { window.Picasso.error(SL.failText(t, 'The tag could not be made.')); return; }
+            id = t.data.id;
+            await loadTags(true);
+        }
+        var r = await SL.post('/api/solutions/' + Page.id + '/links', { fromKind: state.kind, fromId: state.id, toKind: 'topic', toId: id });
+        if (!r || !r.ok) { window.Picasso.error(SL.failText(r, 'The tag could not be put on.')); return; }
+        refreshAll();
     }
 
     function row(l) {
@@ -102,6 +149,11 @@
         });
         Array.prototype.forEach.call(host.querySelectorAll('[data-link-remove]'), function (b) {
             b.addEventListener('click', function () { unlink(state, +b.getAttribute('data-link-remove')); });
+        });
+        Array.prototype.forEach.call(host.querySelectorAll('[data-tag-offer]'), function (b) {
+            b.addEventListener('click', function () {
+                SL.guard(b, function () { return addTag(state, +b.getAttribute('data-tag-offer'), b.getAttribute('data-tag-name')); });
+            });
         });
     }
 
@@ -137,6 +189,22 @@
         search();
     }
 
+    /**
+     * Story 5695 (Echo): the same picker in PICK mode -- it does not link; it hands what was tapped to
+     * opts.onPick(kind, id, title). opts: { kind, id, title (the record picking), targetKind (one kind only),
+     * heading }. Used to choose the item another one waits on.
+     */
+    function pick(opts) {
+        mPick = { pick: true, kind: opts.kind, id: opts.id, title: opts.title || '', targetKind: opts.targetKind || '', onPick: opts.onPick };
+        $('linkPickFor').textContent = opts.heading || ((KIND_NAMES[opts.kind] || opts.kind) + ': ' + SL.plain(opts.title || '', 120));
+        $('linkPickSearch').value = '';
+        SL.warn('linkPickWarn', '');
+        $('linkPickList').innerHTML = '';
+        SL.open('linkOverlay');
+        $('linkPickSearch').focus();
+        search();
+    }
+
     function closePicker() { SL.close('linkOverlay'); mPick = null; }
 
     function searchSoon() {
@@ -148,17 +216,20 @@
         if (!mPick) return;
         var q = $('linkPickSearch').value.trim(), ask = ++mAsk;
         var r = await SL.get('/api/solutions/' + Page.id + '/link-targets?q=' + encodeURIComponent(q) +
-            '&kind=' + encodeURIComponent(mPick.kind) + '&recordId=' + mPick.id);
+            '&kind=' + encodeURIComponent(mPick.kind) + '&recordId=' + mPick.id +
+            (mPick.targetKind ? '&targetKind=' + encodeURIComponent(mPick.targetKind) : ''));
         if (ask !== mAsk || !mPick) return;
         if (!r || !r.ok || !Array.isArray(r.data)) { SL.warn('linkPickWarn', SL.failText(r, 'Could not search this solution.')); return; }
         var rows = r.data;
         var exactTopic = rows.some(function (t) { return t.kind === 'topic' && String(t.title || '').trim().toLowerCase() === q.toLowerCase(); });
         var html = '';
-        if (q && !exactTopic) {
+        if (q && !exactTopic && !mPick.pick) {
             html += '<button type="button" class="sl-pick-row new" data-pick-new data-testid="link-pick-new-topic">' +
                 '<span class="sl-kind topic">Topic</span><span class="sl-link-title">New topic &#8220;' + esc(q) + '&#8221;</span></button>';
         }
+        var linkedCounts = !mPick.pick;                       // Story 5695: in pick mode "already linked" says nothing
         html += rows.map(function (t) {
+            if (!linkedCounts) t = Object.assign({}, t, { alreadyLinked: false });
             return '<button type="button" class="sl-pick-row' + (t.alreadyLinked ? ' linked' : '') + '" data-pick-kind="' + esc(t.kind) + '" data-pick-id="' + t.id + '"' +
                 (t.alreadyLinked ? ' disabled' : '') + ' data-testid="link-pick-row">' +
                 '<span class="sl-kind ' + esc(t.kind) + '">' + esc(KIND_NAMES[t.kind] || t.kind) + '</span>' +
@@ -174,6 +245,13 @@
         var b = e.target.closest('[data-pick-kind], [data-pick-new]');
         if (!b || b.disabled || !mPick) return;
         await SL.guard(b, async function () {
+            if (mPick.pick) {                                      // Story 5695: pick mode hands it back
+                var handOff = mPick.onPick, k = b.getAttribute('data-pick-kind'), i = +b.getAttribute('data-pick-id');
+                var label = (b.querySelector('.sl-link-title') || {}).textContent || '';
+                closePicker();
+                if (handOff) await handOff(k, i, label);
+                return;
+            }
             var toKind, toId;
             if (b.hasAttribute('data-pick-new')) {
                 var name = $('linkPickSearch').value.trim();
@@ -238,5 +316,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
     else init();
 
-    window.SolutionLinks = { mount: mount, openSheet: openSheet, openRecord: openRecord, refresh: refreshAll, KIND_NAMES: KIND_NAMES };
+    window.SolutionLinks = { mount: mount, openSheet: openSheet, openRecord: openRecord, refresh: refreshAll, KIND_NAMES: KIND_NAMES, pick: pick };
 })();

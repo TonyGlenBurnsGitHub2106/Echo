@@ -279,6 +279,30 @@ before), **Questions** and **Decisions**. The Questions switch shows how many ar
   names questions asked and decisions made, a topic lists its decisions first, and the **Search** tab
   finds topics, questions and decisions.
 
+**Kinds of topic.** A topic on the **Topics** tab is now one of four kinds, chosen in its editor:
+
+- **Subject**: one subject that runs across the solution, like "Charset". Every older topic is one.
+- **Part**: a piece of what the solution is made of. A book's chapters and characters, a debt's
+  accounts, a program's environments. Give it a **kind of part** (Chapter, Character ... typed once,
+  then offered), a **status** and, if you like, a **number** (words, a balance). The Topics tab shows
+  each kind of part as its own group, in your order: tap **Arrange** and drag them. Link the items,
+  notes and log entries about a part to it, and its View shows everything about it in one place.
+- **Assumption**: something the plan rests on, like "The 837 submit path is live". Link the items
+  that rest on it. If it turns out to be false, open it and tap **Proved false**: Echo lists the open
+  items resting on it, all ticked. Untick any to keep, say why it no longer holds, and tap **Save**.
+  Echo asks first, then cancels the ticked items (Skipped) and writes one log entry with your reason.
+  **Holds again** puts it back. The items stay as they are.
+- **Tag**: a quick flag. On any record's View, the **Linked** section shows its tags as green chips
+  and offers the solution's other tags (and Important, Risk, Idea, Parking lot) as dashed ones. One
+  tap puts a tag on, and the x takes it off. A tag's own View lists everything carrying it.
+
+**Show** on the Topics tab narrows the list to one kind. Each group folds, and Echo remembers it.
+
+**What an item waits on.** An item's View has a **Waits on** section. **+ Waits on** picks another item
+of the solution, and the View also lists the items waiting on this one. While something it waits on is
+still open, its row on the Items tab says "waits on 1" (or 2, 3 ...). Echo refuses a wait that would go
+round in a circle, so two items can never end up waiting on each other.
+
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
 button. It counts from when the words were written, not from when the solution was last saved. A

@@ -42,6 +42,9 @@ BEGIN TRY
     UPDATE dbo.SolutionFile SET SolutionProjectItemID = NULL WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
     DELETE FROM dbo.SolutionLink WHERE (FromKind = 'item' AND FromID IN (SELECT ItemID FROM @subtree))
                                 OR (ToKind   = 'item' AND ToID   IN (SELECT ItemID FROM @subtree))
+    -- Story 5695 (Echo): what they waited on, and what waited on them.
+    DELETE FROM dbo.SolutionItemDependency WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
+                                          OR DependsOnSolutionProjectItemID IN (SELECT ItemID FROM @subtree)
     DELETE FROM dbo.SolutionProjectItem WHERE SolutionProjectItemID IN (SELECT ItemID FROM @subtree)
     SET @rows = @@ROWCOUNT
     COMMIT TRANSACTION

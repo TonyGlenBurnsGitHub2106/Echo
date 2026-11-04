@@ -68,9 +68,11 @@ $EchoSolutionTables = @(
     @{ Name = 'SolutionConversation'; Where = 'SolutionID = @sid' },
     # Story 5695: links, topics and visits (Leonardo 2026-11-02), questions and decisions (Echo first). A link
     # names its two records by kind and id, and the import keeps every id, so the links still hold.
+    @{ Name = 'SolutionTopicType';    Where = 'SolutionID = @sid'; Optional = $true },     # Release 3: kinds of part
     @{ Name = 'SolutionTopic';        Where = 'SolutionID = @sid'; Optional = $true },
     @{ Name = 'SolutionQuestion';     Where = 'SolutionID = @sid'; Optional = $true },
     @{ Name = 'SolutionDecision';     Where = 'SolutionID = @sid'; Optional = $true },
     @{ Name = 'SolutionLink';         Where = 'SolutionID = @sid'; Optional = $true },
-    @{ Name = 'SolutionMemberVisit';  Where = 'SolutionID = @sid'; Optional = $true }
+    @{ Name = 'SolutionMemberVisit';  Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionItemDependency'; Where = 'SolutionProjectItemID IN (SELECT i.SolutionProjectItemID FROM dbo.SolutionProjectItem i JOIN dbo.SolutionProject p ON p.SolutionProjectID = i.SolutionProjectID WHERE p.SolutionID = @sid)'; Optional = $true }
 )

@@ -43,7 +43,9 @@ public class SolutionLinkController extends SolutionControllerSupport {
 
     public record LinkRequest(String fromKind, Integer fromId, String toKind, Integer toId) {}
 
-    public record TopicRequest(String name, String summary) {}
+    /** Story 5695 (Echo): kind, typeName, statusCode, figure, clearFigure, holds ride along; absent = keep. */
+    public record TopicRequest(String name, String summary, String kind, String typeName, String statusCode,
+                               java.math.BigDecimal figure, Boolean clearFigure, Boolean holds) {}
 
     // ---- links ----
 
@@ -75,8 +77,9 @@ public class SolutionLinkController extends SolutionControllerSupport {
                                      @RequestParam(name = "q",        required = false) String q,
                                      @RequestParam(name = "kind",     required = false) String kind,
                                      @RequestParam(name = "recordId", required = false) Integer recordId,
-                                     @RequestParam(name = "pageSize", required = false) Integer pageSize) {
-        return ResponseEntity.ok(service.targets(caller(req), id, q, kind, recordId, orZero(pageSize)));
+                                     @RequestParam(name = "pageSize", required = false) Integer pageSize,
+                                     @RequestParam(name = "targetKind", required = false) String targetKind) {
+        return ResponseEntity.ok(service.targets(caller(req), id, q, kind, recordId, orZero(pageSize), targetKind));
     }
 
     // ---- topics ----
@@ -85,14 +88,15 @@ public class SolutionLinkController extends SolutionControllerSupport {
     public ResponseEntity<?> topics(HttpServletRequest req, @PathVariable int id,
                                     @RequestParam(name = "search",   required = false) String search,
                                     @RequestParam(name = "offset",   required = false) Integer offset,
-                                    @RequestParam(name = "pageSize", required = false) Integer pageSize) {
-        return ResponseEntity.ok(service.topics(caller(req), id, search, orZero(offset), orZero(pageSize)));
+                                    @RequestParam(name = "pageSize", required = false) Integer pageSize,
+                                    @RequestParam(name = "kind",     required = false) String kind) {
+        return ResponseEntity.ok(service.topics(caller(req), id, search, kind, orZero(offset), orZero(pageSize)));
     }
 
     @PostMapping("/{id:\\d+}/topics")
     public ResponseEntity<?> addTopic(HttpServletRequest req, @PathVariable int id, @RequestBody TopicRequest body) {
         String name = required(body == null ? null : body.name(), "A topic name");
-        return ResponseEntity.ok(service.saveTopic(caller(req), new TopicDraft(0, id, name, body.summary())));
+        return ResponseEntity.ok(service.saveTopic(caller(req), draft(0, id, name, body)));
     }
 
     @GetMapping("/topics/{topicId:\\d+}")
@@ -112,13 +116,18 @@ public class SolutionLinkController extends SolutionControllerSupport {
     @PutMapping("/topics/{topicId:\\d+}")
     public ResponseEntity<?> updateTopic(HttpServletRequest req, @PathVariable int topicId, @RequestBody TopicRequest body) {
         if (body == null) throw new IllegalArgumentException("A topic is required.");
-        return ResponseEntity.ok(service.saveTopic(caller(req), new TopicDraft(topicId, 0, body.name(), body.summary())));
+        return ResponseEntity.ok(service.saveTopic(caller(req), draft(topicId, 0, body.name(), body)));
     }
 
     @DeleteMapping("/topics/{topicId:\\d+}")
     public ResponseEntity<?> deleteTopic(HttpServletRequest req, @PathVariable int topicId) {
         service.deleteTopic(caller(req), topicId);
         return ResponseEntity.ok(ok("deletedId", topicId));
+    }
+
+    private static TopicDraft draft(int topicId, int solutionId, String name, TopicRequest b) {
+        return new TopicDraft(topicId, solutionId, name, b.summary(), b.kind(), b.typeName(), b.statusCode(), b.figure(),
+            Boolean.TRUE.equals(b.clearFigure()), b.holds());
     }
 
     // ---- since you were last here ----

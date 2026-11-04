@@ -47,10 +47,12 @@ DECLARE @size INT = CASE WHEN ISNULL(@prmPageSize, 0) BETWEEN 1 AND 500 THEN @pr
 )
 SELECT  e.SolutionLinkID, e.Kind, e.RecordID, v.Title, v.Sub, v.RecordDate, v.IsClosed,
         e.LinkedDate, m.MemberCode AS LinkedByCode, m.MemberName AS LinkedByName,
+        tk.TopicKindCode AS TopicKind,   -- Story 5695 (Echo): a linked topic says its kind (a tag is drawn as a chip)
         COUNT(*) OVER () AS TotalCount
 FROM    Ends e
 JOIN    dbo.vw_SolutionLinkable v ON v.SolutionID = @prmSolutionID AND v.Kind = e.Kind AND v.RecordID = e.RecordID
 LEFT JOIN dbo.SolutionMember m ON m.SolutionMemberID = e.CreatedByMemberID
+LEFT JOIN dbo.SolutionTopic tk ON e.Kind = 'topic' AND tk.SolutionTopicID = e.RecordID
 -- Story 5695 (Echo): after the topics, the decisions (so a topic opens with today's answer near the top), then the questions.
 ORDER BY CASE e.Kind WHEN 'topic' THEN 0 WHEN 'decision' THEN 1 WHEN 'question' THEN 2 ELSE 3 END, v.RecordDate DESC, e.SolutionLinkID DESC
 OFFSET ISNULL(@prmOffset, 0) ROWS FETCH NEXT @size ROWS ONLY

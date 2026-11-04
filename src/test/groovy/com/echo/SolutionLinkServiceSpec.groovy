@@ -18,7 +18,9 @@ import spock.lang.Unroll
  * Story 5695: the business rules of Solution links, topics and "Since you were last here" -- access is
  * checked before anything is read or written (a hidden solution reads and writes nothing), the eight kinds,
  * a link is removed only through its own solution, a topic is reached through its own solution, the add
- * and edit paths of a topic, the visit and "since" window, and the paging every list shares.
+ * and edit paths of a topic, the visit and "since" window, and the paging every list shares. Release 3: the
+ * four kinds of topic (topicKind), the topics list narrowed to one kind, a save refused for a bad kind before
+ * anything is written, and the Link picker narrowed to one target kind.
  */
 class SolutionLinkServiceSpec extends SolutionServiceSupport {
 
@@ -323,7 +325,7 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
         List<LinkTarget> got = service.targets(REX, 1, search, kind, recordId, pageSize)
 
         then:
-        1 * links.targets(1, expectedSearch, expectedKind, recordId, expectedSize) >> [target]
+        1 * links.targets(1, expectedSearch, expectedKind, recordId, expectedSize, null) >> [target]
         got == [target]
 
         where:
@@ -361,8 +363,8 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
         TopicPage p = service.topics(REX, 1, '  charset ', 10, 20)
 
         then:
-        1 * links.topicCounts(1, 'charset') >> [total: 3, all: 9]
-        1 * links.topics(1, 'charset', 10, 20) >> [topicRows[5]]
+        1 * links.topicCounts(1, 'charset', null) >> [total: 3, all: 9]
+        1 * links.topics(1, 'charset', null, 10, 20) >> [topicRows[5]]
         p.topics()*.id() == [5]
         p.counts() == [total: 3, all: 9]
         p.offset() == 10
@@ -377,8 +379,8 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
         service.topics(TONY, 1, search, offset, pageSize)
 
         then:
-        1 * links.topicCounts(1, expectedSearch) >> [total: 0, all: 0]
-        1 * links.topics(1, expectedSearch, expectedOffset, expectedSize) >> []
+        1 * links.topicCounts(1, expectedSearch, null) >> [total: 0, all: 0]
+        1 * links.topics(1, expectedSearch, null, expectedOffset, expectedSize) >> []
 
         where:
         scenario                         | search   | offset | pageSize || expectedSearch | expectedOffset | expectedSize
@@ -395,7 +397,7 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
         TopicPage p = service.topics(TONY, 1, null, 0, 50)
 
         then:
-        1 * links.topicCounts(1, null) >> [all: 4]
+        1 * links.topicCounts(1, null, null) >> [all: 4]
         1 * links.topics(*_) >> []
         p.total() == 0
         p.counts() == [all: 4]
@@ -729,5 +731,177 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
         scenario                 | callerName || expectedCode
         'a person reads it all'  | 'TONY'     || 'tony'
         'a client reads it all'  | 'REX'      || 'rex'
+    }
+
+    // ---- Story 5695 Release 3: kinds of topic ----
+
+    @Unroll
+    def "#seq. topicKind should answer #expected when #scenario"() {
+
+        expect:
+        SolutionLinkService.topicKind(kind, blankIsNull) == expected
+
+        where:
+        seq | scenario                                  | kind           | blankIsNull || expected
+        1   | 'a list asks for no kind'                 | null           | true        || null
+        2   | 'a list asks for an empty kind'           | ''             | true        || null
+        3   | 'a list asks for a blank kind'            | '   '          | true        || null
+        4   | 'a subject is named'                      | 'subject'      | false       || 'subject'
+        5   | 'a tag is named'                          | 'tag'          | true        || 'tag'
+        6   | 'a part is named in capitals'             | 'PART'         | false       || 'part'
+        7   | 'an assumption is padded and mixed'       | ' Assumption ' | true        || 'assumption'
+        8   | 'a tag has a tab'                         | '\ttag'        | false       || 'tag'
+    }
+
+    @Unroll
+    def "topicKind should refuse with the four kinds named when #scenario"() {
+
+        when:
+        SolutionLinkService.topicKind(kind, blankIsNull)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == expectedMessage
+
+        where:
+        scenario                           | kind        | blankIsNull || expectedMessage
+        'a change names no kind'           | null        | false       || "A topic's kind is one of subject, tag, part, assumption."
+        'a change names a blank kind'      | '  '        | false       || "A topic's kind is one of subject, tag, part, assumption."
+        'the kind is a topic'              | 'topic'     | true        || "A topic's kind is one of subject, tag, part, assumption."
+        'the kind is plural'               | 'tags'      | true        || "A topic's kind is one of subject, tag, part, assumption."
+        'the kind is a kind of part'       | 'chapter'   | false       || "A topic's kind is one of subject, tag, part, assumption."
+        'the kind holds two kinds'         | 'tag,part'  | true        || "A topic's kind is one of subject, tag, part, assumption."
+    }
+
+    @Unroll
+    def "topics should ask the list and the counts for kind #expectedKind when #scenario"() {
+
+        when:
+        TopicPage p = service.topics(REX, 1, ' charset ', kind, 0, 50)
+
+        then:
+        1 * links.topicCounts(1, 'charset', expectedKind) >> [total: 2, all: 9, 'kind:part': 2]
+        1 * links.topics(1, 'charset', expectedKind, 0, 50) >> [topicRows[5]]
+        p.total() == 2
+        p.counts() == [total: 2, all: 9, 'kind:part': 2]
+
+        where:
+        scenario                      | kind      || expectedKind
+        'no kind is asked'            | null      || null
+        'a blank kind is asked'       | '  '      || null
+        'parts are asked'             | 'part'    || 'part'
+        'tags are asked in capitals'  | ' TAG '   || 'tag'
+    }
+
+    def "topics should refuse an unknown kind and read nothing"() {
+
+        when:
+        service.topics(TONY, 1, null, 'chapter', 0, 50)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == "A topic's kind is one of subject, tag, part, assumption."
+        0 * links.topicCounts(*_)
+        0 * links.topics(*_)
+    }
+
+    def "topics should check access before the kind when the solution is hidden and the kind is unknown"() {
+
+        when:
+        service.topics(ZED, 1, null, 'chapter', 0, 50)
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == 'Solution not found.'
+        0 * links._
+    }
+
+    @Unroll
+    def "saveTopic should pass the whole draft through when #scenario"() {
+
+        given:
+        TopicDraft draft = new TopicDraft(id, solutionId, name, null, kind, typeName, status, null, false, holds)
+
+        when:
+        Topic t = service.saveTopic(TONY, draft)
+
+        then:
+        1 * links.saveTopic(draft, 'tony') >> 5
+        t.id() == 5
+
+        where:
+        scenario                                  | id | solutionId | name           | kind         | typeName  | status | holds || unused
+        'a part is added with its kind of part'   | 0  | 1          | 'Cherry Creek' | 'part'       | 'Chapter' | 'todo' | null  || null
+        'an assumption is added'                  | 0  | 1          | 'The 837 path' | 'assumption' | null      | null   | true  || null
+        'an edit changes the kind in capitals'    | 5  | 0          | null           | ' TAG '      | null      | null   | null  || null
+        'an edit proves an assumption false'      | 5  | 0          | null           | null         | null      | null   | false || null
+    }
+
+    @Unroll
+    def "saveTopic should refuse a bad kind and write nothing when #scenario"() {
+
+        when:
+        service.saveTopic(TONY, new TopicDraft(id, solutionId, 'Charset', null, kind, null, null, null, false, null))
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == expectedMessage
+        0 * links.saveTopic(*_)
+
+        where:
+        scenario                 | id | solutionId | kind      || expectedMessage
+        'an add names a chapter' | 0  | 1          | 'chapter' || "A topic's kind is one of subject, tag, part, assumption."
+        'an edit names a topic'  | 5  | 0          | 'topic'   || "A topic's kind is one of subject, tag, part, assumption."
+    }
+
+    def "saveTopic should check access before the kind when the solution is hidden and the kind is unknown"() {
+
+        when:
+        service.saveTopic(REX, new TopicDraft(0, 2, 'Charset', null, 'chapter', null, null, null, false, null))
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == 'Solution not found.'
+        0 * links.saveTopic(*_)
+    }
+
+    @Unroll
+    def "targets should ask for target kind #expectedTargetKind when #scenario"() {
+
+        when:
+        service.targets(REX, 1, null, 'item', 100, 30, targetKind)
+
+        then:
+        1 * links.targets(1, null, 'item', 100, 30, expectedTargetKind) >> []
+
+        where:
+        scenario                         | targetKind || expectedTargetKind
+        'no target kind is asked'        | null       || null
+        'an empty target kind is asked'  | ''         || null
+        'a blank target kind is asked'   | '   '      || null
+        'items are asked'                | 'item'     || 'item'
+        'topics are asked in capitals'   | ' TOPIC '  || 'topic'
+    }
+
+    def "targets should refuse an unknown target kind and search nothing"() {
+
+        when:
+        service.targets(TONY, 1, null, null, null, 30, 'story')
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message == KIND_MESSAGE
+        0 * links.targets(*_)
+    }
+
+    def "targets should check access before the target kind when the solution is hidden"() {
+
+        when:
+        service.targets(ZED, 1, null, null, null, 30, 'story')
+
+        then:
+        SolutionNotFoundException ex = thrown()
+        ex.message == 'Solution not found.'
+        0 * links._
     }
 }

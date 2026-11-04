@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=49">
+    <link rel="stylesheet" href="solutions.css?v=50">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -137,9 +137,11 @@
         <button type="button" class="ef-tools-toggle" id="topicToolsToggle" aria-expanded="true" title="Fold the topic tools away, or bring them back" data-testid="topics-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="topicToolsSummary">Topics</span></button>
         <div class="ef-tools sl-tools" data-testid="topics-tools">
             <button type="button" class="sl-btn primary" id="btnAddTopic" data-testid="topics-add-btn">+ Topic</button>
+            <div class="fld"><label for="fTopicKind">Show</label><select id="fTopicKind" data-ps-placeholder="Every kind" data-testid="topics-filter-kind"></select></div>
             <div class="grow"><label for="fTopicSearch">Search</label><input type="search" id="fTopicSearch" data-testid="topics-filter-search" placeholder="Search topic names and where they stand" autocomplete="off"></div>
             <span class="spacer"></span>
             <button type="button" class="sl-btn" id="btnTopicsFold" hidden data-testid="topics-fold-toggle">Collapse all</button>
+            <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the parts" title="Arrange -- drag to reorder" data-testid="topics-arrange-btn">&#8645;</button>
         </div>
     </div>
 
@@ -458,6 +460,7 @@
             <div class="sl-sepia-meta" id="itemViewMeta" data-testid="item-view-meta"></div>
             <div class="sl-sepia-body" id="itemViewBody" data-testid="item-view-body"></div>
             <div id="itemViewSubs" data-testid="item-view-subs"></div>
+            <div id="itemViewWaits" data-testid="item-view-waits"></div>
             <div id="itemViewLinks" data-testid="item-view-links"></div>
         </div>
         <div class="foot">
@@ -547,6 +550,13 @@
         <h2 id="topicTitleBar">New topic</h2>
         <div class="warn" id="topicWarn" data-testid="topic-warn"></div>
         <div class="fld"><label for="tpName">Name</label><input type="text" id="tpName" data-testid="topic-name" placeholder="The subject, e.g. Charset" autocomplete="off" maxlength="200"></div>
+        <div class="fld"><label for="tpKind">Kind</label><select id="tpKind" data-testid="topic-kind"></select></div>
+        <!-- Story 5695 (Echo): a part of what the solution is made of: its kind of part, status and number -->
+        <div id="tpPartFields" hidden data-testid="topic-part-fields">
+            <div class="fld"><label for="tpType">Kind of part</label><div class="picker-wrap"><input type="text" id="tpType" class="picker-input" data-testid="topic-type" placeholder="Chapter, Character, Account, Environment ..." autocomplete="off" data-voice-skip="true"><div class="picker-dropdown" id="tpTypeDD" data-testid="topic-type-list"></div></div></div>
+            <div class="fld"><label for="tpStatus">Status</label><select id="tpStatus" data-ps-placeholder="No status" data-testid="topic-status"></select></div>
+            <div class="fld"><label for="tpFigure" id="tpFigureLabel">Number</label><input type="text" id="tpFigure" inputmode="decimal" data-testid="topic-figure" placeholder="A count or an amount, e.g. 4200 (optional)" autocomplete="off"></div>
+        </div>
         <div class="fld"><label for="tpSummary">Where it stands</label><textarea id="tpSummary" data-testid="topic-summary" placeholder="The current answer, in a line or a paragraph (optional)"></textarea></div>
         <div class="foot">
             <button type="button" class="sl-btn" id="topicCancel" data-testid="topic-cancel">Cancel</button>
@@ -566,6 +576,8 @@
         </div>
         <div class="foot">
             <button type="button" class="sl-btn danger" id="topicViewDelete" data-testid="topic-view-delete">Delete</button>
+            <button type="button" class="sl-btn" id="topicViewFalse" hidden data-testid="topic-view-false">Proved false</button>
+            <button type="button" class="sl-btn" id="topicViewHolds" hidden data-testid="topic-view-holds">Holds again</button>
             <button type="button" class="sl-btn" id="topicViewEdit" data-testid="topic-view-edit">Edit</button>
             <button type="button" class="sl-btn primary" id="topicViewClose" data-testid="topic-view-close">Close</button>
         </div>
@@ -599,6 +611,20 @@
     </div>
 </div>
 
+<!-- Story 5695 (Echo): the premise switch -- an assumption is proved false; the open items resting on it are cancelled -->
+<div class="sl-overlay sl-overlay-top" id="premiseOverlay" data-testid="premise-overlay">
+    <div class="sl-modal" style="width:min(640px,100%)">
+        <h2 id="premiseTitle">Proved false</h2>
+        <div class="warn" id="premiseWarn" data-testid="premise-warn"></div>
+        <div id="premiseItems" data-testid="premise-items"></div>
+        <div class="fld" style="margin-top:10px"><label for="premiseReason">Why it no longer holds</label><textarea id="premiseReason" data-testid="premise-reason" placeholder="What changed, e.g. The partner app has written the 837 files itself since 2024"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="premiseCancel" data-testid="premise-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="premiseSave" data-testid="premise-save">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- Story 5695 (Echo): Questions and Decisions (solution-decisions.js) -- add / edit one question -->
 <div class="sl-overlay" id="questionOverlay" data-testid="question-overlay">
     <div class="sl-modal" style="width:min(640px,100%)">
@@ -607,7 +633,7 @@
         <div class="warn" id="questionWarn" data-testid="question-warn"></div>
         <div class="fld"><label for="qText">Question</label><input type="text" id="qText" data-testid="question-text" placeholder="What needs answering, e.g. Which charset do the 837 files use?" autocomplete="off" maxlength="800"></div>
         <div class="fld"><label for="qDetail">Detail</label><textarea id="qDetail" data-testid="question-detail" placeholder="Why it matters, what is known so far (optional)"></textarea></div>
-        <div class="fld"><label for="qOwner">Who should answer it</label><select id="qOwner" data-testid="question-owner"></select></div>
+        <div class="fld"><label for="qOwner">Who should answer it</label><select id="qOwner" data-ps-placeholder="Anyone" data-testid="question-owner"></select></div>
         <div class="foot">
             <button type="button" class="sl-btn" id="questionCancel" data-testid="question-cancel">Cancel</button>
             <button type="button" class="sl-btn primary" id="questionSave" data-testid="question-save">Save</button>
@@ -994,12 +1020,12 @@
 <script src="solutions-common.js?v=13"></script>
 <script src="solution.js?v=39"></script>
 <script src="solution-overview.js?v=4"></script>
-<script src="solution-items.js?v=22"></script>
+<script src="solution-items.js?v=23"></script>
 <script src="solution-log.js?v=11"></script>
 <script src="solution-notes.js?v=22"></script>
 <script src="solution-terms.js?v=2"></script>
-<script src="solution-links.js?v=4"></script>
-<script src="solution-topics.js?v=2"></script>
+<script src="solution-links.js?v=5"></script>
+<script src="solution-topics.js?v=3"></script>
 <script src="solution-decisions.js?v=1"></script>
 <script src="solution-conv.js?v=8"></script>
 <script src="solution-files.js?v=22"></script>

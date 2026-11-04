@@ -4,6 +4,7 @@ import org.spockframework.spring.SpringBean
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.test.web.servlet.ResultActions
 
+import com.echo.SolutionLinkModels.Link
 import com.echo.SolutionLinkModels.LinkPage
 import com.echo.SolutionLinkModels.LinkTarget
 import com.echo.SolutionLinkModels.StoredLink
@@ -21,7 +22,9 @@ import spock.lang.Unroll
 /**
  * Story 5695: Solution links, topics and "Since you were last here" over HTTP -- every endpoint, who may
  * call it, the query parameters and body fields that become the service call, and how each refusal maps
- * to a status (400 malformed, 404 not found or not shared, 409 a rule of the procs).
+ * to a status (400 malformed, 404 not found or not shared, 409 a rule of the procs). Release 3: the topics
+ * list's kind filter, the kind fields of a topic body (kind, typeName, statusCode, figure, clearFigure, holds),
+ * the Link picker's targetKind and a linked topic's kind.
  */
 @WebMvcTest(SolutionLinkController)
 class SolutionLinkControllerSpec extends ConfigWebSupport {
@@ -54,7 +57,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         links.findLink(_) >> { int id -> linkRows[id] }
         links.unlink(_) >> true
         links.targets(*_) >> [new LinkTarget('note', 300, 'Runbook', 'Runbook', null, false, true)]
-        links.topics(*_) >> { int s, String q, int off, int size -> topicRows.values().findAll { it.solutionId() == s } as List }
+        links.topics(*_) >> { int s, String q, String k, int off, int size -> topicRows.values().findAll { it.solutionId() == s } as List }
         links.topicCounts(*_) >> [total: 1, all: 2]
         links.findTopic(_) >> { int id -> topicRows[id] }
         links.saveTopic(*_) >> { TopicDraft d, String by -> d.id() > 0 ? d.id() : 5 }
@@ -374,7 +377,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
             .andExpect(jsonPath('$[0].alreadyLinked').value(true))
 
         then:
-        1 * links.targets(1, 'charset', 'item', 100, 100) >> [new LinkTarget('topic', 5, 'Charset', null, null, false, true)]
+        1 * links.targets(1, 'charset', 'item', 100, 100, null) >> [new LinkTarget('topic', 5, 'Charset', null, null, false, true)]
     }
 
     def "targets should search everything in pages of 30 when no query parameter is sent"() {
@@ -383,7 +386,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         mvc.perform(asAgent(get('/api/solutions/1/link-targets'))).andExpect(status().isOk())
 
         then:
-        1 * links.targets(1, null, null, null, 30) >> []
+        1 * links.targets(1, null, null, null, 30, null) >> []
     }
 
     @Unroll
@@ -417,8 +420,8 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
             .andExpect(jsonPath('$.pageSize').value(20))
 
         then:
-        1 * links.topicCounts(1, 'charset') >> [total: 1, all: 2]
-        1 * links.topics(1, 'charset', 10, 20) >> [topicRows[5]]
+        1 * links.topicCounts(1, 'charset', null) >> [total: 1, all: 2]
+        1 * links.topics(1, 'charset', null, 10, 20) >> [topicRows[5]]
     }
 
     def "topics should ask for the first page of 50 with no search when no query parameter is sent"() {
@@ -427,7 +430,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         mvc.perform(asUser(get('/api/solutions/1/topics'))).andExpect(status().isOk())
 
         then:
-        1 * links.topics(1, null, 0, 50) >> []
+        1 * links.topics(1, null, null, 0, 50) >> []
     }
 
     def "addTopic should build an add draft with the name trimmed when a person adds a topic"() {
@@ -646,5 +649,174 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         then:
         1 * links.caughtUp(1, 'tony') >> { throw new SolutionRuleException('That solution no longer exists.') }
         r.andExpect(status().isConflict()).andExpect(jsonPath('$.message').value('That solution no longer exists.'))
+    }
+
+    // ---- Story 5695 Release 3: kinds of topic over HTTP ----
+
+    @Unroll
+    def "topics should pass kind #expectedKind to the list and the counts when #scenario"() {
+
+        when:
+        mvc.perform(asUser(get(url))).andExpect(status().isOk())
+
+        then:
+        1 * links.topicCounts(1, null, expectedKind) >> [total: 0, all: 2]
+        1 * links.topics(1, null, expectedKind, 0, 50) >> []
+
+        where:
+        scenario                     | url                                       || expectedKind
+        'no kind is sent'            | '/api/solutions/1/topics'                 || null
+        'parts are asked'            | '/api/solutions/1/topics?kind=part'       || 'part'
+        'tags are asked in capitals' | '/api/solutions/1/topics?kind=TAG'        || 'tag'
+        'an empty kind is sent'      | '/api/solutions/1/topics?kind='           || null
+    }
+
+    def "topics should answer 400 naming the four kinds and read nothing when the kind is unknown"() {
+
+        when:
+        ResultActions r = mvc.perform(asUser(get('/api/solutions/1/topics').param('kind', 'chapter')))
+
+        then:
+        r.andExpect(status().isBadRequest())
+            .andExpect(jsonPath('$.message').value("A topic's kind is one of subject, tag, part, assumption."))
+        0 * links.topics(*_)
+        0 * links.topicCounts(*_)
+    }
+
+    def "topics should answer each topic's kind and what a part carries when the page is read"() {
+
+        given:
+        Topic part = Topic.of([SolutionTopicID: 9, SolutionID: 1, TopicName: 'Cherry Creek', TopicKindCode: 'part', SolutionTopicTypeID: 3,
+                               TypeName: 'Chapter', FigureLabel: 'words', StatusCode: 'inprogress', StatusName: 'In progress',
+                               FigureValue: new BigDecimal('4200.50'), SortOrder: 2])
+        Topic assumption = Topic.of([SolutionTopicID: 10, SolutionID: 1, TopicName: 'The 837 path is live', TopicKindCode: 'assumption',
+                                     AssumptionHolds: false])
+
+        when:
+        mvc.perform(asAgent(get('/api/solutions/1/topics'))).andExpect(status().isOk())
+            .andExpect(jsonPath('$.topics[0].kindCode').value('part'))
+            .andExpect(jsonPath('$.topics[0].typeId').value(3))
+            .andExpect(jsonPath('$.topics[0].typeName').value('Chapter'))
+            .andExpect(jsonPath('$.topics[0].figureLabel').value('words'))
+            .andExpect(jsonPath('$.topics[0].statusCode').value('inprogress'))
+            .andExpect(jsonPath('$.topics[0].figure').value(4200.5d))
+            .andExpect(jsonPath('$.topics[0].sortOrder').value(2))
+            .andExpect(jsonPath('$.topics[1].kindCode').value('assumption'))
+            .andExpect(jsonPath('$.topics[1].holds').value(false))
+
+        then:
+        1 * links.topics(1, null, null, 0, 50) >> [part, assumption]
+    }
+
+    @Unroll
+    def "addTopic should build the whole draft from the body when #scenario"() {
+
+        when:
+        mvc.perform(asUser(request('POST', '/api/solutions/1/topics', body))).andExpect(status().isOk())
+
+        then:
+        1 * links.saveTopic(new TopicDraft(0, 1, 'Cherry Creek', null, expectedKind, expectedType, expectedStatus,
+                                           figureOf(expectedFigure), expectedClear, expectedHolds), 'tony') >> 5
+
+        where:
+        scenario                         | body                                                                                                      || expectedKind | expectedType | expectedStatus | expectedFigure | expectedClear | expectedHolds
+        'a part with everything'         | '{"name":"Cherry Creek","kind":"part","typeName":"Chapter","statusCode":"inprogress","figure":4200.5}'   || 'part'       | 'Chapter'    | 'inprogress'   | '4200.5'       | false         | null
+        'an assumption that holds'       | '{"name":"Cherry Creek","kind":"assumption","holds":true}'                                                || 'assumption' | null         | null           | null           | false         | true
+        'a tag in capitals'              | '{"name":"Cherry Creek","kind":"TAG"}'                                                                    || 'TAG'        | null         | null           | null           | false         | null
+        'clearFigure is false'           | '{"name":"Cherry Creek","clearFigure":false}'                                                             || null         | null         | null           | null           | false         | null
+    }
+
+    @Unroll
+    def "updateTopic should build a merge draft with the kind fields as sent when #scenario"() {
+
+        when:
+        mvc.perform(asUser(request('PUT', '/api/solutions/topics/5', body))).andExpect(status().isOk())
+
+        then:
+        1 * links.saveTopic(new TopicDraft(5, 0, null, null, expectedKind, expectedType, expectedStatus,
+                                           figureOf(expectedFigure), expectedClear, expectedHolds), 'tony') >> 5
+
+        where:
+        scenario                           | body                                        || expectedKind | expectedType | expectedStatus | expectedFigure | expectedClear | expectedHolds
+        'the number is taken off'          | '{"clearFigure":true}'                      || null         | null         | null           | null           | true          | null
+        'the kind of part is cleared'      | '{"typeName":"","statusCode":""}'           || null         | ''           | ''             | null           | false         | null
+        'an assumption is proved false'    | '{"holds":false}'                           || null         | null         | null           | null           | false         | false
+        'the kind changes to a subject'    | '{"kind":"subject"}'                        || 'subject'    | null         | null           | null           | false         | null
+        'a new number'                     | '{"figure":12}'                             || null         | null         | null           | '12'           | false         | null
+    }
+
+    @Unroll
+    def "#scenario should answer 400 naming the four kinds and save nothing when the kind is unknown"() {
+
+        when:
+        ResultActions r = mvc.perform(asUser(request(method, url, body)))
+
+        then:
+        r.andExpect(status().isBadRequest())
+            .andExpect(jsonPath('$.message').value(expectedMessage))
+        0 * links.saveTopic(*_)
+
+        where:
+        scenario         | method | url                         | body                                   || expectedMessage
+        'add a topic'    | 'POST' | '/api/solutions/1/topics'   | '{"name":"Charset","kind":"chapter"}'  || "A topic's kind is one of subject, tag, part, assumption."
+        'update a topic' | 'PUT'  | '/api/solutions/topics/5'   | '{"kind":"topic"}'                     || "A topic's kind is one of subject, tag, part, assumption."
+    }
+
+    def "addTopic should answer 409 verbatim when the repository refuses what the kind cannot carry"() {
+
+        when:
+        ResultActions r = mvc.perform(asUser(request('POST', '/api/solutions/1/topics', '{"name":"Charset","kind":"subject","statusCode":"todo"}')))
+
+        then:
+        1 * links.saveTopic(*_) >> { throw new SolutionRuleException('Only a part carries a kind of part, a status and a number. Nothing was saved.') }
+        r.andExpect(status().isConflict())
+            .andExpect(jsonPath('$.message').value('Only a part carries a kind of part, a status and a number. Nothing was saved.'))
+    }
+
+    @Unroll
+    def "targets should pass target kind #expectedTargetKind when #scenario"() {
+
+        when:
+        mvc.perform(asUser(get(url))).andExpect(status().isOk())
+
+        then:
+        1 * links.targets(1, null, null, null, 30, expectedTargetKind) >> []
+
+        where:
+        scenario                         | url                                                   || expectedTargetKind
+        'no target kind is sent'         | '/api/solutions/1/link-targets'                       || null
+        'items are asked'                | '/api/solutions/1/link-targets?targetKind=item'       || 'item'
+        'topics are asked in capitals'   | '/api/solutions/1/link-targets?targetKind=TOPIC'      || 'topic'
+        'an empty target kind is sent'   | '/api/solutions/1/link-targets?targetKind='           || null
+    }
+
+    def "targets should answer 400 and search nothing when the target kind is unknown"() {
+
+        when:
+        ResultActions r = mvc.perform(asUser(get('/api/solutions/1/link-targets').param('targetKind', 'story')))
+
+        then:
+        r.andExpect(status().isBadRequest())
+            .andExpect(jsonPath('$.message').value('kind must be one of item, note, log, file, term, topic, question, decision.'))
+        0 * links.targets(*_)
+    }
+
+    def "links should answer each linked topic's kind when a record's links are read"() {
+
+        when:
+        mvc.perform(asUser(get('/api/solutions/1/links').param('kind', 'item').param('recordId', '100'))).andExpect(status().isOk())
+            .andExpect(jsonPath('$.links[0].topicKind').value('tag'))
+            .andExpect(jsonPath('$.links[1].kind').value('note'))
+            .andExpect(jsonPath('$.links[1].topicKind').doesNotExist())
+
+        then:
+        1 * links.links(1, 'item', 100, 0, 50) >> new LinkPage('item', 100, [
+            new Link(40, 'topic', 5, 'Risk', 'Tag', null, false, null, 'tony', 'Tony', 'tag'),
+            new Link(41, 'note', 300, 'Runbook', 'Runbook', null, false, null, 'tony', 'Tony', null)], 0, 50, 2)
+    }
+
+    /** "12.5" to a BigDecimal; null stays null. */
+    private static BigDecimal figureOf(String text) {
+        text == null ? null : new BigDecimal(text)
     }
 }

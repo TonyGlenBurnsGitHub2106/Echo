@@ -32,14 +32,16 @@ public interface SolutionLinkRepository {
     /** The other ends of every link of one record, a page at a time, and how many there are in all. */
     LinkPage links(int solutionId, String kind, int id, int offset, int pageSize);
 
-    List<LinkTarget> targets(int solutionId, String search, String kind, Integer id, int pageSize);
+    /** Story 5695 (Echo): targetKind (null = any) narrows the answer to one kind of record. */
+    List<LinkTarget> targets(int solutionId, String search, String kind, Integer id, int pageSize, String targetKind);
 
     // ---- topics ----
 
-    List<Topic> topics(int solutionId, String search, int offset, int pageSize);
+    /** Story 5695 (Echo): kind null = every kind. */
+    List<Topic> topics(int solutionId, String search, String kind, int offset, int pageSize);
 
-    /** "total" (what matches) and "all". */
-    Map<String, Integer> topicCounts(int solutionId, String search);
+    /** "total" (what matches), "all" and "kind:&lt;code&gt;". */
+    Map<String, Integer> topicCounts(int solutionId, String search, String kind);
 
     Topic findTopic(int topicId);
 

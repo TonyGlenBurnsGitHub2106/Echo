@@ -10,7 +10,8 @@ CREATE PROCEDURE dbo.stp_SolutionLinkTarget_Search
     @prmSearch     NVARCHAR(200) = NULL,
     @prmKind       VARCHAR(20)   = NULL,    -- the record being linked FROM (left out of the answer)
     @prmID         INT           = NULL,
-    @prmPageSize   INT           = 30
+    @prmPageSize   INT           = 30,
+    @prmTargetKind VARCHAR(20)   = NULL     -- Story 5695 (Echo): only records of this kind (e.g. items to wait on)
 AS
 
 /*
@@ -50,6 +51,7 @@ FROM   dbo.vw_SolutionLinkable v
 WHERE  v.SolutionID = @prmSolutionID
   AND  NOT (v.Kind = @kind AND v.RecordID = @id)
   AND  (@q = N'' OR v.Title LIKE N'%' + @like + N'%')
+  AND  (NULLIF(@prmTargetKind, '') IS NULL OR v.Kind = LOWER(@prmTargetKind))
 ORDER BY CASE WHEN @q <> N'' AND v.Title LIKE @like + N'%' THEN 0 ELSE 1 END,
          CASE WHEN v.Kind = 'topic' THEN 0 ELSE 1 END,
          v.RecordDate DESC, v.Kind, v.RecordID

@@ -29,6 +29,12 @@ working session; it is always current.
 > `decision` records, and `GET .../summary-age` says how old `statusSummary` is. See *Questions and
 > decisions* in section 4. Nothing else changed.
 
+> **Added 2026-11-04 -- Kinds of topic, the premise switch, and waits.** A topic now has a `kind`:
+> `subject` (as before), `tag`, `part` (a piece of what the solution is made of -- a chapter, an account,
+> an environment -- with a kind of part, a status and a number) or `assumption` (something the plan rests
+> on; proving it false cancels the open items resting on it in one act). And an item can WAIT ON another.
+> See *Kinds of topic* and *Waits* in section 4. Existing topic calls work as before.
+
 ## 1. Connecting
 
 - Base URL: `{{BASE_URL}}`
@@ -217,6 +223,59 @@ Deleting a record takes its links with it; deleting a topic takes its links, nev
 | `POST /api/solutions/{id}/topics` | `{name, summary}` -- `name` required |
 | `PUT /api/solutions/topics/{topicId}` | same fields. A merge: a field you leave out is kept; `"summary":""` clears it. |
 | `DELETE /api/solutions/topics/{topicId}` | the topic and its links; the records stay |
+
+### Kinds of topic
+
+Every topic has a `kind`, sent and returned as `kind` / `kindCode`:
+
+- `subject` -- one subject that runs across the solution ("Charset"). The default; every older topic is one.
+- `tag` -- a quick flag put on records: Important, Risk, Idea, Parking lot, or your own. Link a record to it.
+- `part` -- a piece of what the solution is MADE OF: a chapter, a character, an account, an environment.
+  It carries `typeName` (its kind of part, found or made by name, any case), `statusCode` (one of the
+  solution statuses) and an optional `figure` (a number: words, a balance). Link the records ABOUT that
+  part to it; its topic View then shows everything about it.
+- `assumption` -- something the plan rests on ("The 837 submit path is live"). `holds` is true until it is
+  proved false. Link the items that REST on it to it.
+
+The topic calls take and return these: `POST`/`PUT .../topics` accept `kind`, `typeName`, `statusCode`,
+`figure`, `clearFigure: true` (takes the number off) and `holds`; only a part may carry a kind of part, a
+status or a number, and only an assumption `holds` (else 409). A topic answers with `kindCode`, `typeId`,
+`typeName`, `figureLabel`, `statusCode`, `statusName`, `closed`, `figure`, `holds`, `sortOrder`.
+`GET .../topics?kind=part` lists one kind; the list comes parts first (by kind of part, in their order),
+then assumptions, subjects, tags, and `counts` adds `kind:<code>`. A link to a topic carries its
+`topicKind`.
+
+THE PREMISE SWITCH. When an assumption turns out false, do not cancel its items one by one: read
+`GET .../open-items`, then `POST .../proved-false` with the reason and the items to cancel. The assumption
+is marked proved false, each named item becomes `cancelled` (Skipped), and ONE journal entry (kind Result,
+linked to the assumption) records the reason and what went. Only open items linked to it can be named
+(else 400, nothing changes); proving it false twice is refused (409).
+
+| Call | Note |
+|---|---|
+| `GET /api/solutions/topic-kinds` | `{kinds, starterTags}` |
+| `GET /api/solutions/{id}/topic-types` | the kinds of part, in order: `[{id, name, figureLabel, sortOrder, partCount}]` |
+| `POST /api/solutions/{id}/topic-types` | `{name, figureLabel}` -- adds one (or finds it by name). `figureLabel` says what a part's number counts ("words"). |
+| `PUT /api/solutions/topic-types/{typeId}` | `{name, figureLabel}` -- a merge; `""` clears the label. A name already used is refused (409). |
+| `DELETE /api/solutions/topic-types/{typeId}` | its parts stay, with no kind of part |
+| `PUT /api/solutions/{id}/topics/order` | `{ids}` -- parts in their new order (`sortOrder` 1, 2, 3 ...). Every id must be a topic of the solution. |
+| `GET /api/solutions/topics/{topicId}/open-items` | `[{id, title, sub}]` -- the open items linked to the topic |
+| `POST /api/solutions/topics/{topicId}/proved-false` | `{reason, itemIds}` -- `reason` required. Answers `{topic, cancelled, stillOpen, logId, logSequenceNumber}`. To say it holds again: `PUT .../topics/{topicId}` `{"holds":true}`. |
+
+### Waits
+
+An item can WAIT ON another item of the same solution (a wait has a direction, so it is not a link). An
+item never waits on itself, and a wait never closes a circle (A waits on B waits on A): both are refused
+(409). Deleting an item takes its waits.
+
+| Call | Note |
+|---|---|
+| `GET /api/solutions/items/{itemId}/waits` | `[{id, direction, itemId, title, projectName, statusCode, statusName, closed}]` -- `direction` `waitsOn` (what this item waits on) or `blocks` (an item waiting on this one) |
+| `POST /api/solutions/items/{itemId}/waits` | `{dependsOnItemId}` -- this item now waits on that one; answers with its waits |
+| `DELETE /api/solutions/waits/{waitId}` | the wait goes; both items stay |
+| `GET /api/solutions/{id}/waits` | every waiting item: `[{itemId, waits, openWaits}]` |
+
+`GET .../link-targets` also takes `targetKind` (for example `item`) to offer one kind only.
 
 ### Since you were last here
 
@@ -559,6 +618,15 @@ curl $H -X POST   $B/api/solutions/decisions/9/supersede -H "Content-Type: appli
 curl $H           "$B/api/solutions/1/decisions?status=current"
 curl $H -X POST   $B/api/solutions/log/505/decision
 curl $H           $B/api/solutions/1/summary-age
+
+# ---- kinds of topic, the premise switch, waits
+curl $H -X POST   $B/api/solutions/1/topics              -H "Content-Type: application/json" -d '{"name":"QA environment","kind":"part","typeName":"Environment","statusCode":"inprogress"}'
+curl $H -X POST   $B/api/solutions/1/topics              -H "Content-Type: application/json" -d '{"name":"The 837 submit path is live","kind":"assumption"}'
+curl $H           "$B/api/solutions/1/topics?kind=part"
+curl $H           $B/api/solutions/topics/8/open-items
+curl $H -X POST   $B/api/solutions/topics/8/proved-false -H "Content-Type: application/json" -d '{"reason":"The partner app writes the 837 itself.","itemIds":[1200,1201]}'
+curl $H -X POST   $B/api/solutions/items/1201/waits      -H "Content-Type: application/json" -d '{"dependsOnItemId":1200}'
+curl $H           $B/api/solutions/items/1201/waits
 
 # ---- since you were last here
 curl $H -X POST   $B/api/solutions/1/visit

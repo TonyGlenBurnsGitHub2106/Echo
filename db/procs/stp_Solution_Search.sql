@@ -275,8 +275,10 @@ WHERE  x.EntityID = @entityId
 IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'topics')
 INSERT INTO #hay (Source, Kind, ID, ParentID, ParentTitle, Title, Body, ItemDate, StatusName, ColorHex, IsClosed, Extra)
 SELECT 'topics', 'topic', o.SolutionTopicID, NULL, NULL, o.TopicName, ISNULL(o.TopicSummary, N''),
-       ISNULL(o.ModifiedDate, o.CreatedDate), NULL, NULL, 0, NULL
+       ISNULL(o.ModifiedDate, o.CreatedDate), NULL, NULL, 0,
+       CASE o.TopicKindCode WHEN 'tag' THEN N'Tag' WHEN 'part' THEN ISNULL(y.TypeName, N'Part') WHEN 'assumption' THEN N'Assumption' ELSE NULL END
 FROM   dbo.SolutionTopic o
+LEFT JOIN dbo.SolutionTopicType y ON y.SolutionTopicTypeID = o.SolutionTopicTypeID
 WHERE  o.SolutionID = @sid
 
 IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'questions')

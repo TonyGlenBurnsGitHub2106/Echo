@@ -35,9 +35,18 @@ SELECT  m.SolutionID, 'term', m.SolutionTermID, CAST(m.Term AS NVARCHAR(400)), C
         ISNULL(m.ModifiedDate, m.CreatedDate), CAST(0 AS BIT)
 FROM    dbo.SolutionTerm m
 UNION ALL
-SELECT  o.SolutionID, 'topic', o.SolutionTopicID, CAST(o.TopicName AS NVARCHAR(400)), CAST(LEFT(ISNULL(o.TopicSummary, N''), 200) AS NVARCHAR(400)),
-        ISNULL(o.ModifiedDate, o.CreatedDate), CAST(0 AS BIT)
+-- Story 5695 (Echo): a topic's second line starts with its kind (a part: its kind of part); a part whose status is
+-- a closed one is closed; an assumption proved false is closed.
+SELECT  o.SolutionID, 'topic', o.SolutionTopicID, CAST(o.TopicName AS NVARCHAR(400)),
+        CAST(CASE o.TopicKindCode WHEN 'tag' THEN N'Tag' WHEN 'part' THEN ISNULL(y.TypeName, N'Part')
+                                  WHEN 'assumption' THEN CASE WHEN o.AssumptionHolds = 0 THEN N'Assumption, proved false' ELSE N'Assumption' END
+                                  ELSE N'Topic' END +
+             CASE WHEN ISNULL(o.TopicSummary, N'') = N'' THEN N'' ELSE N' | ' + LEFT(o.TopicSummary, 200) END AS NVARCHAR(400)),
+        ISNULL(o.ModifiedDate, o.CreatedDate),
+        CAST(CASE WHEN o.TopicKindCode = 'assumption' AND o.AssumptionHolds = 0 THEN 1 WHEN ISNULL(st.IsClosed, 0) = 1 THEN 1 ELSE 0 END AS BIT)
 FROM    dbo.SolutionTopic o
+LEFT JOIN dbo.SolutionTopicType y ON y.SolutionTopicTypeID = o.SolutionTopicTypeID
+LEFT JOIN dbo.SolutionStatus st ON st.SolutionStatusID = o.SolutionStatusID
 -- Story 5695 (Echo): questions and decisions are linkable too. A question is closed once answered or
 -- dropped; a decision once a newer one has replaced it.
 UNION ALL
