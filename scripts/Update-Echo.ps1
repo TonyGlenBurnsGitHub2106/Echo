@@ -105,6 +105,8 @@ try {
     }
     $after = if ($isClone) { [string](& git -C $root rev-parse HEAD) } else { '' }
     $pulledSomething = $before -ne $after
+    # Story 5653: a shortcut from an older install still runs start-echo.cmd, which now needs administrator.
+    try { Update-EchoStartupShortcut $root } catch { Write-Host "  could not check the Startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
 
     $sql = @{ SqlServer = $info.sqlServer; Database = $info.database }
     if ($AdminSqlUser) { $sql.SqlUser = $AdminSqlUser; $sql.SqlPassword = $AdminSqlPassword }

@@ -15,8 +15,12 @@ The help is in two parts; tap a heading to open it.
 
 ### Running Echo
 
-On the computer Echo is installed on, these files in the Echo folder do the work (double-click, or
-run them in a command window):
+On the computer Echo is installed on, these files in the Echo folder do the work. **Every one of
+them must be run as administrator** (right-click -> Run as administrator, or from a Command Prompt
+opened as administrator). Each checks that first, before it does anything: without administrator
+rights it says so, changes nothing and waits for a key (since 11/04/2026). The one exception is the
+start at sign-in (`-AutoStart`), which Windows never runs as administrator, so it goes through
+`scripts\start-echo-at-logon.cmd` instead of `start-echo.cmd`.
 
 | File | What it does |
 |---|---|

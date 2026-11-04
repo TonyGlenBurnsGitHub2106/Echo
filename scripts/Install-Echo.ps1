@@ -299,15 +299,7 @@ if (-not $SkipUser) {
 # ---- 7. Start ---------------------------------------------------------------------------------
 if ($AutoStart) {
     Step 'Start with Windows'
-    $startup = Get-EchoStartupFolder   # Story 5653: the signed-in person's, not an elevating admin's
-    $lnk = Join-Path $startup 'Echo.lnk'
-    $sh = New-Object -ComObject WScript.Shell
-    $s = $sh.CreateShortcut($lnk)
-    $s.TargetPath = Join-Path $root 'start-echo.cmd'
-    $s.WorkingDirectory = $root
-    $s.WindowStyle = 7
-    $s.Description = 'Start Echo'
-    $s.Save()
+    $lnk = Set-EchoStartupShortcut $root   # Story 5653: the signed-in person's, not an elevating admin's
     Write-Host "  Echo will start each time you sign in to Windows ($lnk)"
 }
 if (-not $NoStart) {
@@ -316,9 +308,10 @@ if (-not $NoStart) {
     if ((Test-EchoAdmin) -and $explorer) {
         # Story 5653: this script runs as administrator, and an Echo started from here would too --
         # then a plain stop-echo.cmd / update-echo.cmd could not stop it. explorer.exe runs as the
-        # signed-in person without administrator rights, so start-echo.cmd goes through it.
-        Write-Host '  starting Echo as you (not as administrator), so stop-echo.cmd and update-echo.cmd can stop it'
-        Start-Process -FilePath explorer.exe -ArgumentList "`"$(Join-Path $root 'start-echo.cmd')`""
+        # signed-in person without administrator rights, so the logon starter goes through it
+        # (start-echo.cmd itself now refuses a window without administrator, 2026-11-04).
+        Write-Host '  starting Echo as you (not as administrator), the way it starts when you sign in'
+        Start-Process -FilePath explorer.exe -ArgumentList "`"$(Get-EchoLogonStarter $root)`""
         $url = "http://127.0.0.1:$Port/api/system/health"
         # Story 5653: like Start-Echo.ps1 -- any answer ends the wait (ok=false means Echo is up but its
         # database is not), and an Echo that dies while starting is reported at once, not after 120 s.

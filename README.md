@@ -51,6 +51,10 @@ Choices you may want on the `install.cmd` line:
 
 ## Day to day
 
+**Run every `.cmd` below as administrator.** Each one checks that first and, without it, stops at once
+and changes nothing. The start at sign-in (`-AutoStart`) is the exception: Windows never elevates it,
+so the Startup shortcut runs `scripts\start-echo-at-logon.cmd` (an update repoints an older shortcut).
+
 | File | What it does |
 |---|---|
 | `start-echo.cmd` / `stop-echo.cmd` | Start or stop Echo. |

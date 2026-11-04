@@ -360,6 +360,36 @@ function Get-EchoStartupFolder {
     } catch { return $mine }
 }
 
+# Story 5653: the Startup shortcut runs scripts\start-echo-at-logon.cmd, which needs no administrator --
+# start-echo.cmd now refuses a plain window (2026-11-04, fail fast), and Windows never elevates a sign-in.
+function Get-EchoLogonStarter([string]$Root) { return (Join-Path $Root 'scripts\start-echo-at-logon.cmd') }
+
+# Writes (or rewrites) the Startup shortcut Echo.lnk. Returns its path.
+function Set-EchoStartupShortcut([string]$Root) {
+    $lnk = Join-Path (Get-EchoStartupFolder) 'Echo.lnk'
+    $sh = New-Object -ComObject WScript.Shell
+    $s = $sh.CreateShortcut($lnk)
+    $s.TargetPath = Get-EchoLogonStarter $Root
+    $s.WorkingDirectory = $Root
+    $s.WindowStyle = 7
+    $s.Description = 'Start Echo'
+    $s.Save()
+    return $lnk
+}
+
+# An Echo installed before 2026-11-04 has a Startup shortcut to start-echo.cmd, which would now stop at
+# sign-in and ask for administrator. Repoint it; leave a missing shortcut missing (AutoStart was off).
+function Update-EchoStartupShortcut([string]$Root) {
+    $lnk = Join-Path (Get-EchoStartupFolder) 'Echo.lnk'
+    if (-not (Test-Path $lnk)) { return }
+    $sh = New-Object -ComObject WScript.Shell
+    $target = $sh.CreateShortcut($lnk).TargetPath
+    if ($target -and (Split-Path -Leaf $target) -ieq 'start-echo.cmd') {
+        Set-EchoStartupShortcut $Root | Out-Null
+        Write-Host "  the Startup shortcut now runs scripts\start-echo-at-logon.cmd"
+    }
+}
+
 # The SQL Server instance on THIS computer that a server name means, or $null (another computer).
 function Get-EchoLocalInstanceFor([string]$SqlServer) {
     $s = $SqlServer.Trim()
