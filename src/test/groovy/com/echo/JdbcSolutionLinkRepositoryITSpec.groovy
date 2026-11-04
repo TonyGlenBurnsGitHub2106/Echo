@@ -163,8 +163,8 @@ class JdbcSolutionLinkRepositoryITSpec extends EchoDbITSpec {
         3   | 'a topic of another solution is named'         | 'mine'         | 'item'   | 'mine'     | 'topic' | 'other'   || 'The record to link to is not in this solution. Nothing was saved.'
         4   | 'the record to link to does not exist'         | 'mine'         | 'item'   | 'mine'     | 'term'  | 'missing' || 'The record to link to is not in this solution. Nothing was saved.'
         5   | 'the record to link from is in another solution' | 'mine'       | 'item'   | 'other'    | 'log'   | 'mine'    || 'The record to link from is not in this solution. Nothing was saved.'
-        6   | 'the from kind is unknown'                     | 'mine'         | 'story'  | 'missing'  | 'item'  | 'self'    || 'A link joins two of: item, note, log, file, term, topic. Nothing was saved.'
-        7   | 'the to kind is unknown'                       | 'mine'         | 'item'   | 'mine'     | 'story' | 'missing' || 'A link joins two of: item, note, log, file, term, topic. Nothing was saved.'
+        6   | 'the from kind is unknown'                     | 'mine'         | 'story'  | 'missing'  | 'item'  | 'self'    || 'A link joins two of: item, note, log, file, term, topic, question, decision. Nothing was saved.'
+        7   | 'the to kind is unknown'                       | 'mine'         | 'item'   | 'mine'     | 'story' | 'missing' || 'A link joins two of: item, note, log, file, term, topic, question, decision. Nothing was saved.'
         8   | 'the solution does not exist'                  | 'missing'      | 'item'   | 'mine'     | 'file'  | 'mine'    || 'That solution no longer exists. Nothing was saved.'
     }
 

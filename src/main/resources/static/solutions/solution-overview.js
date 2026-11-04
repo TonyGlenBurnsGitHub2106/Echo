@@ -23,6 +23,9 @@
         { key: 'items',         title: 'Items',            tab: 'items' },
         { key: 'conversations', title: 'Conversations',    tab: 'conversations' },
         { key: 'log',           title: 'Log',              tab: 'log' },
+        // Story 5695 (Echo): the Log tab's Questions and Decisions views, each as a band of its own.
+        { key: 'questions',     title: 'Open questions',   tab: 'log', view: 'questions' },
+        { key: 'decisions',     title: 'Decisions',        tab: 'log', view: 'decisions' },
         { key: 'notes',         title: 'Notes',            tab: 'notes' },
         { key: 'topics',        title: 'Topics',           tab: 'topics' },
         { key: 'files',         title: 'Files',            tab: 'files' },
@@ -81,7 +84,8 @@
     // Later reads (the Overview shown again) only ask. The band hides when nothing changed, and the
     // same count shows on the Overview tab, so it costs no room on a quiet day.
 
-    var KIND = { item: 'Item', log: 'Log', note: 'Note', file: 'File', message: 'Message', term: 'Term', topic: 'Topic' };
+    var KIND = { item: 'Item', log: 'Log', note: 'Note', file: 'File', message: 'Message', term: 'Term', topic: 'Topic',
+                 question: 'Question', decision: 'Decision' };   // Story 5695 (Echo)
     var mVisited = 0, mSince = null, mSinceSeq = 0;   // mSinceSeq: an answer asked before Caught up is dropped
 
     async function readSince(sid, more) {
@@ -195,6 +199,34 @@
                 rows: (r.data.entries || []).map(function (e) {
                     return { id: e.id, main: esc(SL.plain(e.text, 160)),
                              sub: ['#' + e.sequenceNumber, SL.date(e.logDate || e.createdDate), e.authorName, e.typeName].filter(Boolean).map(esc).join(' | ') };
+                })
+            };
+        },
+        // Story 5695 (Echo): the open questions, newest first; the current decisions, proposed ones first.
+        questions: async function (sid) {
+            var r = await SL.get('/api/solutions/' + sid + '/questions?status=open&pageSize=' + ROWS);
+            if (!r || !r.ok || !r.data) return failed(r, 'Could not read the questions');
+            var open = r.data.total || 0, all = (r.data.counts || {}).all || 0;
+            return {
+                total: open, count: open + ' open' + (all > open ? ' of ' + all : ''), more: open,
+                rows: (r.data.questions || []).map(function (q) {
+                    return { id: q.id, main: esc(SL.plain(q.text, 160)),
+                             sub: [q.askedByName ? 'asked by ' + q.askedByName : 'asked', SL.date(q.createdDate), q.ownerName ? 'for ' + q.ownerName : '']
+                                 .filter(Boolean).map(esc).join(' | ') };
+                })
+            };
+        },
+        decisions: async function (sid) {
+            var r = await SL.get('/api/solutions/' + sid + '/decisions?status=current&pageSize=' + ROWS);
+            if (!r || !r.ok || !r.data) return failed(r, 'Could not read the decisions');
+            var c = r.data.counts || {}, current = r.data.total || 0, proposed = c['status:proposed'] || 0;
+            return {
+                total: current, count: current + (current === 1 ? ' decision' : ' decisions') + (proposed ? ' | ' + proposed + ' proposed' : ''),
+                more: current,
+                rows: (r.data.decisions || []).map(function (d) {
+                    return { id: d.id, main: (d.statusCode === 'proposed' ? '<span class="sl-chip wait">Proposed</span> ' : '') + esc(SL.plain(d.title, 160)),
+                             sub: [d.decidedDate ? 'decided ' + SL.date(d.decidedDate) : '', d.decidedByName, d.logSequenceNumber ? 'log #' + d.logSequenceNumber : '']
+                                 .filter(Boolean).map(esc).join(' | ') };
                 })
             };
         },
@@ -326,7 +358,8 @@
             '<button type="button" class="sl-ov-toggle" data-ov-toggle="' + b.key + '" aria-expanded="' + (open ? 'true' : 'false') + '" data-testid="overview-band-toggle">' +
                 '<span class="chev' + (open ? '' : ' folded') + '">&#9660;</span><span class="sl-ov-title">' + esc(b.title) + '</span>' +
                 (count ? '<span class="sl-ov-count" data-testid="overview-band-count">' + count + '</span>' : '') + '</button>' +
-            (b.tab ? '<button type="button" class="sl-btn small" data-ov-open="' + b.tab + '" data-testid="overview-band-open">Open</button>' : '') +
+            (b.tab ? '<button type="button" class="sl-btn small" data-ov-open="' + b.tab + '"' + (b.view ? ' data-ov-view="' + b.view + '"' : '') +
+                ' data-testid="overview-band-open">Open</button>' : '') +
             '</div>';
         var body = '';
         if (open) {
@@ -340,7 +373,8 @@
                 }).join('');
                 var shown = (d.rows || []).length;
                 if (b.tab && d.more > shown) {
-                    body += '<button type="button" class="sl-ov-more" data-ov-open="' + b.tab + '" data-testid="overview-band-more">' +
+                    body += '<button type="button" class="sl-ov-more" data-ov-open="' + b.tab + '"' + (b.view ? ' data-ov-view="' + b.view + '"' : '') +
+                        ' data-testid="overview-band-more">' +
                         (shown ? (d.more - shown) + ' more' : 'See them') + ' on the ' + esc(b.title) + ' tab</button>';
                 }
             }
@@ -385,7 +419,11 @@
             });
         });
         Array.prototype.forEach.call(host.querySelectorAll('[data-ov-open]'), function (b) {
-            b.addEventListener('click', function () { Page.go(b.getAttribute('data-ov-open')); });
+            b.addEventListener('click', function () {
+                // Story 5695 (Echo): a band that is one of the Log tab's views opens the tab on that view.
+                if (b.getAttribute('data-ov-view') && Page.tabs.log && Page.tabs.log.openView) Page.tabs.log.openView(b.getAttribute('data-ov-view'));
+                Page.go(b.getAttribute('data-ov-open'));
+            });
         });
         Array.prototype.forEach.call(host.querySelectorAll('[data-ov-act]'), function (b) {
             b.addEventListener('click', function () {
@@ -425,6 +463,8 @@
             case 'qa':            t[key].choosePlan(id); Page.go(key); break;
             case 'terms':         Page.go('terms'); t.terms.openTerm(id); break;
             case 'topics':        Page.go('topics'); t.topics.openTopic(id); break;
+            case 'questions':     window.SolutionDecisions.openQuestion(id); break;   // Story 5695 (Echo)
+            case 'decisions':     window.SolutionDecisions.openDecision(id); break;
             default:              Page.go(key);
         }
     }

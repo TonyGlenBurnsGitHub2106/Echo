@@ -21,11 +21,14 @@
         { key: 'terms', label: 'Terms' },           { key: 'tests', label: 'Testing' },
         { key: 'qa', label: 'QA' },                 { key: 'config', label: 'Configuration' },
         { key: 'grid', label: 'Configuration II' }, { key: 'files', label: 'Files' },
-        { key: 'conversations', label: 'Conversations' }, { key: 'web', label: 'Web' }
+        { key: 'conversations', label: 'Conversations' }, { key: 'web', label: 'Web' },
+        // Story 5695 (Echo)
+        { key: 'topics', label: 'Topics' },         { key: 'questions', label: 'Questions' },
+        { key: 'decisions', label: 'Decisions' }
     ];
     var KIND_LABEL = { project: 'Project', item: 'Item', entry: 'Log entry', note: 'Note', step: 'Runbook step', term: 'Term',
                        checklist: 'Checklist', test: 'Test', property: 'Property', file: 'File', conversation: 'Conversation',
-                       message: 'Message', web: 'Web address' };
+                       message: 'Message', web: 'Web address', topic: 'Topic', question: 'Question', decision: 'Decision' };
 
     var mResult = null;        // the last answer: {sources:[{key,label,total,hits}], total}
     var mQuery = null;         // the filter that produced it
@@ -334,6 +337,9 @@
             case 'files':         Page.go('files'); t.files.openFile(h.id); break;
             case 'conversations': Page.go('conversations'); t.conversations.openThread(h.parentId || h.id); break;
             case 'web':           t.web.flash(h.id); Page.go('web'); break;
+            case 'topics':        Page.go('topics'); t.topics.openTopic(h.id); break;          // Story 5695 (Echo)
+            case 'questions':     window.SolutionDecisions.openQuestion(h.id); break;
+            case 'decisions':     window.SolutionDecisions.openDecision(h.id); break;
         }
     }
 

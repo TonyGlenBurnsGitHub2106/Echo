@@ -63,6 +63,11 @@ try {
     $tables = [ordered]@{}
     $total = 0
     foreach ($t in $EchoSolutionTables) {
+        # Story 5695: a table the source database does not have yet (Leonardo: questions, decisions) has no rows.
+        if ($t.Optional -and -not [int](Invoke-EchoScalar $c "SELECT CASE WHEN OBJECT_ID('dbo.$($t.Name)', 'U') IS NULL THEN 0 ELSE 1 END")) {
+            $tables[$t.Name] = New-Object System.Collections.ArrayList
+            continue
+        }
         $cmd = $c.CreateCommand()
         $cmd.CommandText = "SELECT * FROM dbo.$($t.Name) WHERE $($t.Where)"
         $cmd.CommandTimeout = 300

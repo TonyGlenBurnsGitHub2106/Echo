@@ -23,6 +23,12 @@ working session; it is always current.
 > tells you what others changed since your last session. See *Links and topics* and *Since you were
 > last here* in section 4. Nothing else changed.
 
+> **Added 2026-11-04 -- Questions and Decisions.** A solution now keeps its open QUESTIONS and a
+> DECISION register. A decision can close what it settles: the open questions and items linked to it.
+> A changed mind is a NEW decision that supersedes the old one. Links also join `question` and
+> `decision` records, and `GET .../summary-age` says how old `statusSummary` is. See *Questions and
+> decisions* in section 4. Nothing else changed.
+
 ## 1. Connecting
 
 - Base URL: `{{BASE_URL}}`
@@ -113,6 +119,7 @@ cannot blank a name, a title or a status by accident.
 | `GET /api/solutions/{id}` | one solution with its full description |
 | `GET /api/solutions/by-alias/{alias}` | the same, found by its `alias` -- the short name people say out loud ("claims"). When your human names a solution by a short word, look it up here. 404 if there is none you may see. |
 | `PUT /api/solutions/{id}` | update it -- body `{name, description, statusCode, ownerCode, statusSummary, targetDate, alias}`. `alias` is lower-case letters, digits and hyphens with at least one letter, unique; send `""` to clear it. Use `statusSummary` for the one-paragraph "where are we". |
+| `GET /api/solutions/{id}/summary-age` | how old `statusSummary` is: `{writtenDate, ageDays, stale}` -- when its text was last WRITTEN (not when the solution was last saved). `stale: true` at 14 days or more: if you know the state of play, write a fresh `statusSummary`. All null without a summary. |
 
 ### Projects
 
@@ -185,7 +192,7 @@ with 409 and a sentence saying which term it already has.
 ### Links and topics
 
 A LINK joins two records of one solution. A record is named by its `kind` and its id: `item`,
-`note`, `log` (a log entry), `file`, `term` or `topic`. A link has no direction, so once item 42 is
+`note`, `log` (a log entry), `file`, `term`, `topic`, `question` or `decision`. A link has no direction, so once item 42 is
 linked to note 7, item 42's links show note 7 AND note 7's links show item 42 -- a record's links are
 also its backlinks. Link instead of writing "see item X" or "file 211" into a text: a link survives
 a rename and opens the record in one tap.
@@ -214,15 +221,57 @@ Deleting a record takes its links with it; deleting a topic takes its links, nev
 ### Since you were last here
 
 What OTHER people and agents changed in a solution since your last session -- items, log entries,
-notes, files, conversation messages, terms and topics -- newest first. Your own changes are left out.
+notes, files, conversation messages, terms, topics, questions and decisions -- newest first. Your own changes are left out.
 A session counts as new when your last call to `visit` was more than an hour before; within the hour
 the same "since" holds. On your first visit ever, "since" is a week back (`firstVisit: true`).
 
 | Call | Note |
 |---|---|
-| `POST /api/solutions/{id}/visit` | call it at the START of a working session. Counts the visit and answers `{since, firstVisit, changes, counts, offset, pageSize, total}`. Each change `{kind, id, title, sub, action, who, whoName, changedDate}`; `kind` is `item`, `log`, `note`, `file`, `message` (then `id` is the conversation), `term` or `topic`; `action` is `added`, `changed`, `wrote` or `corrected`. `counts`: `total` and `kind:<kind>`. |
+| `POST /api/solutions/{id}/visit` | call it at the START of a working session. Counts the visit and answers `{since, firstVisit, changes, counts, offset, pageSize, total}`. Each change `{kind, id, title, sub, action, who, whoName, changedDate}`; `kind` is `item`, `log`, `note`, `file`, `message` (then `id` is the conversation), `term`, `topic`, `question` or `decision`; `action` is `added`, `changed`, `wrote`, `corrected`, `asked` (a question) or `decided` (a decision). `counts`: `total` and `kind:<kind>`. |
 | `GET /api/solutions/{id}/since` | the same answer without counting a visit. Page with `offset`, `pageSize` (default 50). |
 | `POST /api/solutions/{id}/caught-up` | you have read it all: "since" starts now |
+
+### Questions and decisions
+
+A QUESTION is something the solution needs answered: `{text, detail, ownerCode}` -- `ownerCode` is who
+should answer it. It is `open` until it is `answered` (by a decision, or by hand) or `dropped`.
+
+A DECISION is what was decided: a one-line `title`, the `context` (why it came up), the `options`
+weighed and the `outcome`, with a status -- `proposed` (still to be agreed), `accepted`, or
+`superseded`. Recording one also writes a journal entry of kind Decision (`logId`, `logSequenceNumber`),
+so the log keeps its single "what happened, in order". When you decide something, RECORD IT HERE, not
+only in a log entry, and link it (`links`) to the questions it answers and the items it settles.
+
+A changed mind is never an edit of the outcome: `POST .../supersede` records a NEW decision; the old one
+becomes `superseded`, pointing at the new one (`supersededById`), and the two are linked. Setting
+`statusCode: "superseded"` yourself is refused (400).
+
+A decision CLOSES what it settles: `GET .../open-links` lists the linked questions still open and the
+linked items not closed; `POST .../settle` with the ones to close answers those questions BY the decision
+and marks those items done, and writes one journal entry saying so. Only records that are linked and
+still open can be named (else 400, and nothing changes); a proposed or superseded decision closes nothing
+(409). Many decisions are already in the log as Decision entries: `POST /api/solutions/log/{logId}/decision`
+makes one a decision in place (its first line is the title), and `.../question` does the same for a
+question.
+
+| Call | Note |
+|---|---|
+| `GET /api/solutions/{id}/questions` | one page, open first: `{questions, counts, offset, pageSize, total}`. Optional `status` (`open`, `answered`, `dropped`), `search` (question and detail), `offset`, `pageSize`. Each `{id, text, detail, truncated, statusCode, askedByCode, ownerCode, answeredByDecisionId, answeredByTitle, answeredDate, logId, logSequenceNumber, linkCount, createdDate, modifiedDate}`; `detail` is a 300-character preview. `counts`: `total`, `all`, `status:<code>`. |
+| `GET /api/solutions/questions/{questionId}` | the whole question |
+| `POST /api/solutions/{id}/questions` | `{text, detail, ownerCode, links}` -- `text` required (one line, at most 800 characters). `links`: `[{kind, id}]` records to link it to at once. The same question while it is still open is refused (409). |
+| `PUT /api/solutions/questions/{questionId}` | `{text, detail, ownerCode}`. A merge: a field you leave out is kept; `""` clears `detail` or `ownerCode`. |
+| `POST /api/solutions/questions/{questionId}/status` | `{statusCode}` -- `open`, `answered` (by hand) or `dropped`. Reopening clears the answer. |
+| `DELETE /api/solutions/questions/{questionId}` | the question and its links |
+| `POST /api/solutions/log/{logId}/question` | the log entry becomes an open question, asked by the entry's author; the two are linked |
+| `GET /api/solutions/{id}/decisions` | the register, one page, proposed first: `{decisions, counts, offset, pageSize, total}`. Optional `status` (`proposed`, `accepted`, `superseded`, or `current` = not superseded), `search` (title, context, options, outcome), `offset`, `pageSize`. Each `{id, title, outcome, truncated, statusCode, decidedDate, decidedByCode, logId, logSequenceNumber, supersededById, supersededByTitle, answeredCount, linkCount, createdDate, modifiedDate}`; `outcome` is a 300-character preview and `context` / `options` come only with the GET of one. |
+| `GET /api/solutions/decisions/{decisionId}` | the whole decision, with `supersedesId` / `supersedesTitle` when it replaced one |
+| `POST /api/solutions/{id}/decisions` | `{title, context, options, outcome, statusCode, decidedDate, links}` -- `title` required (one line, at most 400 characters). `statusCode` `accepted` (the default) or `proposed`. |
+| `PUT /api/solutions/decisions/{decisionId}` | same fields, a merge. Accept a proposal with `{"statusCode":"accepted"}`. Never touches its journal entry. |
+| `POST /api/solutions/decisions/{decisionId}/supersede` | `{title, context, options, outcome, links}` -- the NEW decision; answers with it |
+| `GET /api/solutions/decisions/{decisionId}/open-links` | `[{kind, id, title, sub}]` -- `kind` is `question` or `item` |
+| `POST /api/solutions/decisions/{decisionId}/settle` | `{questionIds, itemIds}` -- close them. Answers `{decision, closed, stillOpen, logId, logSequenceNumber}`. |
+| `DELETE /api/solutions/decisions/{decisionId}` | the questions it answered open again; the decision it superseded is current again; its journal entry stays |
+| `POST /api/solutions/log/{logId}/decision` | the log entry becomes an accepted decision (decided by the entry's author, on its date); the two are linked |
 
 ### Deleting
 
@@ -499,6 +548,17 @@ curl $H -X POST   $B/api/solutions/1/links               -H "Content-Type: appli
 curl $H           "$B/api/solutions/1/links?kind=topic&recordId=3"
 curl $H -X PUT    $B/api/solutions/topics/3              -H "Content-Type: application/json" -d '{"summary":"Decided 23 Oct: UTF-8 in, windows-1252 for remit and submit."}'
 curl $H -X DELETE $B/api/solutions/topics/3
+
+# ---- questions and decisions
+curl $H -X POST   $B/api/solutions/1/questions           -H "Content-Type: application/json" -d '{"text":"Which charset do the 837 files use?","ownerCode":"tony"}'
+curl $H           "$B/api/solutions/1/questions?status=open"
+curl $H -X POST   $B/api/solutions/1/decisions           -H "Content-Type: application/json" -d '{"title":"Read files in as UTF-8","outcome":"Remit and submit stay windows-1252.","links":[{"kind":"question","id":4},{"kind":"item","id":1200}]}'
+curl $H           $B/api/solutions/decisions/9/open-links
+curl $H -X POST   $B/api/solutions/decisions/9/settle    -H "Content-Type: application/json" -d '{"questionIds":[4],"itemIds":[1200]}'
+curl $H -X POST   $B/api/solutions/decisions/9/supersede -H "Content-Type: application/json" -d '{"title":"Read everything as UTF-8"}'
+curl $H           "$B/api/solutions/1/decisions?status=current"
+curl $H -X POST   $B/api/solutions/log/505/decision
+curl $H           $B/api/solutions/1/summary-age
 
 # ---- since you were last here
 curl $H -X POST   $B/api/solutions/1/visit

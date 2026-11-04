@@ -66,6 +66,20 @@ RETURN
             CAST(o.ModifiedBy AS VARCHAR(20)), ISNULL(o.ModifiedDate, o.CreatedDate)
     FROM    dbo.SolutionTopic o
     WHERE   o.SolutionID = @prmSolutionID AND ISNULL(o.ModifiedDate, o.CreatedDate) > @prmSince
+    -- Story 5695 (Echo): questions asked or answered, decisions recorded or replaced.
+    UNION ALL
+    SELECT  'question', q.SolutionQuestionID, CAST(q.QuestionText AS NVARCHAR(400)),
+            CAST(CASE q.StatusCode WHEN 'open' THEN N'Open question' WHEN 'answered' THEN N'Answered' ELSE N'Dropped' END AS NVARCHAR(400)),
+            CASE WHEN q.CreatedDate >= @prmSince THEN 'asked' ELSE 'changed' END,
+            CAST(q.ModifiedBy AS VARCHAR(20)), ISNULL(q.ModifiedDate, q.CreatedDate)
+    FROM    dbo.SolutionQuestion q
+    WHERE   q.SolutionID = @prmSolutionID AND ISNULL(q.ModifiedDate, q.CreatedDate) > @prmSince
+    UNION ALL
+    SELECT  'decision', d.SolutionDecisionID, CAST(d.DecisionTitle AS NVARCHAR(400)), CAST(LEFT(ISNULL(d.Outcome, N''), 200) AS NVARCHAR(400)),
+            CASE WHEN d.CreatedDate >= @prmSince THEN 'decided' ELSE 'changed' END,
+            CAST(d.ModifiedBy AS VARCHAR(20)), ISNULL(d.ModifiedDate, d.CreatedDate)
+    FROM    dbo.SolutionDecision d
+    WHERE   d.SolutionID = @prmSolutionID AND ISNULL(d.ModifiedDate, d.CreatedDate) > @prmSince
 );
 
 GO

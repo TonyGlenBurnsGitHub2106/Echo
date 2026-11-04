@@ -20,8 +20,8 @@ final class SolutionLinkModels {
 
     private SolutionLinkModels() {}
 
-    /** The kinds a link may join. */
-    static final Set<String> KINDS = Set.of("item", "note", "log", "file", "term", "topic");
+    /** The kinds a link may join. Story 5695 (Echo): questions and decisions too. */
+    static final Set<String> KINDS = Set.of("item", "note", "log", "file", "term", "topic", "question", "decision");
 
     /** The other end of one link: what it is, what it is called, and who linked it when. */
     public record Link(int linkId, String kind, int id, String title, String sub, LocalDateTime recordDate, boolean closed,

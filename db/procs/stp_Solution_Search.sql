@@ -85,7 +85,8 @@ IF @oneSource IS NOT NULL
     INSERT INTO @sources VALUES (@oneSource)
 ELSE IF NULLIF(LTRIM(RTRIM(ISNULL(@prmSources, ''))), '') IS NULL
     INSERT INTO @sources VALUES ('overview'), ('items'), ('log'), ('notes'), ('terms'), ('tests'), ('qa'),
-                                ('config'), ('grid'), ('files'), ('conversations'), ('web')
+                                ('config'), ('grid'), ('files'), ('conversations'), ('web'),
+                                ('topics'), ('questions'), ('decisions')   -- Story 5695 (Echo)
 ELSE
     INSERT INTO @sources SELECT DISTINCT LOWER(LTRIM(RTRIM(items))) FROM dbo.Split(@prmSources, ',') WHERE LTRIM(RTRIM(items)) <> ''
 
@@ -268,6 +269,36 @@ SELECT 'web', 'web', x.EntityWebAddressXRefID, NULL, NULL, ISNULL(NULLIF(w.WebAd
 FROM   dbo.tblEntityWebAddressXRef x
 JOIN   dbo.tblWebAddress w ON w.WebAddressID = x.WebAddressID
 WHERE  x.EntityID = @entityId
+
+-- Story 5695 (Echo): topics (name and where it stands), questions (and their detail), decisions (title,
+-- context, options and outcome). A question is closed once answered or dropped; a decision once replaced.
+IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'topics')
+INSERT INTO #hay (Source, Kind, ID, ParentID, ParentTitle, Title, Body, ItemDate, StatusName, ColorHex, IsClosed, Extra)
+SELECT 'topics', 'topic', o.SolutionTopicID, NULL, NULL, o.TopicName, ISNULL(o.TopicSummary, N''),
+       ISNULL(o.ModifiedDate, o.CreatedDate), NULL, NULL, 0, NULL
+FROM   dbo.SolutionTopic o
+WHERE  o.SolutionID = @sid
+
+IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'questions')
+INSERT INTO #hay (Source, Kind, ID, ParentID, ParentTitle, Title, Body, ItemDate, StatusName, ColorHex, IsClosed, Extra)
+SELECT 'questions', 'question', q.SolutionQuestionID, NULL, NULL, q.QuestionText, ISNULL(q.QuestionDetail, N''),
+       ISNULL(q.ModifiedDate, q.CreatedDate),
+       CASE q.StatusCode WHEN 'open' THEN N'Open' WHEN 'answered' THEN N'Answered' ELSE N'Dropped' END,
+       CASE q.StatusCode WHEN 'open' THEN '#B45309' WHEN 'answered' THEN '#15803D' ELSE '#6B7280' END,
+       CASE WHEN q.StatusCode = 'open' THEN 0 ELSE 1 END, NULL
+FROM   dbo.SolutionQuestion q
+WHERE  q.SolutionID = @sid
+
+IF EXISTS (SELECT 1 FROM @sources WHERE Source = 'decisions')
+INSERT INTO #hay (Source, Kind, ID, ParentID, ParentTitle, Title, Body, ItemDate, StatusName, ColorHex, IsClosed, Extra)
+SELECT 'decisions', 'decision', d.SolutionDecisionID, NULL, NULL, d.DecisionTitle,
+       ISNULL(d.Context, N'') + NCHAR(10) + ISNULL(d.OptionsText, N'') + NCHAR(10) + ISNULL(d.Outcome, N''),
+       ISNULL(d.DecidedDate, d.CreatedDate),
+       CASE d.StatusCode WHEN 'proposed' THEN N'Proposed' WHEN 'accepted' THEN N'Accepted' ELSE N'Replaced' END,
+       CASE d.StatusCode WHEN 'proposed' THEN '#B45309' WHEN 'accepted' THEN '#15803D' ELSE '#6B7280' END,
+       CASE WHEN d.StatusCode = 'superseded' THEN 1 ELSE 0 END, NULL
+FROM   dbo.SolutionDecision d
+WHERE  d.SolutionID = @sid
 
 -- ---- the match ---------------------------------------------------------------------------
 

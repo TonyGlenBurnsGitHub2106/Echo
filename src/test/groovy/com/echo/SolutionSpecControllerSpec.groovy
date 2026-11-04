@@ -28,11 +28,15 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
         'POST /api/solutions', 'DELETE /api/solutions/{id}', 'POST /api/solutions/members',
         'GET /api/solutions/{id}/shares', 'POST /api/solutions/{id}/shares', 'DELETE /api/solutions/{id}/shares/{apiClientId}',
         'GET /api/solutions/{id}/shares/{apiClientId}/brief', 'PUT /api/solutions/{id}/file-storage',
-        'GET /api/solutions/items/{itemId}/locate', 'GET /api/solutions/notes/{noteId}/locate'
+        'GET /api/solutions/items/{itemId}/locate', 'GET /api/solutions/notes/{noteId}/locate',
+        // Story 5695: the deep-link helpers of topics, questions and decisions
+        'GET /api/solutions/topics/{topicId}/locate', 'GET /api/solutions/questions/{qid}/locate', 'GET /api/solutions/decisions/{did}/locate'
     ] as Set
 
     private static final List<Class<?>> AGENT_CONTROLLERS = [SolutionController, SolutionItemController, SolutionLogController,
-                                                             SolutionNoteController, SolutionSpecController]
+                                                             SolutionNoteController, SolutionSpecController,
+                                                             // Story 5695: links and topics, questions and decisions, the summary age
+                                                             SolutionLinkController, SolutionDecisionController, SolutionOrientationController]
 
     def "RESOURCE should name the classpath file that holds the contract when read"() {
 
@@ -143,7 +147,7 @@ class SolutionSpecControllerSpec extends SolutionWebSupport {
         Set<String> mine = mappedEndpoints(AGENT_CONTROLLERS).collect { String e -> loosen(e) } as Set
         Matcher m = (raw() =~ /`(GET|POST|PUT|DELETE) (\/api\/solutions[^`?\s]*)/)
         List<String> documented = m.collect { List<String> g -> loosen(g[1] + ' ' + g[2]) }
-        String ours = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*)$/
+        String ours = /^(GET|POST|PUT|DELETE) \/api\/solutions(|\/\{\}|\/whoami|\/lookups|\/spec|\/by-alias\/\{\}|\/\{\}\/projects|\/projects\/.*|\/\{\}\/items|\/items\/.*|\/\{\}\/log|\/log\/.*|\/\{\}\/notes|\/notes\/.*|\/note-types\/.*|\/\{\}\/(links|link-targets|topics|visit|since|caught-up|questions|decisions|summary-age).*|\/(topics|questions|decisions)\/.*)$/
         List<String> unknown = documented.findAll { String d -> d ==~ ours && !(d in mine) }.unique()
 
         expect:

@@ -662,7 +662,9 @@ table.sl-table th { color: #6B7280; font-weight: 700; background: #F9FAFB; }
 .sl-link-sub { flex-basis: 100%; font-size: 12px; opacity: .7; overflow-wrap: anywhere; }
 .sl-link-row.closed .sl-link-title { opacity: .75; }
 .sl-link-tick { color: #15803D; font-weight: 700; }
-.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: 700;
+/* Story 5695 (Echo): span only. The Notes tab's kind GROUPS are div.sl-kind too, and this chip rule turned them into small
+   grey pills side by side (Leonardo has the same since 2026-11-02). */
+span.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: 700;
            background: #E5E7EB; color: #374151; }
 .sl-kind.item { background: #DBEAFE; color: #1E40AF; }
 .sl-kind.note { background: #EDE9FE; color: #5B21B6; }
@@ -690,3 +692,31 @@ table.sl-table th { color: #6B7280; font-weight: 700; background: #F9FAFB; }
 .sl-since-row { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
 .sl-since-row .sl-ov-sub { flex-basis: 100%; }
 .sl-since-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 8px; }
+
+/* ---- Story 5695 (Echo): Questions and Decisions ---------------------------------------------------- */
+/* The Log tab's view switch: Journal | Questions | Decisions. */
+.sl-seg { display: inline-flex; flex: 0 0 auto; align-self: flex-end; border: 1px solid #C9CDD6; border-radius: 6px; overflow: hidden; }
+.sl-seg button { background: #fff; color: #374151; border: 0; border-right: 1px solid #C9CDD6; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.sl-seg button:last-child { border-right: 0; }
+.sl-seg button.on { background: #1F2937; color: #fff; }
+.sl-seg .badge { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 9px; color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.sl-seg .badge:empty { display: none; }
+/* A group of tool-row fields that lays out as if its children sat in the row itself, and can hide as one. */
+.sl-contents { display: contents; }
+.sl-contents[hidden] { display: none; }
+.sl-kind.question { background: #FFEDD5; color: #9A3412; }
+.sl-kind.decision { background: #CCFBF1; color: #115E59; }
+.sl-dq-title { min-width: 0; }
+.sl-dq.sl-dq-done { border-left: 3px solid #15803D; }
+.sl-dq.sl-dq-quiet .sl-dq-title { color: #6B7280; font-weight: 600; }
+/* What an accepted decision could still close. */
+.sl-dq-open { margin-top: 16px; border: 1px solid rgba(180,83,9,.35); background: rgba(254,243,199,.55); border-radius: 8px; padding: 8px 10px; }
+.sl-dq-open-head { font-size: 13px; margin-bottom: 4px; }
+.sl-dq-open-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,.06); cursor: pointer; }
+.sl-dq-open-row input { flex: 0 0 auto; margin: 0 4px 0 0; }
+.sl-dq-open-foot { display: flex; justify-content: flex-end; padding-top: 8px; }
+.sl-summary-age { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -2px 0 8px; }
+@media (max-width: 520px) {
+    .sl-seg { flex: 1 1 100%; }
+    .sl-seg button { flex: 1 1 0; padding: 6px 4px; }
+}

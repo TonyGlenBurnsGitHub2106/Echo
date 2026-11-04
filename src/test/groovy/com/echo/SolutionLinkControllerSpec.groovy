@@ -231,16 +231,16 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         'the record id is a word'       | '/api/solutions/1/links?kind=item&recordId=x'             || 400
         'the offset is a fraction'      | '/api/solutions/1/links?kind=item&recordId=1&offset=1.5'  || 400
         'the page size is a word'       | '/api/solutions/1/links?kind=item&recordId=1&pageSize=a'  || 400
-        'the kind is not one of six'    | '/api/solutions/1/links?kind=story&recordId=1'            || 400
+        'the kind is not one of eight'    | '/api/solutions/1/links?kind=story&recordId=1'            || 400
     }
 
-    def "links should name the six kinds when the kind is unknown"() {
+    def "links should name the eight kinds when the kind is unknown"() {
 
         expect:
         mvc.perform(asUser(get('/api/solutions/1/links').param('kind', 'story').param('recordId', '1')))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath('$.error').value('bad_request'))
-            .andExpect(jsonPath('$.message').value('kind must be one of item, note, log, file, term, topic.'))
+            .andExpect(jsonPath('$.message').value('kind must be one of item, note, log, file, term, topic, question, decision.'))
     }
 
     def "link should build the call from the body and answer the from record's links when an agent links two records"() {
@@ -292,7 +292,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
         'toId is missing'           | '{"fromKind":"item","fromId":100,"toKind":"note"}'             || 'fromKind, fromId, toKind and toId are required.'
         'fromKind is missing'       | '{"fromId":100,"toKind":"note","toId":300}'                    || 'fromKind is required.'
         'toKind is blank'           | '{"fromKind":"item","fromId":100,"toKind":"  ","toId":300}'    || 'toKind is required.'
-        'a kind is not one of six'  | '{"fromKind":"story","fromId":1,"toKind":"note","toId":300}'   || 'kind must be one of item, note, log, file, term, topic.'
+        'a kind is not one of eight'  | '{"fromKind":"story","fromId":1,"toKind":"note","toId":300}'   || 'kind must be one of item, note, log, file, term, topic, question, decision.'
     }
 
     @Unroll
@@ -398,7 +398,7 @@ class SolutionLinkControllerSpec extends ConfigWebSupport {
 
         where:
         scenario                      | url                                              || expectedStatus
-        'the kind is not one of six'  | '/api/solutions/1/link-targets?kind=story'       || 400
+        'the kind is not one of eight'  | '/api/solutions/1/link-targets?kind=story'       || 400
         'the record id is a word'     | '/api/solutions/1/link-targets?recordId=x'       || 400
         'the page size is a fraction' | '/api/solutions/1/link-targets?pageSize=2.5'     || 400
     }

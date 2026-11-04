@@ -125,11 +125,11 @@ public class SolutionLinkService {
         return since(caller, solutionId, 0, 50);
     }
 
-    /** One of the six kinds a link joins, or a 400. */
+    /** One of the eight kinds a link joins, or a 400. */
     static String kind(String kind) {
         String k = kind == null ? "" : kind.trim().toLowerCase();
         if (!SolutionLinkModels.KINDS.contains(k))
-            throw new IllegalArgumentException("kind must be one of item, note, log, file, term, topic.");
+            throw new IllegalArgumentException("kind must be one of item, note, log, file, term, topic, question, decision.");
         return k;
     }
 }

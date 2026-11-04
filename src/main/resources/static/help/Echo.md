@@ -251,6 +251,40 @@ What is different in Echo:
   Nook. Research (Wikipedia, a web search) is there.
 - **No quizzes.**
 
+#### What Echo's Solutions has that Leonardo's does not yet
+
+Echo is getting these first (Story 5695, from 11/04/2026), so they can be tried at work before they
+come to Leonardo.
+
+**Questions and decisions.** The **Log** tab has three views on its tool row: **Journal** (the log as
+before), **Questions** and **Decisions**. The Questions switch shows how many are open.
+
+- **+ Question** asks one: the question, some detail, and who should answer it. A question stays
+  open until a decision answers it, or you answer or drop it yourself (View, then **Drop**).
+- **+ Decision** records one: what was decided in a line, then the context, the options weighed and
+  the outcome. It is **Accepted** unless you choose **Proposed** (still to be agreed). Recording a
+  decision also writes it into the journal, so the log still tells the story in order.
+- **Answer** on a question's View starts a decision already linked to that question.
+- **Close what a decision settles.** Link a decision to the questions it answers and the items it
+  settles (from its View, **Linked**, then **Link**). Its View then lists them under **Still open**.
+  Tick the ones it settles and tap **Close them**. Echo asks first, naming them. The questions become
+  answered by that decision, the items become done, and one log entry says so.
+- **Changed your mind?** Open the decision and tap **Replace**. That records a new decision. The old
+  one stays in the register, marked **Replaced**, pointing at the new one. The Decisions view shows
+  the **Current** ones unless you choose otherwise.
+- **Make a log entry into a decision or a question.** A log entry's **Make into** button offers a
+  decision, a question or a runbook step. The decisions already written in a log become the register
+  this way, without retyping. The entry itself is not changed. The two are linked.
+- The Overview has an **Open questions** band and a **Decisions** band, **Since you were last here**
+  names questions asked and decisions made, a topic lists its decisions first, and the **Search** tab
+  finds topics, questions and decisions.
+
+**How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
+written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
+button. It counts from when the words were written, not from when the solution was last saved. A
+solution copied in from Leonardo does not bring that history with it, so there it counts from the
+last time the solution was saved in Leonardo.
+
 ### Sharing a solution with an agent (Rex)
 
 An outside agent -- Rex, say -- can work inside a solution you share with it, and nowhere else.

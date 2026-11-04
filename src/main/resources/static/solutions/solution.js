@@ -13,6 +13,7 @@
     //   ?note=<NoteID>        resolves its own solution, opens that note (?doc= is still read: older links)
     //   ?term=<TermID>        resolves its own solution, opens the Terms tab and shows that term
     //   ?topic=<TopicID>      resolves its own solution, opens the Topics tab and shows that topic (2026-11-02)
+    //   ?question=<ID> / ?decision=<ID>   resolves its own solution and shows that question or decision (Story 5695, Echo)
     //   ?testPlan=<PlanID>    resolves its own solution, opens the Testing tab (or QA, for a QA checklist) on it
     //   ?configProperty=<ID>  resolves its own solution, opens Configuration and flashes that property (Story 3516)
     //   ?gridProperty=<ID>    the same for Configuration II (Story 5611)
@@ -165,7 +166,8 @@
                 (s.archived ? '<span class="sl-chip">Archived</span>' : '') +
                 (s.blockedItemCount ? '<span class="sl-chip warn">' + s.blockedItemCount + ' blocked</span>' : '') +
                 (s.awaitingTonyCount ? '<span class="sl-chip wait">' + s.awaitingTonyCount + ' waiting on you</span>' : '') + '</div>' +
-            (s.statusSummary ? '<div class="desc sl-md" data-testid="solution-summary-text">' + SL.md('**Where things stand.** ' + s.statusSummary) + '</div>' : '') +
+            (s.statusSummary ? '<div class="desc sl-md" data-testid="solution-summary-text">' + SL.md('**Where things stand.** ' + s.statusSummary) + '</div>' +
+                '<div class="sl-summary-age" id="summaryAge" data-testid="solution-summary-age"></div>' : '') +
             (s.description ? '<div class="desc sl-md">' + SL.md(s.description) + '</div>' : '') +
             SL.progress(s.closedItemCount, s.itemCount) +
             '</div>';
@@ -192,12 +194,34 @@
             after: wireOverviewParts
         };
         window.SolutionOverview.draw($('ovBands'), mOvFixed, refresh === true);
+        paintSummaryAge();
         $('btnProjView').textContent = mRows ? 'Cards' : 'Rows';
         SL.status(Page.projects.length + (Page.projects.length === 1 ? ' project' : ' projects') + ' | ' +
             s.itemCount + ' items | ' + s.logCount + ' log entries | ' + s.noteCount + ' notes');
     }
 
     var mOvFixed = null;
+
+    // Story 5695 (Echo): how old "Where things stand" is. The deep review found Claims' summary 46 days old and
+    // no longer true; a summary two weeks old or more says so in amber, with a way to update it. Read once per
+    // summary text (a save that changes the summary asks again).
+    var mAge = null;
+
+    async function paintSummaryAge() {
+        var s = Page.solution;
+        if (!$('summaryAge') || !s || !s.statusSummary) return;
+        if (!mAge || mAge.id !== Page.id || mAge.summary !== s.statusSummary) {
+            var r = await SL.get('/api/solutions/' + Page.id + '/summary-age');
+            mAge = { id: Page.id, summary: s.statusSummary, data: r && r.ok ? r.data : null };
+        }
+        var el = $('summaryAge'), a = mAge.data;
+        if (!el || !a || !a.writtenDate) return;
+        var d = a.ageDays || 0;
+        el.innerHTML = '<span class="sl-chip' + (a.stale ? ' wait' : '') + '" data-testid="solution-summary-age-chip">' +
+            (d === 0 ? 'Written today' : 'Written ' + d + (d === 1 ? ' day' : ' days') + ' ago, ' + SL.date(a.writtenDate)) + '</span>' +
+            (a.stale ? '<button type="button" class="sl-btn small" id="btnSummaryUpdate" data-testid="solution-summary-update">Update it</button>' : '');
+        if ($('btnSummaryUpdate')) $('btnSummaryUpdate').addEventListener('click', openSolution);
+    }
 
     /** Wires the project rows / cards and the sharing line; called every time the bands are painted. */
     function wireOverviewParts() {
@@ -629,7 +653,8 @@
     async function resolveDeepLink() {
         var id = +SL.param('id') || 0, item = +SL.param('item') || 0, note = +SL.param('note') || +SL.param('doc') || 0, testPlan = +SL.param('testPlan') || 0,
             configProperty = +SL.param('configProperty') || 0, term = +SL.param('term') || 0, gridProperty = +SL.param('gridProperty') || 0,
-            file = +SL.param('file') || 0, topic = +SL.param('topic') || 0;
+            file = +SL.param('file') || 0, topic = +SL.param('topic') || 0,
+            question = +SL.param('question') || 0, decision = +SL.param('decision') || 0;
         if (!id && item) {
             var ri = await SL.get('/api/solutions/items/' + item + '/locate');
             if (ri && ri.ok) id = ri.data.solutionId;
@@ -664,7 +689,16 @@
             var rp = await SL.get('/api/solutions/topics/' + topic + '/locate');
             if (rp && rp.ok) id = rp.data.solutionId;
         }
-        return { id: id, item: item, note: note, term: term, file: file, topic: topic, testPlan: testPlan, testPlanTab: testPlanTab, configProperty: configProperty, gridProperty: gridProperty, conv: +SL.param('conv') || 0, tab: SL.param('tab') };
+        // Story 5695 (Echo)
+        if (!id && question) {
+            var rq = await SL.get('/api/solutions/questions/' + question + '/locate');
+            if (rq && rq.ok) id = rq.data.solutionId;
+        }
+        if (!id && decision) {
+            var rd2 = await SL.get('/api/solutions/decisions/' + decision + '/locate');
+            if (rd2 && rd2.ok) id = rd2.data.solutionId;
+        }
+        return { id: id, item: item, note: note, term: term, file: file, topic: topic, question: question, decision: decision, testPlan: testPlan, testPlanTab: testPlanTab, configProperty: configProperty, gridProperty: gridProperty, conv: +SL.param('conv') || 0, tab: SL.param('tab') };
     }
 
     (async function () {
@@ -694,6 +728,8 @@
         else if (link.note) { Page.go('notes'); Page.tabs.notes.openNote(link.note); }
         else if (link.term) { Page.go('terms'); Page.tabs.terms.openTerm(link.term); }
         else if (link.topic) { Page.go('topics'); Page.tabs.topics.openTopic(link.topic); }
+        else if (link.question) { Page.tabs.log.openView('questions'); Page.go('log'); window.SolutionDecisions.openQuestion(link.question); }
+        else if (link.decision) { Page.tabs.log.openView('decisions'); Page.go('log'); window.SolutionDecisions.openDecision(link.decision); }
         else if (link.file) { Page.go('files'); Page.tabs.files.openFile(link.file); }
         else if (link.testPlan) { Page.tabs[link.testPlanTab].choosePlan(link.testPlan); Page.go(link.testPlanTab); }
         else if (link.configProperty) { Page.tabs.config.flash(link.configProperty); Page.go('config'); }

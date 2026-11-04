@@ -51,7 +51,8 @@ SELECT  e.SolutionLinkID, e.Kind, e.RecordID, v.Title, v.Sub, v.RecordDate, v.Is
 FROM    Ends e
 JOIN    dbo.vw_SolutionLinkable v ON v.SolutionID = @prmSolutionID AND v.Kind = e.Kind AND v.RecordID = e.RecordID
 LEFT JOIN dbo.SolutionMember m ON m.SolutionMemberID = e.CreatedByMemberID
-ORDER BY CASE WHEN e.Kind = 'topic' THEN 0 ELSE 1 END, v.RecordDate DESC, e.SolutionLinkID DESC
+-- Story 5695 (Echo): after the topics, the decisions (so a topic opens with today's answer near the top), then the questions.
+ORDER BY CASE e.Kind WHEN 'topic' THEN 0 WHEN 'decision' THEN 1 WHEN 'question' THEN 2 ELSE 3 END, v.RecordDate DESC, e.SolutionLinkID DESC
 OFFSET ISNULL(@prmOffset, 0) ROWS FETCH NEXT @size ROWS ONLY
 
 GO

@@ -18,7 +18,7 @@ import spock.lang.Unroll
 
 /**
  * Story 5695: the shapes of Solution links, topics and "Since you were last here" -- the row mappers
- * (Link, StoredLink, LinkTarget, Topic, Change, Visit), the six kinds a link may join, and the page-size
+ * (Link, StoredLink, LinkTarget, Topic, Change, Visit), the eight kinds a link may join (Story 5695 added question and decision), and the page-size
  * rule every list shares.
  */
 class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
@@ -51,11 +51,11 @@ class SolutionLinkModelsSpec extends EchoSpockBaseSpec {
         }
     }
 
-    def "KINDS should hold exactly the six kinds a link may join"() {
+    def "KINDS should hold exactly the eight kinds a link may join"() {
 
         expect:
-        SolutionLinkModels.KINDS == ['item', 'note', 'log', 'file', 'term', 'topic'] as Set
-        SolutionLinkModels.KINDS.size() == 6
+        SolutionLinkModels.KINDS == ['item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision'] as Set
+        SolutionLinkModels.KINDS.size() == 8
         !SolutionLinkModels.KINDS.contains('message')
         !SolutionLinkModels.KINDS.contains('Item')
     }

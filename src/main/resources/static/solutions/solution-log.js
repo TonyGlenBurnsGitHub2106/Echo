@@ -14,6 +14,39 @@
     var mFlashId = 0;              // an entry the Search tab (2026-10-16) asked to scroll to and flash
     var mItemsForPicker = [];
 
+    // Story 5695 (Echo): the tab's three views -- the journal, the questions and the decisions. The two new
+    // ones are drawn by solution-decisions.js; this file switches. Remembered for the browser session.
+    var VIEWS = { journal: 1, questions: 1, decisions: 1 };
+    function viewKey() { return 'sl.log.view.' + Page.id; }
+    function currentView() {
+        var v = '';
+        try { v = sessionStorage.getItem(viewKey()) || ''; } catch (e) { /* private mode */ }
+        return VIEWS[v] ? v : 'journal';
+    }
+    function setView(v) {
+        if (!VIEWS[v]) v = 'journal';
+        try { sessionStorage.setItem(viewKey(), v); } catch (e) { /* private mode */ }
+    }
+    function paintViewSwitch(v) {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-log-view]'), function (b) {
+            var on = b.getAttribute('data-log-view') === v;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        $('logJournalTools').hidden = v !== 'journal';
+        $('logDqTools').hidden = v === 'journal';
+    }
+
+    /** The Questions tab badge: how many are open, from any tab. */
+    async function paintQuestionBadge() {
+        var b = $('badgeQuestions');
+        if (!b) return;
+        var r = await SL.get('/api/solutions/' + Page.id + '/questions?status=open&pageSize=1');
+        var n = r && r.ok && r.data ? (r.data.total || 0) : 0;
+        b.textContent = n > 0 ? String(n) : '';
+        b.style.background = '#B45309';
+    }
+
     // ---- load ----------------------------------------------------------------------
 
     function query(offset) {
@@ -136,7 +169,8 @@
             '<div class="foot">' +
                 (e.truncated ? '<button type="button" class="sl-btn small" data-full="' + e.id + '" data-testid="log-full-btn">Show all of it</button>' : '') +
                 '<button type="button" class="sl-btn small" data-links="' + e.id + '" data-testid="log-links-btn">Links</button>' +
-                '<button type="button" class="sl-btn small" data-promote="' + e.id + '" data-testid="log-promote-btn">Make a runbook step</button>' +
+                // Story 5695 (Echo): one button, three ways out -- a runbook step, a decision or a question.
+                '<button type="button" class="sl-btn small" data-promote="' + e.id + '" data-testid="log-promote-btn">Make into</button>' +
                 '<button type="button" class="sl-btn small" data-correct="' + e.id + '" data-testid="log-correct-btn">Correct</button>' +
                 '<button type="button" class="sl-btn small danger" data-remove="' + e.id + '" data-testid="log-delete-btn">Delete</button>' +
             '</div></div>';
@@ -162,7 +196,7 @@
         });
         each('[data-full]',    function (b) { b.addEventListener('click', function () { showFull(+b.getAttribute('data-full')); }); });
         each('[data-links]',   function (b) { b.addEventListener('click', function () { openLinks(+b.getAttribute('data-links')); }); });
-        each('[data-promote]', function (b) { b.addEventListener('click', function () { openPromote(+b.getAttribute('data-promote')); }); });
+        each('[data-promote]', function (b) { b.addEventListener('click', function () { chooseMake(+b.getAttribute('data-promote')); }); });
         each('[data-correct]', function (b) { b.addEventListener('click', function () { openCorrect(+b.getAttribute('data-correct')); }); });
         each('[data-remove]',  function (b) { b.addEventListener('click', function () { remove(+b.getAttribute('data-remove')); }); });
     }
@@ -232,6 +266,34 @@
         await Promise.all([loadFirst(), Page.reload()]);
     }
 
+    // ---- make an entry into something else (Story 5695: a decision or a question, in place) -----------
+
+    async function chooseMake(logId) {
+        var e = mEntries.filter(function (x) { return x.id === logId; })[0];
+        if (!e) return;
+        // The entry's own kind leads: a Decision entry is offered as a decision first, a Question as a question.
+        var first = e.typeCode === 'question' ? 'question' : 'decision';
+        var buttons = [
+            { label: first === 'decision' ? 'A decision' : 'A question', value: first, style: 'primary', isDefault: true },
+            { label: first === 'decision' ? 'A question' : 'A decision', value: first === 'decision' ? 'question' : 'decision', style: 'plain' },
+            { label: 'A runbook step', value: 'step', style: 'plain' },
+            { label: 'Cancel', value: 'cancel', style: 'plain' }
+        ];
+        var answer;
+        try {
+            var dlg = await window.Picasso.dialog();
+            answer = await dlg.show({ kind: 'question', title: 'Make log entry #' + e.sequenceNumber + ' into',
+                message: '"' + SL.plain(e.text, 140) + '"\n\nA decision or a question is made from it and linked to it; the entry itself stays as it is.' +
+                         '\nA runbook step is copied into a runbook note.', buttons: buttons, escape: 'cancel' });
+        } catch (err) {
+            SL.toast('The choice could not be shown, so nothing was changed: ' + (err && err.message ? err.message : 'the dialog did not load.'));
+            return;
+        }
+        if (answer === 'step') { openPromote(logId); return; }
+        if (answer !== 'decision' && answer !== 'question') return;
+        if (window.SolutionDecisions && await window.SolutionDecisions.fromLog(logId, answer)) paintQuestionBadge();
+    }
+
     // ---- promote to a runbook step ---------------------------------------------------------
 
     async function openPromote(logId) {
@@ -269,8 +331,19 @@
             attachKindPicker('lType');
             $('promoteCancel').addEventListener('click', function () { SL.close('promoteOverlay'); });
             $('promoteSave').addEventListener('click', function () { SL.guard($('promoteSave'), savePromote); });
+            Array.prototype.forEach.call(document.querySelectorAll('[data-log-view]'), function (b) {
+                b.addEventListener('click', function () { setView(b.getAttribute('data-log-view')); Page.tabs.log.show(); });
+            });
+            paintQuestionBadge();
         },
         show: function () {
+            var view = currentView();
+            paintViewSwitch(view);
+            paintQuestionBadge();
+            if (view !== 'journal' && window.SolutionDecisions) {
+                window.SolutionDecisions.show(view === 'questions' ? 'question' : 'decision');
+                return;
+            }
             refreshKindFilter();
             SL.fillSelect($('fLogAuthor'), Page.memberOptions('Anyone'), $('fLogAuthor').value);
             SL.fillSelect($('fLogProject'), Page.projectOptions('All projects'), $('fLogProject').value);
@@ -280,7 +353,11 @@
             loadFirst().then(function () { if (mFlashId) flashNow(); });
         },
         /** From the Search tab: scroll to one entry, open it and flash it; call before the tab is shown. */
-        flash: function (logId) { mFlashId = logId; }
+        flash: function (logId) { mFlashId = logId; setView('journal'); },
+        /** Story 5695 (Echo): choose the view the tab opens on next -- 'journal', 'questions' or 'decisions'. */
+        openView: function (view) { setView(view); },
+        /** The open-questions count on the Questions switch, after a change elsewhere on the page. */
+        paintBadge: paintQuestionBadge
     });
 
     /** Page on until the entry is here (it may be far down the journal), then open it and flash it. */

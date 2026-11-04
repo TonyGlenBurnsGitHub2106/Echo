@@ -6,6 +6,8 @@
 #   Where    which rows belong to solution @sid (a WHERE clause; @sid is the solution id)
 #   Lookup   a table every solution shares: rows are copied only when the id is not there yet, and
 #            a row whose id IS there must carry the same natural key (Key), or the import stops.
+#   Optional a table the SOURCE may not have (Story 5695): Leonardo has links, topics and visits, but no
+#            questions or decisions yet. Export writes none for a table the database lacks.
 
 $EchoSolutionTables = @(
     # ---- shared lookups (only the rows this solution uses, or the small fixed lists whole) ----
@@ -63,5 +65,12 @@ $EchoSolutionTables = @(
     @{ Name = 'SolutionFileFiling';  Where = 'SolutionFileID IN (SELECT SolutionFileID FROM dbo.SolutionFile WHERE SolutionID = @sid)' },
     @{ Name = 'Conversation';        Where = 'ConversationID IN (SELECT ConversationID FROM dbo.SolutionConversation WHERE SolutionID = @sid)' },
     @{ Name = 'ConversationMessage'; Where = 'ConversationID IN (SELECT ConversationID FROM dbo.SolutionConversation WHERE SolutionID = @sid)' },
-    @{ Name = 'SolutionConversation'; Where = 'SolutionID = @sid' }
+    @{ Name = 'SolutionConversation'; Where = 'SolutionID = @sid' },
+    # Story 5695: links, topics and visits (Leonardo 2026-11-02), questions and decisions (Echo first). A link
+    # names its two records by kind and id, and the import keeps every id, so the links still hold.
+    @{ Name = 'SolutionTopic';        Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionQuestion';     Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionDecision';     Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionLink';         Where = 'SolutionID = @sid'; Optional = $true },
+    @{ Name = 'SolutionMemberVisit';  Where = 'SolutionID = @sid'; Optional = $true }
 )

@@ -22,14 +22,16 @@ final class SolutionSearchModels {
     private SolutionSearchModels() {}
 
     /** The tab keys a search may cover, in the order the tabs sit on the page. */
+    /** Story 5695 (Echo): plus topics, questions and decisions, after the tabs Leonardo searches. */
     static final List<String> SOURCES = List.of("overview", "items", "log", "notes", "terms", "tests", "qa",
-                                                "config", "grid", "files", "conversations", "web");
+                                                "config", "grid", "files", "conversations", "web",
+                                                "topics", "questions", "decisions");
 
     static final Map<String, String> LABELS = Map.ofEntries(
         Map.entry("overview", "Projects"), Map.entry("items", "Items"), Map.entry("log", "Log"), Map.entry("notes", "Notes"),
         Map.entry("terms", "Terms"), Map.entry("tests", "Testing"), Map.entry("qa", "QA"), Map.entry("config", "Configuration"),
         Map.entry("grid", "Configuration II"), Map.entry("files", "Files"), Map.entry("conversations", "Conversations"),
-        Map.entry("web", "Web"));
+        Map.entry("web", "Web"), Map.entry("topics", "Topics"), Map.entry("questions", "Questions"), Map.entry("decisions", "Decisions"));
 
     /** What was asked. Terms are already trimmed and blank-free; sources null = every tab. */
     public record SearchFilter(int solutionId, List<String> orTerms, List<String> andTerms, List<String> notTerms,

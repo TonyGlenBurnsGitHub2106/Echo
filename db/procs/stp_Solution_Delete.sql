@@ -106,6 +106,9 @@ BEGIN TRY
     DELETE FROM dbo.SolutionLink        WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionTopic       WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionMemberVisit WHERE SolutionID = @prmSolutionID
+    -- Story 5695 (Echo): its questions and decisions.
+    DELETE FROM dbo.SolutionQuestion    WHERE SolutionID = @prmSolutionID
+    DELETE FROM dbo.SolutionDecision    WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionNote WHERE SolutionID = @prmSolutionID
     DELETE FROM dbo.SolutionLog      WHERE SolutionID = @prmSolutionID
     DELETE fl FROM dbo.SolutionFileFiling fl

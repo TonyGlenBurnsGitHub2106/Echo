@@ -16,13 +16,13 @@ import spock.lang.Unroll
 
 /**
  * Story 5695: the business rules of Solution links, topics and "Since you were last here" -- access is
- * checked before anything is read or written (a hidden solution reads and writes nothing), the six kinds,
+ * checked before anything is read or written (a hidden solution reads and writes nothing), the eight kinds,
  * a link is removed only through its own solution, a topic is reached through its own solution, the add
  * and edit paths of a topic, the visit and "since" window, and the paging every list shares.
  */
 class SolutionLinkServiceSpec extends SolutionServiceSupport {
 
-    static final String KIND_MESSAGE = 'kind must be one of item, note, log, file, term, topic.'
+    static final String KIND_MESSAGE = 'kind must be one of item, note, log, file, term, topic, question, decision.'
 
     SolutionLinkRepository links = Mock()
     SolutionLinkService service = new SolutionLinkService(links, access)
@@ -124,7 +124,7 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
     }
 
     @Unroll
-    def "kind should refuse with the six kinds named when #scenario"() {
+    def "kind should refuse with the eight kinds named when #scenario"() {
 
         when:
         SolutionLinkService.kind(kind)
@@ -135,13 +135,13 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
 
         where:
         scenario                         | kind       || expectedMessage
-        'the kind is null'               | null       || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind is empty'              | ''         || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind is blank'              | '   '      || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind is a story'            | 'story'    || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind is plural'             | 'items'    || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind is a message'          | 'message'  || 'kind must be one of item, note, log, file, term, topic.'
-        'the kind holds two kinds'       | 'item,note' || 'kind must be one of item, note, log, file, term, topic.'
+        'the kind is null'               | null       || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind is empty'              | ''         || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind is blank'              | '   '      || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind is a story'            | 'story'    || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind is plural'             | 'items'    || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind is a message'          | 'message'  || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the kind holds two kinds'       | 'item,note' || 'kind must be one of item, note, log, file, term, topic, question, decision.'
     }
 
     // ---- links ----
@@ -230,10 +230,10 @@ class SolutionLinkServiceSpec extends SolutionServiceSupport {
 
         where:
         scenario                        | fromKind | toKind  || expectedMessage
-        'the from kind is unknown'      | 'story'  | 'item'  || 'kind must be one of item, note, log, file, term, topic.'
-        'the to kind is unknown'        | 'item'   | 'story' || 'kind must be one of item, note, log, file, term, topic.'
-        'the from kind is null'         | null     | 'item'  || 'kind must be one of item, note, log, file, term, topic.'
-        'the to kind is blank'          | 'item'   | ' '     || 'kind must be one of item, note, log, file, term, topic.'
+        'the from kind is unknown'      | 'story'  | 'item'  || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the to kind is unknown'        | 'item'   | 'story' || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the from kind is null'         | null     | 'item'  || 'kind must be one of item, note, log, file, term, topic, question, decision.'
+        'the to kind is blank'          | 'item'   | ' '     || 'kind must be one of item, note, log, file, term, topic, question, decision.'
     }
 
     def "link should pass the refusal through and read no page when the repository refuses the pair"() {

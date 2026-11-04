@@ -37,6 +37,19 @@ FROM    dbo.SolutionTerm m
 UNION ALL
 SELECT  o.SolutionID, 'topic', o.SolutionTopicID, CAST(o.TopicName AS NVARCHAR(400)), CAST(LEFT(ISNULL(o.TopicSummary, N''), 200) AS NVARCHAR(400)),
         ISNULL(o.ModifiedDate, o.CreatedDate), CAST(0 AS BIT)
-FROM    dbo.SolutionTopic o;
+FROM    dbo.SolutionTopic o
+-- Story 5695 (Echo): questions and decisions are linkable too. A question is closed once answered or
+-- dropped; a decision once a newer one has replaced it.
+UNION ALL
+SELECT  q.SolutionID, 'question', q.SolutionQuestionID, CAST(q.QuestionText AS NVARCHAR(400)),
+        CAST(CASE q.StatusCode WHEN 'open' THEN N'Open question' WHEN 'answered' THEN N'Answered' ELSE N'Dropped' END AS NVARCHAR(400)),
+        ISNULL(q.ModifiedDate, q.CreatedDate), CAST(CASE WHEN q.StatusCode = 'open' THEN 0 ELSE 1 END AS BIT)
+FROM    dbo.SolutionQuestion q
+UNION ALL
+SELECT  d.SolutionID, 'decision', d.SolutionDecisionID, CAST(d.DecisionTitle AS NVARCHAR(400)),
+        CAST(CASE d.StatusCode WHEN 'proposed' THEN N'Proposed' WHEN 'accepted' THEN N'Decided' ELSE N'Replaced' END +
+             CASE WHEN d.DecidedDate IS NULL THEN N'' ELSE N' ' + CONVERT(NVARCHAR(10), d.DecidedDate, 101) END AS NVARCHAR(400)),
+        ISNULL(d.DecidedDate, d.CreatedDate), CAST(CASE WHEN d.StatusCode = 'superseded' THEN 1 ELSE 0 END AS BIT)
+FROM    dbo.SolutionDecision d;
 
 GO

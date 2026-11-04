@@ -160,3 +160,112 @@ GO
 IF OBJECT_ID('dbo.QuickLaunch') IS NOT NULL
     DELETE FROM dbo.QuickLaunch WHERE Url LIKE '%/gmail-client/%';
 GO
+
+-- ---- Questions and Decisions (Story 5695, 2026-11-04) ----
+-- The Solutions upgrade Tony asked for in Echo first ("for echo only ... I will test drive that and then we
+-- can consider Leonardo Solutions"). Named the way Leonardo would name them, so they can be carried back.
+--
+--   SolutionQuestion   something the solution needs answered. Open until a decision answers it (or it is
+--                      answered by hand, or dropped). AnsweredBySolutionDecisionID names the decision.
+--   SolutionDecision   what was decided: a title, the context, the options weighed and the outcome, with a
+--                      status (proposed, accepted, superseded). A changed mind is a NEW decision that
+--                      supersedes the old one (SupersededBySolutionDecisionID), never an edit of the outcome.
+--                      SolutionLogID is the journal entry that records it -- written with it in the same
+--                      transaction, or the entry it was made from.
+--
+-- Both are linkable records (kinds 'question' and 'decision', below), so a decision is linked to the
+-- questions it answers and the items it settles. No foreign keys, like the rest of the Solutions family:
+-- stp_Solution_Delete and the two delete procs clean up. Each has a _LOG twin kept by its triggers.
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionQuestion')
+BEGIN
+    CREATE TABLE dbo.SolutionQuestion (
+        SolutionQuestionID           INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionQuestion PRIMARY KEY CLUSTERED,
+        SolutionID                   INT            NOT NULL,
+        QuestionText                 NVARCHAR(800)  NOT NULL,
+        QuestionDetail               NVARCHAR(MAX)  NULL,
+        StatusCode                   VARCHAR(20)    NOT NULL CONSTRAINT DF_SolutionQuestion_StatusCode DEFAULT ('open'),
+        AskedByMemberID              INT            NULL,
+        OwnerMemberID                INT            NULL,      -- who should answer it
+        AnsweredBySolutionDecisionID INT            NULL,
+        AnsweredDate                 DATETIME       NULL,
+        SolutionLogID                INT            NULL,      -- the journal entry it was made from, if any
+        ModifiedBy                   VARCHAR(20)    NULL,
+        CreatedDate                  DATETIME       NOT NULL CONSTRAINT DF_SolutionQuestion_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate                 DATETIME       NULL,
+        CONSTRAINT CK_SolutionQuestion_StatusCode CHECK (StatusCode IN ('open', 'answered', 'dropped'))
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionQuestion_Solution' AND object_id = OBJECT_ID('dbo.SolutionQuestion'))
+    CREATE INDEX IX_SolutionQuestion_Solution ON dbo.SolutionQuestion (SolutionID, StatusCode);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionDecision')
+BEGIN
+    CREATE TABLE dbo.SolutionDecision (
+        SolutionDecisionID             INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionDecision PRIMARY KEY CLUSTERED,
+        SolutionID                     INT            NOT NULL,
+        DecisionTitle                  NVARCHAR(400)  NOT NULL,
+        Context                        NVARCHAR(MAX)  NULL,    -- why it came up
+        OptionsText                    NVARCHAR(MAX)  NULL,    -- what was weighed
+        Outcome                        NVARCHAR(MAX)  NULL,    -- what was decided
+        StatusCode                     VARCHAR(20)    NOT NULL CONSTRAINT DF_SolutionDecision_StatusCode DEFAULT ('accepted'),
+        SupersededBySolutionDecisionID INT            NULL,
+        DecidedDate                    DATETIME       NULL,
+        SolutionLogID                  INT            NULL,    -- the journal entry that records it
+        DecidedByMemberID              INT            NULL,
+        ModifiedBy                     VARCHAR(20)    NULL,
+        CreatedDate                    DATETIME       NOT NULL CONSTRAINT DF_SolutionDecision_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate                   DATETIME       NULL,
+        CONSTRAINT CK_SolutionDecision_StatusCode CHECK (StatusCode IN ('proposed', 'accepted', 'superseded'))
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionDecision_Solution' AND object_id = OBJECT_ID('dbo.SolutionDecision'))
+    CREATE INDEX IX_SolutionDecision_Solution ON dbo.SolutionDecision (SolutionID, StatusCode);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolutionDecision_Log' AND object_id = OBJECT_ID('dbo.SolutionDecision'))
+    CREATE INDEX IX_SolutionDecision_Log ON dbo.SolutionDecision (SolutionLogID);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionQuestion_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionQuestion_LOG (
+        SolutionQuestion_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionQuestion_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionQuestion_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionQuestion_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionQuestionID INT NULL, SolutionID INT NULL, QuestionText NVARCHAR(800) NULL, QuestionDetail NVARCHAR(MAX) NULL,
+        StatusCode VARCHAR(20) NULL, AskedByMemberID INT NULL, OwnerMemberID INT NULL, AnsweredBySolutionDecisionID INT NULL,
+        AnsweredDate DATETIME NULL, SolutionLogID INT NULL, ModifiedBy VARCHAR(20) NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SolutionDecision_LOG')
+BEGIN
+    CREATE TABLE dbo.SolutionDecision_LOG (
+        SolutionDecision_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolutionDecision_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_SolutionDecision_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_SolutionDecision_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        SolutionDecisionID INT NULL, SolutionID INT NULL, DecisionTitle NVARCHAR(400) NULL, Context NVARCHAR(MAX) NULL,
+        OptionsText NVARCHAR(MAX) NULL, Outcome NVARCHAR(MAX) NULL, StatusCode VARCHAR(20) NULL,
+        SupersededBySolutionDecisionID INT NULL, DecidedDate DATETIME NULL, SolutionLogID INT NULL, DecidedByMemberID INT NULL,
+        ModifiedBy VARCHAR(20) NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+-- A link may now also join a question or a decision. The CHECKs that came with SolutionLink (Leonardo
+-- 2026-11-02) name six kinds; they are put back with eight. Run again, it finds them already widened.
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionLink_FromKind' AND definition NOT LIKE '%decision%')
+    ALTER TABLE dbo.SolutionLink DROP CONSTRAINT CK_SolutionLink_FromKind;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionLink_FromKind') AND OBJECT_ID('dbo.SolutionLink') IS NOT NULL
+    ALTER TABLE dbo.SolutionLink ADD CONSTRAINT CK_SolutionLink_FromKind
+        CHECK (FromKind IN ('item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision'));
+GO
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionLink_ToKind' AND definition NOT LIKE '%decision%')
+    ALTER TABLE dbo.SolutionLink DROP CONSTRAINT CK_SolutionLink_ToKind;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionLink_ToKind') AND OBJECT_ID('dbo.SolutionLink') IS NOT NULL
+    ALTER TABLE dbo.SolutionLink ADD CONSTRAINT CK_SolutionLink_ToKind
+        CHECK (ToKind IN ('item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision'));
+GO

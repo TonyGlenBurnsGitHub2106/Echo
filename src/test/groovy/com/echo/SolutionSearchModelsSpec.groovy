@@ -14,15 +14,18 @@ import spock.lang.Unroll
 // Story 5653: SolutionSearchModels -- the tab list, its labels, the self-cleaning filter and the hit mapper.
 class SolutionSearchModelsSpec extends EchoSpockBaseSpec {
 
-    def "SOURCES and LABELS should name the twelve tabs in page order, each with a label, when read"() {
+    def "SOURCES and LABELS should name the fifteen tabs in page order, each with a label, when read"() {
 
         expect:
         SolutionSearchModels.SOURCES == ['overview', 'items', 'log', 'notes', 'terms', 'tests', 'qa', 'config', 'grid', 'files',
-                                         'conversations', 'web']
+                                         'conversations', 'web', 'topics', 'questions', 'decisions']
         SolutionSearchModels.LABELS.keySet() == SolutionSearchModels.SOURCES as Set
         SolutionSearchModels.LABELS.overview == 'Projects'
         SolutionSearchModels.LABELS.tests == 'Testing'
         SolutionSearchModels.LABELS.grid == 'Configuration II'
+        SolutionSearchModels.LABELS.topics == 'Topics'
+        SolutionSearchModels.LABELS.questions == 'Questions'
+        SolutionSearchModels.LABELS.decisions == 'Decisions'
     }
 
     def "SearchFilter should trim terms, drop blanks and nulls, and cut each at 200 characters when constructed"() {

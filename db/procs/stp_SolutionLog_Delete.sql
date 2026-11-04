@@ -31,6 +31,9 @@ Date        Developer    Description
 SET NOCOUNT ON
 
 UPDATE dbo.SolutionNoteStep SET SourceSolutionLogID = NULL WHERE SourceSolutionLogID = @prmSolutionLogID
+-- Story 5695 (Echo): a question or decision made from (or recorded by) the entry stays; it just no longer names it.
+UPDATE dbo.SolutionDecision SET SolutionLogID = NULL WHERE SolutionLogID = @prmSolutionLogID
+UPDATE dbo.SolutionQuestion SET SolutionLogID = NULL WHERE SolutionLogID = @prmSolutionLogID
 DELETE FROM dbo.SolutionLink WHERE (FromKind = 'log' AND FromID = @prmSolutionLogID) OR (ToKind = 'log' AND ToID = @prmSolutionLogID)
 DELETE FROM dbo.SolutionLog WHERE SolutionLogID = @prmSolutionLogID
 SELECT @@ROWCOUNT AS RowsAffected

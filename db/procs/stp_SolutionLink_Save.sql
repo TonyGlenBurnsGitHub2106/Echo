@@ -41,8 +41,10 @@ DECLARE @fromId INT = ISNULL(@prmFromID, 0), @toId INT = ISNULL(@prmToID, 0)
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Solution WHERE SolutionID = @prmSolutionID)
 BEGIN RAISERROR('That solution no longer exists. Nothing was saved.', 16, 1) RETURN END
-IF @fromKind NOT IN ('item', 'note', 'log', 'file', 'term', 'topic') OR @toKind NOT IN ('item', 'note', 'log', 'file', 'term', 'topic')
-BEGIN RAISERROR('A link joins two of: item, note, log, file, term, topic. Nothing was saved.', 16, 1) RETURN END
+-- Story 5695 (Echo): questions and decisions are linkable too.
+IF @fromKind NOT IN ('item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision')
+   OR @toKind NOT IN ('item', 'note', 'log', 'file', 'term', 'topic', 'question', 'decision')
+BEGIN RAISERROR('A link joins two of: item, note, log, file, term, topic, question, decision. Nothing was saved.', 16, 1) RETURN END
 IF @fromKind = @toKind AND @fromId = @toId
 BEGIN RAISERROR('A record cannot be linked to itself. Nothing was saved.', 16, 1) RETURN END
 IF NOT EXISTS (SELECT 1 FROM dbo.vw_SolutionLinkable WHERE SolutionID = @prmSolutionID AND Kind = @fromKind AND RecordID = @fromId)

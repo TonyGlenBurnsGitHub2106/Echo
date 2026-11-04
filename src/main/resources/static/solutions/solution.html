@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=48">
+    <link rel="stylesheet" href="solutions.css?v=49">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -85,6 +85,20 @@
     </div>
 
     <div class="sl-toolbar" id="toolbar-log" hidden data-testid="solution-toolbar-log">
+        <!-- Story 5695 (Echo): the Log tab holds three views -- the journal, the open questions and the decision
+             register (solution-decisions.js) -- so neither needs a tab of its own. -->
+        <div class="sl-seg" role="tablist" aria-label="What the Log tab shows" data-testid="log-views">
+            <button type="button" role="tab" data-log-view="journal" aria-selected="true" data-testid="log-view-journal">Journal</button>
+            <button type="button" role="tab" data-log-view="questions" aria-selected="false" data-testid="log-view-questions">Questions <span class="badge" id="badgeQuestions" title="Open questions" data-testid="log-questions-badge"></span></button>
+            <button type="button" role="tab" data-log-view="decisions" aria-selected="false" data-testid="log-view-decisions">Decisions</button>
+        </div>
+        <div class="sl-contents" id="logDqTools" hidden data-testid="dq-tools">
+            <div class="fld"><label for="fDqStatus">Show</label><select id="fDqStatus" data-testid="dq-filter-status"></select></div>
+            <div class="grow"><label for="fDqSearch">Search</label><input type="search" id="fDqSearch" data-testid="dq-filter-search" autocomplete="off"></div>
+            <span class="spacer"></span>
+            <button type="button" class="sl-btn primary" id="btnDqAdd" data-testid="dq-add-btn">+ Question</button>
+        </div>
+        <div class="sl-contents" id="logJournalTools" data-testid="log-journal-tools">
         <div class="fld"><label for="fLogType">Kind</label><select id="fLogType" data-ps-placeholder="Every kind" data-testid="log-filter-type"></select></div>
         <div class="fld"><label for="fLogAuthor">Written by</label><select id="fLogAuthor" data-ps-placeholder="Anyone" data-testid="log-filter-author"></select></div>
         <div class="fld"><label for="fLogProject">Project</label><select id="fLogProject" data-ps-placeholder="All projects" data-testid="log-filter-project"></select></div>
@@ -97,6 +111,7 @@
         <div class="grow"><label for="fLogSearch">Search</label><input type="search" id="fLogSearch" data-testid="log-filter-search" placeholder="Search the log" autocomplete="off"></div>
         <button type="button" class="sl-btn" id="btnLogExpand" data-testid="log-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnLogCollapse" data-testid="log-collapse-all">Collapse all</button>
+        </div>
     </div>
 
     <div class="sl-toolbar" id="toolbar-notes" hidden data-testid="solution-toolbar-notes">
@@ -563,7 +578,7 @@
         <h2>Link to</h2>
         <div class="sl-muted" id="linkPickFor" data-testid="link-pick-for" style="margin:-8px 0 8px"></div>
         <div class="warn" id="linkPickWarn" data-testid="link-pick-warn"></div>
-        <div class="fld"><label for="linkPickSearch">Find</label><input type="search" id="linkPickSearch" data-testid="link-pick-search" placeholder="A few words of an item, note, log entry, file, term or topic" autocomplete="off"></div>
+        <div class="fld"><label for="linkPickSearch">Find</label><input type="search" id="linkPickSearch" data-testid="link-pick-search" placeholder="A few words of an item, note, log entry, file, term, topic, question or decision" autocomplete="off"></div>
         <div class="sl-pick-list" id="linkPickList" data-testid="link-pick-list"></div>
         <div class="foot">
             <button type="button" class="sl-btn" id="linkPickCancel" data-testid="link-pick-cancel">Cancel</button>
@@ -580,6 +595,61 @@
         </div>
         <div class="foot">
             <button type="button" class="sl-btn primary" id="linksSheetClose" data-testid="links-sheet-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo): Questions and Decisions (solution-decisions.js) -- add / edit one question -->
+<div class="sl-overlay" id="questionOverlay" data-testid="question-overlay">
+    <div class="sl-modal" style="width:min(640px,100%)">
+        <h2 id="questionTitleBar">New question</h2>
+        <div class="sl-muted" id="questionContext" data-testid="question-context" style="margin:-8px 0 8px"></div>
+        <div class="warn" id="questionWarn" data-testid="question-warn"></div>
+        <div class="fld"><label for="qText">Question</label><input type="text" id="qText" data-testid="question-text" placeholder="What needs answering, e.g. Which charset do the 837 files use?" autocomplete="off" maxlength="800"></div>
+        <div class="fld"><label for="qDetail">Detail</label><textarea id="qDetail" data-testid="question-detail" placeholder="Why it matters, what is known so far (optional)"></textarea></div>
+        <div class="fld"><label for="qOwner">Who should answer it</label><select id="qOwner" data-testid="question-owner"></select></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="questionCancel" data-testid="question-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="questionSave" data-testid="question-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo): add / edit / replace one decision -->
+<div class="sl-overlay" id="decisionOverlay" data-testid="decision-overlay">
+    <div class="sl-modal" style="width:min(720px,100%)">
+        <h2 id="decisionTitleBar">New decision</h2>
+        <div class="sl-muted" id="decisionContext" data-testid="decision-context" style="margin:-8px 0 8px"></div>
+        <div class="warn" id="decisionWarn" data-testid="decision-warn"></div>
+        <div class="fld"><label for="decTitle">Decided</label><input type="text" id="decTitle" data-testid="decision-title" placeholder="What was decided, in a line, e.g. Read files in as UTF-8" autocomplete="off" maxlength="400"></div>
+        <div class="fld" id="decStatusFld"><label for="decStatus">Status</label><select id="decStatus" data-testid="decision-status"></select></div>
+        <div class="fld"><label for="decContext">Context</label><textarea id="decContext" data-testid="decision-context-text" placeholder="Why it came up (optional)"></textarea></div>
+        <div class="fld"><label for="decOptions">Options weighed</label><textarea id="decOptions" data-testid="decision-options" placeholder="What else was considered, and why not (optional)"></textarea></div>
+        <div class="fld"><label for="decOutcome">Outcome</label><textarea id="decOutcome" data-testid="decision-outcome" placeholder="The decision in full: what changes, from when (optional)"></textarea></div>
+        <div class="foot">
+            <button type="button" class="sl-btn" id="decisionCancel" data-testid="decision-cancel">Cancel</button>
+            <button type="button" class="sl-btn primary" id="decisionSave" data-testid="decision-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Story 5695 (Echo): read one question or decision (sepia, like every View), what it could close, its links -->
+<div class="sl-overlay" id="dqViewOverlay" data-testid="dq-view-overlay">
+    <div class="sl-modal sl-sepia" role="dialog" aria-labelledby="dqViewTitle">
+        <div class="sl-sepia-scroll" id="dqViewScroll" data-testid="dq-view-scroll">
+            <h2 id="dqViewTitle" data-testid="dq-view-title"></h2>
+            <div class="sl-sepia-meta" id="dqViewMeta" data-testid="dq-view-meta"></div>
+            <div class="sl-sepia-body" id="dqViewBody" data-testid="dq-view-body"></div>
+            <div id="dqViewOpen" data-testid="dq-view-open"></div>
+            <div id="dqViewLinks" data-testid="dq-view-links"></div>
+        </div>
+        <div class="foot">
+            <button type="button" class="sl-btn danger" id="dqViewDelete" data-testid="dq-view-delete">Delete</button>
+            <button type="button" class="sl-btn" id="dqViewDrop" hidden data-testid="dq-view-drop">Drop</button>
+            <button type="button" class="sl-btn" id="dqViewSupersede" hidden data-testid="dq-view-supersede">Replace</button>
+            <button type="button" class="sl-btn" id="dqViewAnswer" hidden data-testid="dq-view-answer">Answer</button>
+            <button type="button" class="sl-btn" id="dqViewEdit" data-testid="dq-view-edit">Edit</button>
+            <button type="button" class="sl-btn primary" id="dqViewClose" data-testid="dq-view-close">Close</button>
         </div>
     </div>
 </div>
@@ -922,20 +992,21 @@
 <script src="/picasso-view-state.js?v=4"></script>
 <script src="/picasso-tags.js?v=5"></script>
 <script src="solutions-common.js?v=13"></script>
-<script src="solution.js?v=38"></script>
-<script src="solution-overview.js?v=3"></script>
+<script src="solution.js?v=39"></script>
+<script src="solution-overview.js?v=4"></script>
 <script src="solution-items.js?v=22"></script>
-<script src="solution-log.js?v=10"></script>
+<script src="solution-log.js?v=11"></script>
 <script src="solution-notes.js?v=22"></script>
 <script src="solution-terms.js?v=2"></script>
-<script src="solution-links.js?v=3"></script>
+<script src="solution-links.js?v=4"></script>
 <script src="solution-topics.js?v=2"></script>
+<script src="solution-decisions.js?v=1"></script>
 <script src="solution-conv.js?v=8"></script>
 <script src="solution-files.js?v=22"></script>
 <script src="solution-tests.js?v=15"></script>
 <script src="solution-config.js?v=9"></script>
 <script src="solution-config-grid.js?v=3"></script>
-<script src="solution-search.js?v=1"></script>
+<script src="solution-search.js?v=2"></script>
 <script src="solution-print.js?v=8"></script>
 <script src="/picasso-quick-add.js?v=2"></script>
 <script src="/picasso-context-menu.js?v=1"></script>

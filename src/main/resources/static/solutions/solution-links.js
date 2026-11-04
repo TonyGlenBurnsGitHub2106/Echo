@@ -17,7 +17,9 @@
 
     var SL = window.SolutionsCommon, $ = SL.$, esc = SL.esc, Page = window.SolutionPage;
 
-    var KIND_NAMES = { item: 'Item', note: 'Note', log: 'Log', file: 'File', term: 'Term', topic: 'Topic', message: 'Message' };
+    // Story 5695 (Echo): questions and decisions are linkable records too.
+    var KIND_NAMES = { item: 'Item', note: 'Note', log: 'Log', file: 'File', term: 'Term', topic: 'Topic', message: 'Message',
+                       question: 'Question', decision: 'Decision' };
     var PAGE_SIZE = 50, TYPING_PAUSE_MS = 250;
 
     var mFolds = null;
@@ -210,6 +212,9 @@
             case 'term':    Page.go('terms'); t.terms.openTerm(id); break;
             case 'topic':   Page.go('topics'); t.topics.openTopic(id); break;
             case 'message': Page.go('conversations'); t.conversations.openThread(id); break;
+            // Story 5695 (Echo): their own sepia View opens over whatever tab is showing.
+            case 'question': if (window.SolutionDecisions) window.SolutionDecisions.openQuestion(id); break;
+            case 'decision': if (window.SolutionDecisions) window.SolutionDecisions.openDecision(id); break;
             default: break;
         }
     }
