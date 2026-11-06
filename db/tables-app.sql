@@ -497,3 +497,25 @@ BEGIN
     );
 END;
 GO
+
+-- ---- Story 5653 (2026-11-06): Reviewed, QA and Automated on every item and sub-item ----
+-- Tony: "new checkboxes ... for each item and sub item ... Reviewed, QA (triple check ... pass / fail / not done)",
+-- then "Add automated ... checked, unchecked, or the won't do". Each box has three states; NULL is the empty box.
+--   ReviewedCode   NULL = not done, 'pass', 'fail'
+--   QaCode         NULL = not done, 'pass', 'fail'
+--   AutomatedCode  NULL = not done, 'done', 'wontdo' (dealt with: it will not be automated)
+-- Nullable with no default, so an export made before these columns imports unchanged.
+IF COL_LENGTH('dbo.SolutionProjectItem', 'ReviewedCode')  IS NULL ALTER TABLE dbo.SolutionProjectItem ADD ReviewedCode  VARCHAR(10) NULL;
+IF COL_LENGTH('dbo.SolutionProjectItem', 'QaCode')        IS NULL ALTER TABLE dbo.SolutionProjectItem ADD QaCode        VARCHAR(10) NULL;
+IF COL_LENGTH('dbo.SolutionProjectItem', 'AutomatedCode') IS NULL ALTER TABLE dbo.SolutionProjectItem ADD AutomatedCode VARCHAR(10) NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionProjectItem_ReviewedCode')
+    ALTER TABLE dbo.SolutionProjectItem ADD CONSTRAINT CK_SolutionProjectItem_ReviewedCode CHECK (ReviewedCode IN ('pass', 'fail'));
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionProjectItem_QaCode')
+    ALTER TABLE dbo.SolutionProjectItem ADD CONSTRAINT CK_SolutionProjectItem_QaCode CHECK (QaCode IN ('pass', 'fail'));
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_SolutionProjectItem_AutomatedCode')
+    ALTER TABLE dbo.SolutionProjectItem ADD CONSTRAINT CK_SolutionProjectItem_AutomatedCode CHECK (AutomatedCode IN ('done', 'wontdo'));
+GO
+IF COL_LENGTH('dbo.SolutionProjectItem_LOG', 'ReviewedCode') IS NULL
+    ALTER TABLE dbo.SolutionProjectItem_LOG ADD ReviewedCode VARCHAR(10) NULL, QaCode VARCHAR(10) NULL, AutomatedCode VARCHAR(10) NULL;
+GO

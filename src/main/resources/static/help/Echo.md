@@ -368,6 +368,18 @@ called done: projects not closed, items still open, open questions, decisions no
 done, assumptions still marked holding, and threads waiting for an answer. Tap one to go to it. **Mark the
 solution Done** asks first, saying how much is still open. What is open stays as it is.
 
+**Reviewed, QA and Automated.** **Checks** on the Items tab's tool row puts three small boxes on every
+item and sub-item: **Rev** (Reviewed), **QA** and **Auto** (Automated). Tap **Checks** again to hide them.
+Echo remembers which you chose. Each box is a three-way tick, saved the moment you tap it:
+
+- **Reviewed** and **QA**: empty (not done), then a green tick (passed), then a red cross (failed), then
+  empty again.
+- **Automated**: empty (not done), then a green tick (automated), then a gray dash (won't do: dealt with,
+  it will not be automated), then empty again.
+
+The boxes never change the item's status, and ticking an item leaves its sub-items as they are. An item's
+**View** says which boxes are filled in ("Reviewed passed | QA failed"), even with the boxes hidden.
+
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**
 button. It counts from when the words were written, not from when the solution was last saved. A

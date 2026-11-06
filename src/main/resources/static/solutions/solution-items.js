@@ -38,6 +38,58 @@
     function loadFilter() { try { var s = sessionStorage.getItem(filterKey()); if (s) mFilter = Object.assign(mFilter, JSON.parse(s)); } catch (e) { /* private mode */ } }
     function saveFilter() { try { sessionStorage.setItem(filterKey(), JSON.stringify(mFilter)); } catch (e) { /* private mode */ } }
 
+    // ---- Reviewed / QA / Automated (Story 5653, 2026-11-06) -----------------------------
+    // Tony: "an option to see new checkboxes ... for each item and sub item ... Reviewed, QA (triple check, as
+    // on other tabs, pass / fail / not done)", then "Add automated ... checked, unchecked, or the won't do".
+    // The Checks button shows or hides them; the choice is remembered in the DATABASE (PicassoViewState).
+    // Each box is three states, one tap a step, saved as soon as it is tapped:
+    //   Reviewed, QA:  not done -> pass (green tick) -> fail (red cross) -> not done
+    //   Automated:     not done -> done (green tick) -> won't do (gray dash: dealt with) -> not done
+    var CHECKS_KEY = 'leo.sl.items.checks';
+    var CHECKS = [
+        { code: 'reviewed',  field: 'reviewedCode',  label: 'Reviewed',  short: 'Rev',  steps: ['', 'pass', 'fail'] },
+        { code: 'qa',        field: 'qaCode',        label: 'QA',        short: 'QA',   steps: ['', 'pass', 'fail'] },
+        { code: 'automated', field: 'automatedCode', label: 'Automated', short: 'Auto', steps: ['', 'done', 'wontdo'] }
+    ];
+    var CHECK_WORD = { '': 'not done', pass: 'passed', fail: 'failed', done: 'done', wontdo: "won't do" };
+    function showChecks() { return !!(window.PicassoViewState && window.PicassoViewState.get(CHECKS_KEY) === '1'); }
+    function paintChecksButton() {
+        var b = $('btnItemsChecks');
+        if (b) { b.setAttribute('aria-pressed', showChecks() ? 'true' : 'false'); b.classList.toggle('on', showChecks()); }
+    }
+    function toggleChecks() {
+        if (window.PicassoViewState) window.PicassoViewState.set(CHECKS_KEY, showChecks() ? '0' : '1');
+        paintChecksButton(); draw();
+    }
+
+    /** The three boxes on one row. */
+    function checkBoxes(i) {
+        if (!showChecks()) return '';
+        return '<div class="sl-chks" data-testid="items-checks">' + CHECKS.map(function (c) {
+            var v = i[c.field] || '';
+            var cls = v === 'pass' || v === 'done' ? ' on' : (v === 'fail' ? ' sl-chk-fail' : (v === 'wontdo' ? ' skip' : ''));
+            var mark = v === 'pass' || v === 'done' ? '&#10003;' : (v === 'fail' ? '&#10007;' : (v === 'wontdo' ? '&#8211;' : ''));
+            var next = c.steps[(c.steps.indexOf(v) + 1) % c.steps.length];
+            var title = c.label + ': ' + CHECK_WORD[v] + '. Tap to mark it ' + CHECK_WORD[next];
+            return '<span class="sl-chk"><span class="sl-chk-lbl">' + c.short + '</span>' +
+                '<button type="button" class="sl-tick' + cls + '" data-check="' + c.code + '" data-check-item="' + i.id + '" role="checkbox" aria-checked="' +
+                (v === '' ? 'false' : (v === 'pass' || v === 'done' ? 'true' : 'mixed')) + '" title="' + esc(title) + '" aria-label="' + esc(title + ': ' + i.title) +
+                '" data-testid="items-check-' + c.code + '" data-state="' + v + '">' + mark + '</button></span>';
+        }).join('') + '</div>';
+    }
+
+    /** One tap: the box moves on a step and is saved. Only that row's data changes, so only the tree is redrawn. */
+    async function tapCheck(id, code) {
+        var i = byId(id), c = CHECKS.filter(function (x) { return x.code === code; })[0];
+        if (!i || !c) return;
+        var v = i[c.field] || '';
+        var next = c.steps[(c.steps.indexOf(v) + 1) % c.steps.length];
+        var r = await SL.post('/api/solutions/items/' + id + '/check', { check: code, result: next });
+        if (!r || !r.ok || !r.data) { SL.toast(SL.failText(r, 'The ' + c.label + ' box could not be saved.')); return; }
+        mItems = mItems.map(function (x) { return x.id === id ? Object.assign({}, x, { reviewedCode: r.data.reviewedCode, qaCode: r.data.qaCode, automatedCode: r.data.automatedCode }) : x; });
+        draw();
+    }
+
     // ---- load -------------------------------------------------------------------
 
     async function load() {
@@ -192,7 +244,7 @@
             '</div>';
         if (folded) {
             return '<div class="sl-item folded' + (i.closed ? ' closed' : '') + (isSkipped(i) ? ' skipped' : '') + '" id="item-' + i.id + '" data-item-row="' + i.id + '" data-depth="' + depth + '" data-index="' + index + '" style="padding-left:' + (6 + depth * 18) +
-                'px" data-testid="items-row">' + head + '</div>' + tools + '</div>';
+                'px" data-testid="items-row">' + head + '</div>' + checkBoxes(i) + tools + '</div>';
         }
         var meta = [Page.personChip(i.assigneeCode, i.assigneeName)];
         if (i.priority && i.priority !== 3) meta.push('<span class="sl-chip' + (i.priority < 3 ? ' warn' : '') + '">P' + i.priority + '</span>');
@@ -204,7 +256,7 @@
                 '<div class="meta">' + meta.join('') + '</div>' +
                 (i.detailPreview ? '<div class="preview sl-md" data-testid="items-detail">' + SL.md(i.detailPreview, i.detailPreview.length >= 300) + '</div>' : '') +
             '</div>' +
-            tools + '</div>';
+            checkBoxes(i) + tools + '</div>';
     }
 
     function each(selector, fn) { Array.prototype.forEach.call(document.querySelectorAll(selector), fn); }
@@ -240,6 +292,7 @@
             SL.guard(b, function () { return tickMany('project', +b.getAttribute('data-tick-all-in')); });
         }); });
         each('[data-tick-subs]', function (b) { b.addEventListener('click', function () { SL.guard(b, function () { return tickMany('item', +b.getAttribute('data-tick-subs')); }); }); });
+        each('[data-check]', function (b) { b.addEventListener('click', function () { SL.guard(b, function () { return tapCheck(+b.getAttribute('data-check-item'), b.getAttribute('data-check')); }); }); });
         each('[data-status-of]', function (b) { b.addEventListener('click', function () { openStatus(+b.getAttribute('data-status-of')); }); });
         each('[data-delete]',    function (b) { b.addEventListener('click', function () { removeItem(+b.getAttribute('data-delete')); }); });
         each('[data-move]',      function (b) { b.addEventListener('click', function () { moveItem(+b.getAttribute('data-move'), +b.getAttribute('data-to')); }); });
@@ -280,6 +333,8 @@
         if (i.priority && i.priority !== 3) bits.push('Priority ' + i.priority);
         if (i.dueDate) bits.push('Due ' + SL.date(i.dueDate));
         if (i.completedDate) bits.push('Closed ' + SL.date(i.completedDate));
+        // Story 5653: a check box that is filled in says so, whether or not the boxes are shown.
+        CHECKS.forEach(function (c) { if (i[c.field]) bits.push(c.label + ' ' + CHECK_WORD[i[c.field]]); });
         return bits;
     }
 
@@ -673,6 +728,12 @@
                 b.addEventListener('click', function () { setView(b.getAttribute('data-items-view')); Page.tabs.items.show(); });
             });
             $('btnItemsExpand').addEventListener('click', function () { setAll(false); });
+            $('btnItemsChecks').addEventListener('click', toggleChecks);
+            paintChecksButton();
+            if (window.PicassoViewState) window.PicassoViewState.sync(CHECKS_KEY).then(function (changed) {
+                paintChecksButton();
+                if (changed && currentView() === 'tree' && !$('pane-items').hidden && mItems.length) draw();
+            });
             $('btnItemsCollapse').addEventListener('click', function () { setAll(true); });
             $('itemCancel').addEventListener('click', function () { SL.close('itemOverlay'); });
             $('itemSave').addEventListener('click', function () { SL.guard($('itemSave'), saveItem); });

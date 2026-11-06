@@ -58,6 +58,7 @@ class SolutionItemControllerSpec extends SolutionWebSupport {
         6   | "setStatus has no credential"     | "POST"   | "/api/solutions/items/100/status"    || 401
         7   | "move has no credential"          | "POST"   | "/api/solutions/items/100/move"      || 401
         8   | "delete has no credential"        | "DELETE" | "/api/solutions/items/100"           || 401
+        9   | "setCheck has no credential"      | "POST"   | "/api/solutions/items/100/check"     || 401
     }
 
     def "get should answer 403 before anything is read when the agent's allowlist does not reach the path"() {
@@ -292,6 +293,46 @@ class SolutionItemControllerSpec extends SolutionWebSupport {
         then:
         1 * items.setStatus(100, 'done', 'tony') >> false
         r.andExpect(status().isNotFound())
+    }
+
+    // ---- check (Story 5653, 2026-11-06: Reviewed / QA / Automated) --------------------------
+
+    @Unroll
+    def "setCheck should set one box when #scenario"() {
+
+        when:
+        ResultActions r = mvc.perform(json(by(who, post('/api/solutions/items/100/check')), body))
+
+        then:
+        1 * items.setCheck(100, expectedCheck, expectedResult, expectedAuthor) >> true
+        0 * items.setStatus(*_)
+        r.andExpect(status().isOk()).andExpect(jsonPath('$.id').value(100))
+
+        where:
+        scenario                         | who       | body                                     || expectedCheck | expectedResult | expectedAuthor
+        "a person passes QA"             | "user"    | [check: 'qa', result: 'pass']            || 'qa'          | 'pass'         | 'tony'
+        "the agent fails the review"     | "agent"   | [check: 'reviewed', result: 'fail']      || 'reviewed'    | 'fail'         | 'rex'
+        "the house marks won't automate" | "service" | [check: 'automated', result: 'wontdo']   || 'automated'   | 'wontdo'       | 'felix'
+        "a person empties a box"         | "user"    | [check: 'qa', result: '']                || 'qa'          | null           | 'tony'
+    }
+
+    @Unroll
+    def "setCheck should answer #expectedStatus when #scenario"() {
+
+        expect:
+        mvc.perform(json(asUser(post('/api/solutions/items/100/check')), body)).andExpect(status().is(expectedStatus))
+
+        where:
+        scenario                        | body                                       || expectedStatus
+        "the body is empty"             | "{}"                                       || 400
+        "the check is unknown"          | '{"check": "tested", "result": "pass"}'    || 400
+        "the result does not fit"       | '{"check": "qa", "result": "wontdo"}'      || 400
+    }
+
+    def "setCheck should answer 404 when the agent reaches another solution's item"() {
+
+        expect:
+        mvc.perform(json(asAgent(post('/api/solutions/items/200/check')), '{"check": "qa", "result": "pass"}')).andExpect(status().isNotFound())
     }
 
     // ---- move ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import com.echo.SolutionModels.Project;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A solution's action items (Story 3493). An item is reached through its
@@ -90,6 +91,25 @@ public class SolutionItemService {
         wakeAncestors(caller, saved);
         return saved;
     }
+
+    /**
+     * Story 5653 (2026-11-06): set one of the item's check boxes. Reviewed and QA are pass / fail, Automated is
+     * done / wontdo; null or blank empties the box. The status is not touched, and nothing above or below it moves.
+     */
+    public Item setCheck(SolutionCaller caller, int itemId, String checkCode, String resultCode) {
+        get(caller, itemId);
+        String check = checkCode == null ? "" : checkCode.trim().toLowerCase(java.util.Locale.ROOT);
+        String result = resultCode == null || resultCode.trim().isEmpty() ? null : resultCode.trim().toLowerCase(java.util.Locale.ROOT);
+        List<String> allowed = CHECK_RESULTS.get(check);
+        if (allowed == null) throw new IllegalArgumentException("check must be reviewed, qa or automated.");
+        if (result != null && !allowed.contains(result))
+            throw new IllegalArgumentException("The " + check + " check takes " + String.join(" or ", allowed) + ", or nothing for not done.");
+        if (!items.setCheck(itemId, check, result, caller.memberCode())) throw new SolutionNotFoundException("Item");
+        return items.find(itemId);
+    }
+
+    private static final Map<String, List<String>> CHECK_RESULTS = Map.of(
+        "reviewed", List.of("pass", "fail"), "qa", List.of("pass", "fail"), "automated", List.of("done", "wontdo"));
 
     public Item move(SolutionCaller caller, int itemId, Integer newProjectId, Integer newParentItemId, int newSortOrder) {
         Item current = get(caller, itemId);

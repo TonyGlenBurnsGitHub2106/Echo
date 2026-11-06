@@ -81,7 +81,10 @@ public final class SolutionModels {
                        String assigneeCode, String assigneeName, int priority, int sortOrder,
                        LocalDateTime dueDate, LocalDateTime completedDate, String createdByCode,
                        LocalDateTime createdDate, LocalDateTime modifiedDate, String modifiedBy,
-                       int childCount, int logCount) {
+                       int childCount, int logCount,
+                       // Story 5653 (2026-11-06): the three check boxes. null = not done; reviewed and qa are
+                       // pass / fail, automated is done / wontdo.
+                       String reviewedCode, String qaCode, String automatedCode) {
         static Item of(Map<String, Object> r) {
             return new Item(intOf(r, "SolutionProjectItemID"), intOf(r, "SolutionProjectID"), intOf(r, "SolutionID"),
                 strOf(r, "ProjectName"), idOrNull(r, "ParentItemID"), strOf(r, "ItemTitle"), strOf(r, "ItemDetail"),
@@ -89,7 +92,8 @@ public final class SolutionModels {
                 boolOf(r, "IsClosed"), strOf(r, "ColorHex"), strOf(r, "AssigneeCode"), strOf(r, "AssigneeName"),
                 intOf(r, "Priority"), intOf(r, "SortOrder"), dateOf(r, "DueDate"), dateOf(r, "CompletedDate"),
                 strOf(r, "CreatedByCode"), dateOf(r, "CreatedDate"), dateOf(r, "ModifiedDate"), strOf(r, "ModifiedBy"),
-                intOf(r, "ChildCount"), intOf(r, "LogCount"));
+                intOf(r, "ChildCount"), intOf(r, "LogCount"),
+                strOf(r, "ReviewedCode"), strOf(r, "QaCode"), strOf(r, "AutomatedCode"));
         }
     }
 

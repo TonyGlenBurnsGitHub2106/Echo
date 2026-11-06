@@ -21,6 +21,9 @@ public interface SolutionItemRepository {
 
     boolean setStatus(int id, String statusCode, String modifiedBy);
 
+    /** Story 5653: one of the three check boxes (reviewed, qa, automated); a null result empties it. */
+    boolean setCheck(int id, String checkCode, String resultCode, String modifiedBy);
+
     boolean move(int id, Integer newProjectId, Integer newParentItemId, int newSortOrder, String modifiedBy);
 
     /** Removes the item and its whole subtree; returns how many items went. */

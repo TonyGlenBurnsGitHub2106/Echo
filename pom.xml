@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.echo</groupId>
 	<artifactId>echo</artifactId>
-	<version>1.6.0</version>
+	<version>1.7.0</version>
 	<name>Echo</name>
 	<description>Echo -- parts of Leonardo, standing on their own (Story 5653)</description>
 	<properties>

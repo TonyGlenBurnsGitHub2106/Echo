@@ -780,3 +780,15 @@ span.sl-kind { display: inline-block; flex: 0 0 auto; padding: 0 7px; border-rad
 .sl-co-summary.clear { color: #15803D; }
 .sl-co-group + .sl-co-group { border-top: 1px solid #E5E7EB; }
 .sl-co-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; font-weight: 600; color: #374151; }
+
+/* Story 5653 (2026-11-06): Reviewed, QA and Automated on every item and sub-item, shown by the Checks button.
+   Each box is the round tick of the other tabs: green tick = pass / done, red cross = fail, gray dash = won't do. */
+.sl-chks { display: flex; gap: 6px; flex: 0 0 auto; align-items: flex-start; }
+.sl-chk { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+.sl-chk-lbl { font-size: 9.5px; line-height: 1; color: #6B7280; font-weight: 600; letter-spacing: .02em; }
+.sl-chk .sl-tick { width: 22px; height: 22px; font-size: 13px; margin-top: 0; }
+.sl-tick.sl-chk-fail { background: #DC2626; border-color: #DC2626; }
+.sl-tick.sl-chk-fail:hover { background: #B91C1C; border-color: #B91C1C; }
+.sl-item.folded .sl-chks { align-items: center; }
+#btnItemsChecks.on { background: #EFF6FF; border-color: #2563EB; color: #1D4ED8; }
+@media (max-width: 480px) { .sl-chks { gap: 3px; } .sl-chk .sl-tick { width: 20px; height: 20px; font-size: 12px; } }

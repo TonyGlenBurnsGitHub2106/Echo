@@ -37,6 +37,11 @@ public class JdbcSolutionItemRepository implements SolutionItemRepository {
     }
 
     @Override
+    public boolean setCheck(int id, String checkCode, String resultCode, String modifiedBy) {
+        return db.affected("EXEC dbo.stp_SolutionProjectItem_SetCheck ?, ?, ?, ?", id, checkCode, resultCode, modifiedBy);
+    }
+
+    @Override
     public boolean move(int id, Integer newProjectId, Integer newParentItemId, int newSortOrder, String modifiedBy) {
         return db.affected("EXEC dbo.stp_SolutionProjectItem_Move ?, ?, ?, ?, ?",
             id, newProjectId == null ? 0 : newProjectId, newParentItemId == null ? 0 : newParentItemId, newSortOrder, modifiedBy);

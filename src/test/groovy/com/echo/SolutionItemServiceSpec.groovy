@@ -415,6 +415,75 @@ class SolutionItemServiceSpec extends EchoSpockBaseSpec {
         0 * items.setStatus(*_)
     }
 
+    // ---- setCheck (Story 5653, 2026-11-06: Reviewed / QA / Automated) ------------------------
+
+    @Unroll
+    def "setCheck should save #expectedResult on the #expectedCheck box, touch no status and read back when #scenario"() {
+
+        given:
+        items.find(100) >>> [item(id: 100), item(id: 100, qaCode: 'pass')]
+
+        when:
+        Item out = service.setCheck(PERSON, 100, check, result)
+
+        then:
+        1 * items.setCheck(100, expectedCheck, expectedResult, 'tony') >> true
+        0 * items.setStatus(*_)
+        out.id() == 100
+
+        where:
+        scenario                          | check        | result    || expectedCheck | expectedResult
+        "reviewed passes"                 | 'reviewed'   | 'pass'    || 'reviewed'    | 'pass'
+        "qa fails, in capitals"           | ' QA '       | 'FAIL'    || 'qa'          | 'fail'
+        "automated is done"               | 'automated'  | 'done'    || 'automated'   | 'done'
+        "automated is won't do"           | 'automated'  | 'wontdo'  || 'automated'   | 'wontdo'
+        "the box is emptied with blank"   | 'qa'         | '  '      || 'qa'          | null
+        "the box is emptied with null"    | 'reviewed'   | null      || 'reviewed'    | null
+    }
+
+    @Unroll
+    def "setCheck should refuse and save nothing when #scenario"() {
+
+        given:
+        items.find(100) >> item(id: 100)
+
+        when:
+        service.setCheck(PERSON, 100, check, result)
+
+        then:
+        IllegalArgumentException ex = thrown()
+        ex.message.contains(expectedMessage)
+        0 * items.setCheck(*_)
+
+        where:
+        scenario                              | check       | result   || expectedMessage
+        "the check is unknown"                | 'tested'    | 'pass'   || 'reviewed, qa or automated'
+        "the check is null"                   | null        | 'pass'   || 'reviewed, qa or automated'
+        "qa is given an automated result"     | 'qa'        | 'done'   || 'pass or fail'
+        "automated is given a qa result"      | 'automated' | 'pass'   || 'done or wontdo'
+    }
+
+    def "setCheck should answer not found when storage refuses or the item is hidden"() {
+
+        given:
+        items.find(100) >> item(id: 100)
+        items.find(200) >> item(id: 200, solutionId: 2)
+
+        when:
+        service.setCheck(PERSON, 100, 'qa', 'pass')
+
+        then:
+        1 * items.setCheck(100, 'qa', 'pass', 'tony') >> false
+        thrown(SolutionNotFoundException)
+
+        when:
+        service.setCheck(AGENT, 200, 'qa', 'pass')
+
+        then:
+        thrown(SolutionNotFoundException)
+        0 * items.setCheck(*_)
+    }
+
     // ---- move ---------------------------------------------------------------------------
 
     @Unroll

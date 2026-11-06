@@ -195,6 +195,33 @@ class JdbcSolutionItemRepositoryITSpec extends EchoDbITSpec {
         ruleOf { repo.setStatus(id, 'nope', 'felix') }.message.contains('not a status')
     }
 
+    // Story 5653 (2026-11-06): the Reviewed / QA / Automated boxes.
+    def "setCheck should set one box, leave the others and the status, empty it on null and refuse what does not fit"() {
+
+        given:
+        int id = repo.save(draft(pid, [status: 'todo']), 'tony')
+
+        expect:
+        repo.find(id).reviewedCode() == null && repo.find(id).qaCode() == null && repo.find(id).automatedCode() == null
+        repo.setCheck(id, 'reviewed', 'pass', 'Felix')
+        repo.setCheck(id, 'qa', 'fail', 'felix')
+        repo.setCheck(id, 'automated', 'wontdo', 'felix')
+        repo.find(id).reviewedCode() == 'pass'
+        repo.find(id).qaCode() == 'fail'
+        repo.find(id).automatedCode() == 'wontdo'
+        repo.find(id).statusCode() == 'todo'
+        repo.find(id).modifiedBy() == 'felix'
+        repo.listForSolution(sid, null).find { it.id() == id }.qaCode() == 'fail'
+        repo.setCheck(id, 'qa', null, 'felix')
+        repo.find(id).qaCode() == null
+        repo.find(id).reviewedCode() == 'pass'
+        !repo.setCheck(-1, 'qa', 'pass', 'felix')
+        ruleOf { repo.setCheck(id, 'tested', 'pass', 'felix') }.message.contains('not a check')
+        ruleOf { repo.setCheck(id, 'qa', 'wontdo', 'felix') }.message.contains('pass, fail')
+        ruleOf { repo.setCheck(id, 'automated', 'pass', 'felix') }.message.contains('done, wontdo')
+        logRows('SolutionProjectItem', 'SolutionProjectItemID', id).last().AutomatedCode == 'wontdo'
+    }
+
     def "move should re-slot the item among its siblings and renumber them 1..n when the item moves within its project"() {
 
         given:

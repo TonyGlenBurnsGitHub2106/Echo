@@ -100,11 +100,12 @@ class SolutionModelsSpec extends EchoSpockBaseSpec {
                                    ItemTitle: 'T', ItemDetail: 'full', DetailPreview: 'fu', HasDetail: 1, StatusCode: 'done',
                                    StatusName: 'Done', IsClosed: true, ColorHex: '#0f0', AssigneeCode: 'rex', AssigneeName: 'Rex',
                                    Priority: 2, SortOrder: 3, DueDate: T1, CompletedDate: T2, CreatedByCode: 'tony', CreatedDate: T3,
-                                   ModifiedDate: T1, ModifiedBy: 'tony', ChildCount: 4, LogCount: 5]
+                                   ModifiedDate: T1, ModifiedBy: 'tony', ChildCount: 4, LogCount: 5,
+                                   ReviewedCode: 'pass', QaCode: 'fail', AutomatedCode: 'wontdo']
 
         expect:
         Item.of(row) == new Item(100, 10, 1, 'P', 99, 'T', 'full', 'fu', true, 'done', 'Done', true, '#0f0', 'rex', 'Rex', 2, 3,
-            T1, T2, 'tony', T3, T1, 'tony', 4, 5)
+            T1, T2, 'tony', T3, T1, 'tony', 4, 5, 'pass', 'fail', 'wontdo')
         Item.of(row + [ParentItemID: null]).parentItemId() == null
         Item.of(row + [ParentItemID: 0]).parentItemId() == null
     }

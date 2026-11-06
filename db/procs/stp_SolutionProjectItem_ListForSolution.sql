@@ -24,6 +24,7 @@ Date        Developer    Description
                          ParentItemID; the screen draws the whole tree at once, so this is the one list here
                          that is not paged. Ordered in SQL. DetailPreview is a LEFT(); the full detail comes
                          from stp_SolutionProjectItem_Get.
+11/06/2026  Felix        Story 5653: ReviewedCode, QaCode and AutomatedCode (the three check boxes).
 
 */
 
@@ -36,6 +37,7 @@ SELECT  i.SolutionProjectItemID, i.SolutionProjectID, p.SolutionID, p.ProjectNam
         i.AssigneeMemberID, am.MemberCode AS AssigneeCode, am.MemberName AS AssigneeName,
         i.Priority, i.SortOrder, i.DueDate, i.CompletedDate,
         i.CreatedByMemberID, cm.MemberCode AS CreatedByCode, i.CreatedDate, i.ModifiedDate, i.ModifiedBy,
+        i.ReviewedCode, i.QaCode, i.AutomatedCode,
         (SELECT COUNT(*) FROM dbo.SolutionProjectItem c WHERE c.ParentItemID = i.SolutionProjectItemID) AS ChildCount,
         (SELECT COUNT(*) FROM dbo.SolutionLog l WHERE l.SolutionProjectItemID = i.SolutionProjectItemID) AS LogCount
 FROM    dbo.SolutionProjectItem i

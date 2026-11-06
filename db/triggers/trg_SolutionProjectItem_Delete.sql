@@ -13,12 +13,13 @@ VERSION HISTORY
 Date        Developer    Description
 ----------  -----------  ----------------------------------------------------------
 2026-09-17  Felix        Story 3493: audit row into SolutionProjectItem_LOG (the Solutions family).
+2026-11-06  Felix        Story 5653: carries ReviewedCode, QaCode and AutomatedCode.
 
 */
 
 CREATE TRIGGER dbo.trg_SolutionProjectItem_Delete ON dbo.SolutionProjectItem AFTER DELETE AS
 BEGIN SET NOCOUNT ON;
-    INSERT INTO dbo.SolutionProjectItem_LOG (IsInsertion, DeletedDate, SolutionProjectItemID, SolutionProjectID, ParentItemID, ItemTitle, ItemDetail, SolutionStatusID, AssigneeMemberID, Priority, SortOrder, DueDate, CompletedDate, CreatedByMemberID, CreatedDate, ModifiedDate, ModifiedBy)
-    SELECT 0, GETDATE(), SolutionProjectItemID, SolutionProjectID, ParentItemID, ItemTitle, ItemDetail, SolutionStatusID, AssigneeMemberID, Priority, SortOrder, DueDate, CompletedDate, CreatedByMemberID, CreatedDate, ModifiedDate, ModifiedBy FROM Deleted; END;
+    INSERT INTO dbo.SolutionProjectItem_LOG (IsInsertion, DeletedDate, SolutionProjectItemID, SolutionProjectID, ParentItemID, ItemTitle, ItemDetail, SolutionStatusID, AssigneeMemberID, Priority, SortOrder, DueDate, CompletedDate, CreatedByMemberID, CreatedDate, ModifiedDate, ModifiedBy, ReviewedCode, QaCode, AutomatedCode)
+    SELECT 0, GETDATE(), SolutionProjectItemID, SolutionProjectID, ParentItemID, ItemTitle, ItemDetail, SolutionStatusID, AssigneeMemberID, Priority, SortOrder, DueDate, CompletedDate, CreatedByMemberID, CreatedDate, ModifiedDate, ModifiedBy, ReviewedCode, QaCode, AutomatedCode FROM Deleted; END;
 
 GO

@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/contacts/entity-web.css?v=2">
     <link rel="stylesheet" href="/contacts/entity-phones.css?v=1">
     <link rel="stylesheet" href="/contacts/entity-logins.css?v=1">
-    <link rel="stylesheet" href="solutions.css?v=53">
+    <link rel="stylesheet" href="solutions.css?v=54">
     <script src="/picasso-voice.js?v=14" defer></script>
 </head>
 <body>
@@ -92,6 +92,8 @@
         <span class="spacer"></span>
         <button type="button" class="sl-btn" id="btnItemsExpand" data-testid="items-expand-all">Expand all</button>
         <button type="button" class="sl-btn" id="btnItemsCollapse" data-testid="items-collapse-all">Collapse all</button>
+        <!-- Story 5653 (2026-11-06): show or hide the Reviewed / QA / Automated boxes on every item -->
+        <button type="button" class="sl-btn" id="btnItemsChecks" aria-pressed="false" title="Show or hide the Reviewed, QA and Automated boxes on every item" data-testid="items-checks-btn">Checks</button>
         <button type="button" class="sl-btn" id="btnItemsSelect" aria-pressed="false" title="Choose items to change at once" data-testid="items-select-btn">Select</button>
         <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects and items" title="Arrange -- drag to reorder" data-testid="items-arrange-btn">&#8645;</button>
         </div>
@@ -1137,7 +1139,7 @@
 <script src="solutions-common.js?v=13"></script>
 <script src="solution.js?v=39"></script>
 <script src="solution-overview.js?v=5"></script>
-<script src="solution-items.js?v=25"></script>
+<script src="solution-items.js?v=26"></script>
 <script src="solution-log.js?v=12"></script>
 <script src="solution-notes.js?v=23"></script>
 <script src="solution-terms.js?v=2"></script>

@@ -63,6 +63,11 @@ working session; it is always current.
 > another solution. `GET .../close-out` lists everything still open before a solution is called done.
 > See *Start and close out* in section 4.
 
+> **Added 2026-11-06 -- Reviewed, QA and Automated on every item.** Every item and sub-item now carries three
+> check boxes: `reviewedCode` and `qaCode` (`pass`, `fail`, or null = not done) and `automatedCode` (`done`,
+> `wontdo` = dealt with, it will not be automated, or null = not done). Set one with
+> `POST /api/solutions/items/{itemId}/check {check, result}`. See *Items* in section 4.
+
 ## 1. Connecting
 
 - Base URL: `{{BASE_URL}}`
@@ -243,14 +248,18 @@ status other than `todo` (see *Items*).
 | `POST /api/solutions/projects/{projectId}/items` | `{title, detail, parentItemId, statusCode, assigneeCode, priority, dueDate, sortOrder}` -- `title` required (400 "A title is required."), at most 400 characters (longer is cut). Give `parentItemId` to make a sub-item; it must be an item of the same project (409 "The parent item must be in the same project."). `statusCode` absent means `todo`. `priority` 1 (highest) to 5; absent, 0 or out of range means 3. `sortOrder` 0 or absent puts it last among its siblings. `dueDate` is `2026-10-15` or `2026-10-15T14:30`. 404 "Project not found." Answers the saved item. |
 | `PUT /api/solutions/items/{itemId}` | same fields, but send ONLY what changes. A field you leave out keeps its value. A blank `title` or `statusCode` keeps the current one. `detail` `""` empties it; `assigneeCode` `""` unassigns it. `priority` 0, negative or absent keeps it; above 5 becomes 3. A `dueDate`, once set, cannot be emptied -- `""` keeps it. `parentItemId` re-parents it inside its project, and `0` makes it top level; refusals as for *move*, plus 409 "An item cannot be its own parent.". An edit never changes project and never renumbers the siblings: to reorder or to change project, use `.../move`. |
 | `POST /api/solutions/items/{itemId}/status` | `{statusCode}` -- the cheap way to change only the status. 400 "A status code is required." when it is missing or blank. Answers the item. |
+| `POST /api/solutions/items/{itemId}/check` | `{check, result}` -- set ONE of the item's three check boxes and nothing else. `check` is `reviewed`, `qa` or `automated` (any case); missing or blank is 400 "A check is required.", anything else 400 "check must be reviewed, qa or automated.". `result` for `reviewed` and `qa` is `pass` or `fail`; for `automated` it is `done` or `wontdo` (won't do: dealt with, it will not be automated); `""`, null or absent empties the box (not done). A result that does not fit the check is 400 ("The qa check takes pass or fail, or nothing for not done."). The status is not touched, no ancestor moves, no log entry is written; `modifiedDate` / `modifiedBy` are stamped. 404 "Item not found." Answers the item. |
 | `POST /api/solutions/items/{itemId}/move` | `{projectId, parentItemId, sortOrder}`. `projectId` 0 or absent means "same project"; `parentItemId` 0 or absent means "top level" -- so to reorder a sub-item among its siblings, send its `parentItemId` again or it goes to the top; `sortOrder` 0, absent, or past the end means "last". The item's whole sub-tree goes with it, and the siblings it lands among are renumbered 1, 2, 3 ... with it in its place. Answers the moved item. |
 
 Item fields (the list and the single item alike): `{id, projectId, solutionId, projectName, parentItemId,
 title, detail, detailPreview, hasDetail, statusCode, statusName, closed, colorHex, assigneeCode,
 assigneeName, priority, sortOrder, dueDate, completedDate, createdByCode, createdDate, modifiedDate,
-modifiedBy, childCount, logCount}`. `parentItemId` is null at the top level. `childCount` counts the direct
+modifiedBy, childCount, logCount, reviewedCode, qaCode, automatedCode}`. `parentItemId` is null at the top level. `childCount` counts the direct
 sub-items only; `logCount` counts the log entries that name this item. `dueDate`, `completedDate`,
-`createdDate` and `modifiedDate` are date-times (`"2026-10-15T00:00:00"`) or null.
+`createdDate` and `modifiedDate` are date-times (`"2026-10-15T00:00:00"`) or null. The three check boxes
+(added 2026-11-06): `reviewedCode` and `qaCode` are `"pass"`, `"fail"` or null (not done); `automatedCode` is
+`"done"`, `"wontdo"` or null (not done). They are independent of the status and of each other; change them
+only with `.../check`.
 
 What else happens:
 - Setting an item to a closed status (`done`, `cancelled`) stamps `completedDate`; reopening it clears it.
@@ -1252,6 +1261,7 @@ curl $H           "$B/api/solutions/1/items?projectId=5"
 curl $H           $B/api/solutions/items/42
 curl $H -X PUT    $B/api/solutions/items/42              -H "Content-Type: application/json" -d '{"detail":"Found two configs, not one."}'
 curl $H -X POST   $B/api/solutions/items/42/status       -H "Content-Type: application/json" -d '{"statusCode":"blocked"}'
+curl $H -X POST   $B/api/solutions/items/42/check        -H "Content-Type: application/json" -d '{"check":"qa","result":"pass"}'
 curl $H -X POST   $B/api/solutions/items/43/move         -H "Content-Type: application/json" -d '{"parentItemId":0,"sortOrder":1}'
 curl $H -X DELETE $B/api/solutions/items/42
 

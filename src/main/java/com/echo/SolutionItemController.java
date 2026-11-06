@@ -17,6 +17,7 @@ import java.util.Map;
  *   GET    /api/solutions/items/{itemId}                 one item WITH its full detail
  *   PUT    /api/solutions/items/{itemId}
  *   POST   /api/solutions/items/{itemId}/status          {statusCode}
+ *   POST   /api/solutions/items/{itemId}/check           {check, result} -- Story 5653: Reviewed / QA / Automated
  *   POST   /api/solutions/items/{itemId}/move            {projectId, parentItemId, sortOrder}
  *   GET    /api/solutions/items/{itemId}/locate          which solution and project it lives in
  *   DELETE /api/solutions/items/{itemId}                 (a person only; takes the whole subtree)
@@ -72,6 +73,15 @@ public class SolutionItemController extends SolutionControllerSupport {
     public ResponseEntity<?> setStatus(HttpServletRequest req, @PathVariable int itemId, @RequestBody StatusRequest body) {
         String code = required(body == null ? null : body.statusCode(), "A status code");
         return ResponseEntity.ok(service.setStatus(caller(req), itemId, code));
+    }
+
+    /** Story 5653 (2026-11-06): check = reviewed | qa | automated; result = pass | fail, done | wontdo, or "" / null. */
+    public record CheckRequest(String check, String result) {}
+
+    @PostMapping("/items/{itemId:\\d+}/check")
+    public ResponseEntity<?> setCheck(HttpServletRequest req, @PathVariable int itemId, @RequestBody CheckRequest body) {
+        String check = required(body == null ? null : body.check(), "A check");
+        return ResponseEntity.ok(service.setCheck(caller(req), itemId, check, body.result()));
     }
 
     public record MoveRequest(Integer projectId, Integer parentItemId, Integer sortOrder) {}
