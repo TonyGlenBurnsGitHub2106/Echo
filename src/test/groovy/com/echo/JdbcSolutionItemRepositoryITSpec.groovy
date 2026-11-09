@@ -50,6 +50,63 @@ class JdbcSolutionItemRepositoryITSpec extends EchoDbITSpec {
         i.logCount() == 0
     }
 
+    // Story 5653 (2026-11-09): an item with sub-items follows them; one without is the thing itself.
+    def "rollUpParents should close a parent when every sub-item is closed, skip it when all were skipped, reopen it when one opens, up every level"() {
+
+        given:
+        int top = repo.save(draft(pid, [status: 'todo']), 'tony')
+        int mid = repo.save(draft(pid, [parent: top, status: 'todo']), 'tony')
+        int leaf = repo.save(draft(pid, [parent: mid, status: 'todo']), 'tony')
+        int other = repo.save(draft(pid, [parent: top, status: 'todo']), 'tony')
+        int lone = repo.save(draft(pid, [status: 'todo']), 'tony')
+
+        when: 'every sub-item is done'
+        repo.setStatus(leaf, 'done', 'tony'); repo.setStatus(other, 'done', 'tony')
+        int changed = repo.rollUpParents([mid], 'felix')
+
+        then:
+        changed == 2
+        repo.find(mid).statusCode() == 'done'
+        repo.find(top).statusCode() == 'done'
+        repo.find(top).completedDate() != null
+        repo.find(top).modifiedBy() == 'felix'
+
+        when: 'one is opened again'
+        repo.setStatus(leaf, 'inprogress', 'tony')
+        repo.rollUpParents([mid], 'felix')
+
+        then:
+        repo.find(mid).statusCode() == 'inprogress'
+        repo.find(top).statusCode() == 'inprogress'
+        repo.find(top).completedDate() == null
+
+        when: 'every sub-item is skipped'
+        repo.setStatus(leaf, 'cancelled', 'tony'); repo.setStatus(other, 'cancelled', 'tony')
+        repo.rollUpParents([mid, top], 'felix')
+
+        then:
+        repo.find(mid).statusCode() == 'cancelled'
+        repo.find(top).statusCode() == 'cancelled'
+
+        when: 'one sub-item is done and the rest skipped, and an item with no sub-items is named'
+        repo.setStatus(other, 'done', 'tony')
+        repo.setStatus(top, 'inprogress', 'tony')
+        int none = repo.rollUpParents([lone, leaf], 'felix')
+
+        then:
+        repo.find(lone).statusCode() == 'todo'
+        repo.find(top).statusCode() == 'done'
+        none == 1
+        repo.rollUpParents([], 'felix') == 0
+
+        when: 'the last done sub-item is skipped, so every one is skipped'
+        repo.setStatus(other, 'cancelled', 'tony')
+        repo.rollUpParents([top], 'felix')
+
+        then: 'the closed parent moves from done to skipped'
+        repo.find(top).statusCode() == 'cancelled'
+    }
+
     def "find should return null when the id is unknown"() {
 
         expect:

@@ -415,6 +415,107 @@ class SolutionItemServiceSpec extends EchoSpockBaseSpec {
         0 * items.setStatus(*_)
     }
 
+    // ---- a parent follows its sub-items (Story 5653, 2026-11-09) -------------------------------
+
+    @Unroll
+    def "setStatus should ask storage to re-check the parent when #scenario"() {
+
+        given:
+        items.find(100) >>> [item(id: 100), item(id: 100, statusCode: code, parentItemId: parentId)]
+        items.find(99) >> item(id: 99, statusCode: 'inprogress')
+
+        when:
+        service.setStatus(PERSON, 100, code)
+
+        then:
+        1 * items.setStatus(100, code, 'tony') >> true
+        expectedCalls * items.rollUpParents([99], 'tony')
+        0 * items.rollUpParents({ it != [99] }, _)
+
+        where:
+        scenario                               | code         | parentId || expectedCalls
+        "a sub-item is closed"                 | 'done'       | 99       || 1
+        "a sub-item is skipped"                | 'cancelled'  | 99       || 1
+        "a sub-item is reopened"               | 'inprogress' | 99       || 1
+        "a sub-item goes back to not started"  | 'todo'       | 99       || 1
+        "the item has no parent"               | 'done'       | null     || 0
+    }
+
+    def "save should re-check the old parent and the new one when an edit moves the item under another"() {
+
+        given:
+        items.find(100) >>> [item(id: 100, parentItemId: 50, statusCode: 'done'), item(id: 100, parentItemId: 60, statusCode: 'done')]
+        items.find(50) >> item(id: 50, statusCode: 'inprogress')
+        items.find(60) >> item(id: 60, statusCode: 'inprogress')
+
+        when:
+        service.save(PERSON, new ItemDraft(100, 10, 60, null, null, null, null, 0, 0, null))
+
+        then:
+        1 * items.save(_, 'tony') >> 100
+        1 * items.rollUpParents([60, 50], 'tony')
+    }
+
+    def "save should re-check the parent once when a new sub-item is added under it"() {
+
+        given:
+        items.find(103) >> item(id: 103, parentItemId: 50, statusCode: 'todo')
+
+        when:
+        service.save(PERSON, draft([parentItemId: 50, statusCode: 'todo']))
+
+        then:
+        1 * items.save(*_) >> 103
+        1 * items.rollUpParents([50], 'tony')
+    }
+
+    def "move should re-check the parent it left and the parent it joined"() {
+
+        given:
+        items.find(100) >>> [item(id: 100, parentItemId: 50), item(id: 100, parentItemId: 60)]
+
+        when:
+        service.move(PERSON, 100, null, 60, 1)
+
+        then:
+        1 * items.move(100, null, 60, 1, 'tony') >> true
+        1 * items.rollUpParents([50, 60], 'tony')
+    }
+
+    @Unroll
+    def "delete should #expectedOutcome when #scenario"() {
+
+        given:
+        items.find(100) >> item(id: 100, parentItemId: parentId)
+
+        when:
+        int out = service.delete(PERSON, 100)
+
+        then:
+        1 * items.delete(100) >> removed
+        expectedCalls * items.rollUpParents([50], 'tony')
+        out == removed
+
+        where:
+        scenario                          | parentId | removed || expectedCalls | expectedOutcome
+        "a sub-item is removed"           | 50       | 1       || 1             | "re-check the parent"
+        "a top-level item is removed"     | null     | 3       || 0             | "re-check nothing"
+        "storage removed nothing"         | 50       | 0       || 0             | "re-check nothing"
+    }
+
+    def "setCheck should never re-check a parent -- the boxes do not move a status"() {
+
+        given:
+        items.find(100) >> item(id: 100, parentItemId: 50)
+
+        when:
+        service.setCheck(PERSON, 100, 'qa', 'pass')
+
+        then:
+        1 * items.setCheck(100, 'qa', 'pass', 'tony') >> true
+        0 * items.rollUpParents(*_)
+    }
+
     // ---- setCheck (Story 5653, 2026-11-06: Reviewed / QA / Automated) ------------------------
 
     @Unroll

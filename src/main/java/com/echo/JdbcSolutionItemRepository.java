@@ -47,6 +47,14 @@ public class JdbcSolutionItemRepository implements SolutionItemRepository {
             id, newProjectId == null ? 0 : newProjectId, newParentItemId == null ? 0 : newParentItemId, newSortOrder, modifiedBy);
     }
 
+    /** Story 5653 (2026-11-09): stp_SolutionProjectItem_RollUpParents, the ids comma separated. */
+    @Override
+    public int rollUpParents(List<Integer> itemIds, String modifiedBy) {
+        if (itemIds == null || itemIds.isEmpty()) return 0;
+        String csv = itemIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        return db.number("EXEC dbo.stp_SolutionProjectItem_RollUpParents ?, ?", "ItemCount", csv, modifiedBy);
+    }
+
     @Override
     public int delete(int id) { return db.number("EXEC dbo.stp_SolutionProjectItem_Delete ?", "RowsAffected", id); }
 }

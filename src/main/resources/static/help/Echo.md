@@ -377,8 +377,18 @@ Echo remembers which you chose. Each box is a three-way tick, saved the moment y
 - **Automated**: empty (not done), then a green tick (automated), then a gray dash (won't do: dealt with,
   it will not be automated), then empty again.
 
-The boxes never change the item's status, and ticking an item leaves its sub-items as they are. An item's
-**View** says which boxes are filled in ("Reviewed passed | QA failed"), even with the boxes hidden.
+The boxes never change the item's status. An item's **View** says which boxes are filled in ("Reviewed
+passed | QA failed"), even with the boxes hidden.
+
+**An item with sub-items follows them.** When every sub-item is checked or otherwise handled (done or
+skipped), the item checks itself. When one is unchecked, the item unchecks itself (In progress). This works
+at every level, so finishing the last sub-sub-item can close its parent and that parent's parent too. If
+every sub-item was skipped, the item shows as skipped, and if any of them is done, it shows as done. Adding a new open sub-item to a done item reopens it,
+and deleting or moving away the last open one closes it. An item with no sub-items is just itself and ticks
+as before. Tapping the tick on an item that has sub-items asks whether to check or uncheck all of them, and
+the item follows. You can still set its status by hand from the colored status button. It stays that way
+until one of its sub-items changes. The rule covers changes made many at once and changes made by an AI
+agent too.
 
 **How old "Where things stand" is.** Under the summary on the Overview, Echo says when it was last
 written ("Written 46 days ago, 09/17/2026"). At two weeks or more it turns amber with an **Update it**

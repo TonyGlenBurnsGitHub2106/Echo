@@ -39,7 +39,8 @@ public class SolutionItemService {
     }
 
     public Item save(SolutionCaller caller, ItemDraft draft) {
-        if (draft.id() > 0) draft = merged(draft, get(caller, draft.id()));
+        Integer oldParentId = null;
+        if (draft.id() > 0) { Item current = get(caller, draft.id()); oldParentId = current.parentItemId(); draft = merged(draft, current); }
         else solutions.project(caller, draft.projectId());
         codes.status(draft.statusCode());
         codes.member(caller, draft.assigneeCode());
@@ -47,7 +48,23 @@ public class SolutionItemService {
         if (id <= 0) throw new SolutionNotFoundException("Item");
         Item saved = items.find(id);
         wakeAncestors(caller, saved);
+        if (saved != null) rollUp(caller, saved.parentItemId(), oldParentId);
         return saved;
+    }
+
+    /**
+     * Story 5653 (2026-11-09) -- Tony: "when all sub items are checked or otherwise handled, the main item then is
+     * auto checked, and if one is unchecked, then the main item is unchecked. This should ONLY be true when the
+     * item has subitems. Otherwise, the item is the thing." So after anything that changes which sub-items an item
+     * has or how they stand (a status, a new sub-item, a move, a delete), the parents it touched are re-checked,
+     * and everything above them: all sub-items closed (Done or Skipped) closes the parent, one open reopens it.
+     * Done in stp_SolutionProjectItem_RollUpParents, which stp_SolutionProjectItem_BulkChange calls too. The
+     * item that was changed is not itself re-checked: set by hand, it stays as set until a sub-item changes.
+     */
+    private void rollUp(SolutionCaller caller, Integer... parentIds) {
+        List<Integer> ids = new java.util.ArrayList<>();
+        for (Integer p : parentIds) if (p != null && p > 0 && !ids.contains(p)) ids.add(p);
+        if (!ids.isEmpty()) items.rollUpParents(ids, caller.memberCode());
     }
 
     /**
@@ -89,6 +106,7 @@ public class SolutionItemService {
         if (!items.setStatus(itemId, statusCode, caller.memberCode())) throw new SolutionNotFoundException("Item");
         Item saved = items.find(itemId);
         wakeAncestors(caller, saved);
+        if (saved != null) rollUp(caller, saved.parentItemId());
         return saved;
     }
 
@@ -119,12 +137,18 @@ public class SolutionItemService {
                 throw new SolutionRuleException("An item can only move between projects of the same solution.");
         }
         if (!items.move(itemId, newProjectId, newParentItemId, newSortOrder, caller.memberCode())) throw new SolutionNotFoundException("Item");
-        return items.find(itemId);
+        Item moved = items.find(itemId);
+        // Story 5653: the parent it left and the parent it joined both re-check their sub-items
+        if (moved != null) rollUp(caller, current.parentItemId(), moved.parentItemId());
+        return moved;
     }
 
     /** @return how many items were removed, the item's whole subtree included */
     public int delete(SolutionCaller caller, int itemId) {
-        get(caller, itemId);
-        return items.delete(itemId);
+        Item current = get(caller, itemId);
+        int removed = items.delete(itemId);
+        // Story 5653: the parent re-checks what is left under it (none left: it is the thing again, left as it is)
+        if (removed > 0) rollUp(caller, current.parentItemId());
+        return removed;
     }
 }

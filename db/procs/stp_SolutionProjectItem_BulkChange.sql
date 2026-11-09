@@ -38,6 +38,9 @@ Date        Developer    Description
 11/04/2026  Felix        As one item's status change does (SolutionItemService.wakeAncestors): a status other than
                          Not started moves every ancestor item and project still at Not started to In progress.
                          The log-to-item links are stored in the house order (item before log).
+11/09/2026  Felix        Story 5653: an item with sub-items follows them (stp_SolutionProjectItem_RollUpParents): after a
+                         status change the parents of the items changed are re-checked, after a move the parents they
+                         left. Same transaction.
 
 */
 
@@ -144,6 +147,18 @@ BEGIN
     INSERT INTO @moved (ItemID) SELECT DISTINCT ItemID FROM Tree
 END
 
+-- Story 5653: whose sub-items change, so they can follow them after the write -- read BEFORE a move takes
+-- the moved items away from their old parents
+DECLARE @rollUp VARCHAR(8000) = NULL
+IF @field = 'status'
+    SELECT @rollUp = COALESCE(@rollUp + ',', '') + CAST(p.ParentItemID AS VARCHAR(12))
+    FROM   (SELECT DISTINCT i.ParentItemID FROM dbo.SolutionProjectItem i JOIN @todo t ON t.ItemID = i.SolutionProjectItemID
+            WHERE i.ParentItemID IS NOT NULL) p
+IF @field = 'project'
+    SELECT @rollUp = COALESCE(@rollUp + ',', '') + CAST(p.ParentItemID AS VARCHAR(12))
+    FROM   (SELECT DISTINCT i.ParentItemID FROM dbo.SolutionProjectItem i JOIN @roots r ON r.ItemID = i.SolutionProjectItemID
+            WHERE i.ParentItemID IS NOT NULL) p
+
 DECLARE @memberId INT = NULL
 EXEC dbo.stp_SolutionMember_FindOrCreate @prmMemberCode, @memberId OUTPUT
 DECLARE @what NVARCHAR(600) = CASE @field
@@ -222,6 +237,8 @@ BEGIN TRY
     IF @field = 'topic'
         INSERT INTO dbo.SolutionLink (SolutionID, FromKind, FromID, ToKind, ToID, CreatedByMemberID)
         VALUES (@prmSolutionID, 'log', @logId, 'topic', @topicId, @memberId)
+    IF @rollUp IS NOT NULL
+        EXEC dbo.stp_SolutionProjectItem_RollUpParents @rollUp, @prmMemberCode, 1
     COMMIT TRANSACTION
 END TRY
 BEGIN CATCH

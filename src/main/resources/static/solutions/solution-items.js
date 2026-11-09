@@ -218,8 +218,10 @@
         // Tests tab's cells: not done -> done (a tick) -> skipped (a dash: status Skipped -- not now, maybe
         // later) -> not done again (Tony, 2026-10-09).
         var t = tickState(i);
+        // Story 5653 (2026-11-09): an item with sub-items follows them; its tick checks or unchecks them all
+        var tickTitle = childCount ? 'Follows its sub-items, now ' + (t === 'on' ? 'done' : (t === 'skip' ? 'skipped' : 'not done')) + '. Tap to check or uncheck them all' : TICK_TITLE[t];
         var tick = '<button type="button" class="sl-tick' + (t ? ' ' + t : '') + '" data-tick="' + i.id + '" role="checkbox" aria-checked="' +
-            (t === 'on' ? 'true' : (t === 'skip' ? 'mixed' : 'false')) + '" title="' + TICK_TITLE[t] + '" aria-label="' + TICK_TITLE[t] + ': ' + esc(i.title) +
+            (t === 'on' ? 'true' : (t === 'skip' ? 'mixed' : 'false')) + '" title="' + tickTitle + '" aria-label="' + tickTitle + ': ' + esc(i.title) +
             '" data-testid="items-tick">' + (t === 'on' ? '&#10003;' : (t === 'skip' ? '&#8211;' : '')) + '</button>';
         // Story 5695 (Echo), Release 5: Select puts a box on every row (solution-changes.js keeps what is ticked).
         var SC = window.SolutionChanges;
@@ -515,11 +517,14 @@
         await refresh();
     }
 
-    // The tick: not done -> Done -> Skipped -> In progress. Sub-items are left as they
-    // are -- closing a parent does not close what is under it.
+    // The tick: not done -> Done -> Skipped -> In progress.
+    // Story 5653 (2026-11-09): an item WITH sub-items follows them (the server closes it when every sub-item is
+    // closed and reopens it when one opens), so its own tick is the Check all / Uncheck all of its sub-items.
+    // An item with none is the thing itself and ticks as before.
     async function tickItem(id) {
         var i = byId(id);
         if (!i) return;
+        if (mItems.some(function (c) { return c.parentItemId === id; })) return tickMany('item', id);
         var t = tickState(i);
         var code = t === '' ? 'done' : (t === 'on' ? 'cancelled' : 'inprogress');
         var r = await SL.post('/api/solutions/items/' + id + '/status', { statusCode: code });
@@ -546,7 +551,8 @@
             var parent = byId(id);
             if (!parent) return;
             targets = descendants(id);
-            what = 'Under "' + parent.title + '" (the item itself is left as it is): ';
+            // Story 5653: the item follows its sub-items -- all closed closes it, one reopened reopens it
+            what = 'Under "' + parent.title + '" (it follows its sub-items: closed when they all are): ';
         }
         var open = targets.filter(function (i) { return !i.closed; });
         var closed = targets.filter(function (i) { return i.closed; });

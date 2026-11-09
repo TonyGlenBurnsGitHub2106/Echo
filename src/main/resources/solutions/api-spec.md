@@ -68,6 +68,12 @@ working session; it is always current.
 > `wontdo` = dealt with, it will not be automated, or null = not done). Set one with
 > `POST /api/solutions/items/{itemId}/check {check, result}`. See *Items* in section 4.
 
+> **Added 2026-11-09 -- An item with sub-items follows them.** When every sub-item of an item is closed
+> (`done` or `cancelled`), the item closes too: `done`, or `cancelled` when every sub-item was `cancelled`.
+> When one of them is opened again, the item reopens as `inprogress`. This climbs every level. It happens
+> after a status change, a create, an edit, a move, a delete and a bulk status or project change. An item
+> with no sub-items is not affected. Re-read the parent after you change a sub-item. See *Items* in section 4.
+
 ## 1. Connecting
 
 - Base URL: `{{BASE_URL}}`
@@ -264,8 +270,16 @@ only with `.../check`.
 What else happens:
 - Setting an item to a closed status (`done`, `cancelled`) stamps `completedDate`; reopening it clears it.
 - Saving an item at any status other than `todo` (create, edit or `.../status`) moves every ancestor
-  item still at `todo` to `inprogress`, and its project too. Nothing is moved backwards: a blocked or
-  done parent stays as it is. A move does not do this.
+  item still at `todo` to `inprogress`, and its project too. A move does not do this.
+- An item WITH sub-items follows them (added 2026-11-09). After any change to a sub-item's status, a new
+  sub-item, an edit that changes `parentItemId`, a move or a delete, the parent (old and new, on a move) and
+  every item above it are re-checked from the bottom up: every sub-item closed -> it is `done`, or `cancelled`
+  when every sub-item is `cancelled` (a closed item moves between the two as well), and `completedDate` is
+  stamped; a sub-item open
+  and the item closed -> it is set to `inprogress` and `completedDate` cleared. Anything already in step is
+  left alone. An item with no sub-items is never changed by this. The item you changed is not itself
+  re-checked: setting a parent's status by hand works, and holds until one of its sub-items changes. The
+  answer is the item you changed; read its parent again to see what followed. `.../check` never does this.
 - If an item's current assignee is no longer an active member, any `PUT` of it is refused with the
   "There is no member code" 409 until you also send a new `assigneeCode` (or `""`). The same holds for a
   project's or a solution's owner.
@@ -555,8 +569,8 @@ value are checked before the first write: one bad item or value and NOTHING chan
 
 | `field` | `value` | What changes |
 |---|---|---|
-| `status` | a status code (`todo`, `inprogress`, `blocked`, `done`, `cancelled`), any case | each item's status. A closed status stamps the item's completed date and an open one clears it. Unlike the one-item status call, a not-started parent or project is NOT moved to in progress. |
-| `project` | a project id of this solution | each named item moves to the TOP level of that project, after what is there, with its whole sub-tree. A named item under another named item keeps its place under it. |
+| `status` | a status code (`todo`, `inprogress`, `blocked`, `done`, `cancelled`), any case | each item's status. A closed status stamps the item's completed date and an open one clears it. As with the one-item status call, any status other than `todo` moves every not-started ancestor item and project to in progress, and the parents of the items changed follow their sub-items (closed when all are closed, reopened when one is open -- see *Items*). |
+| `project` | a project id of this solution | each named item moves to the TOP level of that project, after what is there, with its whole sub-tree. A named item under another named item keeps its place under it. The parents the items left re-check what is still under them (see *Items*). |
 | `assignee` | a member code, any case; `""` = nobody | who has each item. The code must already be a member of the house (unlike elsewhere, your own code is not added on the fly). |
 | `due` | exactly `yyyy-mm-dd`; `""` = no due date | each item's due date |
 | `priority` | `"1"` to `"5"` | each item's priority |

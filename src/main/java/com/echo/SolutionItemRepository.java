@@ -26,6 +26,13 @@ public interface SolutionItemRepository {
 
     boolean move(int id, Integer newProjectId, Integer newParentItemId, int newSortOrder, String modifiedBy);
 
+    /**
+     * Story 5653 (2026-11-09): an item with sub-items follows them. Each item named, and every item above it,
+     * closes when all its sub-items are closed and reopens when one is open; an item with no sub-items is left
+     * alone. Returns how many items were changed.
+     */
+    int rollUpParents(List<Integer> itemIds, String modifiedBy);
+
     /** Removes the item and its whole subtree; returns how many items went. */
     int delete(int id);
 }
