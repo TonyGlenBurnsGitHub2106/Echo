@@ -87,7 +87,7 @@
         var r = await SL.post('/api/solutions/items/' + id + '/check', { check: code, result: next });
         if (!r || !r.ok || !r.data) { SL.toast(SL.failText(r, 'The ' + c.label + ' box could not be saved.')); return; }
         mItems = mItems.map(function (x) { return x.id === id ? Object.assign({}, x, { reviewedCode: r.data.reviewedCode, qaCode: r.data.qaCode, automatedCode: r.data.automatedCode }) : x; });
-        draw();
+        await keepSpot(id, async function () { draw(); }, false);   // Story 5653: the row stays where it is
     }
 
     // ---- load -------------------------------------------------------------------
@@ -530,9 +530,8 @@
         var r = await SL.post('/api/solutions/items/' + id + '/status', { statusCode: code });
         if (!r || !r.ok) { SL.toast(SL.failText(r, 'The item could not be ' + (t === '' ? 'marked done.' : (t === 'on' ? 'skipped.' : 'reopened.')))); return; }
         // No message: the row turning green (or back) and its flash say it; a dialog on every tick
-        // was one tap too many (Tony, 2026-10-08).
-        mFlashId = id;
-        await refresh();
+        // was one tap too many (Tony, 2026-10-08). Story 5653: the row stays where it is on screen.
+        await keepSpot(id, refresh);
     }
 
     // Check all / Uncheck all: every item in a project, or every sub-item (any depth) under one
@@ -590,7 +589,8 @@
         // Like the single tick, success says nothing: the rows turning green (or back) say it.
         if (scope === 'item') Page.fold().set('item:' + id, false);                // show what changed
         else Page.fold().set('band:' + id, false);
-        await refresh();
+        // Story 5653: the item (or the project's band) tapped stays where it is on screen
+        await keepSpot(scope === 'item' ? id : '[data-band="' + id + '"]', refresh, scope === 'item');
     }
 
     /** Every item under this one, at any depth, in tree order. */
@@ -686,6 +686,23 @@
     /** Items changed: redraw the tree and let the header's counts catch up. */
     async function refresh() {
         await Promise.all([load(), Page.reload()]);
+    }
+
+    // Story 5653 (2026-11-09): Tony, ticking items: "as I check and uncheck items, the page jumps around and I lose
+    // my spot." A tick used to flash the row through flashNow, which scrolls it to the MIDDLE of the screen. A tick
+    // (and a check box, and Check all) now keeps the row it was tapped on exactly where it was on screen: measure the
+    // row before, do the work and the redraw, then move the scroll by however far the row moved. The row still
+    // flashes, without any scrolling.
+    // `where` is an item id or a CSS selector (Check all on a project keeps its band head still); `flash` false for
+    // the check boxes, which never flashed.
+    async function keepSpot(where, work, flash) {
+        function find() { return typeof where === 'number' ? $('item-' + where) : document.querySelector(where); }
+        var before = find(), top = before ? before.getBoundingClientRect().top : null;
+        await work();
+        var row = find(), scroller = $('slBody');
+        if (!row) return;
+        if (top !== null && scroller) scroller.scrollTop += row.getBoundingClientRect().top - top;
+        if (flash !== false) row.classList.add('flash');
     }
 
     function flashNow() {
