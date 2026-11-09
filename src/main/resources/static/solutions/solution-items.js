@@ -758,6 +758,8 @@
                 if (changed && currentView() === 'tree' && !$('pane-items').hidden && mItems.length) draw();
             });
             $('btnItemsCollapse').addEventListener('click', function () { setAll(true); });
+            // Story 5653 (2026-11-09): the tools head row expands and collapses, remembered.
+            window.Picasso.rollup.attach({ key: 'leo.sl.items.tools.collapsed', pane: $('toolbar-items'), toggle: $('itemToolsToggle') });
             $('itemCancel').addEventListener('click', function () { SL.close('itemOverlay'); });
             $('itemSave').addEventListener('click', function () { SL.guard($('itemSave'), saveItem); });
             $('statusCancel').addEventListener('click', function () { SL.close('statusOverlay'); });

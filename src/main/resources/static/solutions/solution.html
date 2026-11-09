@@ -74,7 +74,10 @@
         <button type="button" class="sl-btn danger" id="btnDeleteSolution" data-testid="solution-delete-btn">Delete</button>
     </div>
 
-    <div class="sl-toolbar" id="toolbar-items" hidden data-testid="solution-toolbar-items">
+    <!-- Story 5653 (2026-11-09): the Items tools roll up under one head row, like Topics and Search. -->
+    <div class="sl-toolbar sl-rolltools ef-pane" id="toolbar-items" hidden data-testid="solution-toolbar-items">
+        <button type="button" class="ef-tools-toggle" id="itemToolsToggle" aria-expanded="true" title="Fold the item tools away, or bring them back" data-testid="items-tools-toggle"><span class="ef-caret">&#9662;</span><span class="ef-summary" id="itemToolsSummary">Items and tools</span></button>
+        <div class="ef-tools sl-tools" data-testid="items-tools">
         <!-- Story 5695 (Echo): the project tree, or the Now / Next / Waiting lens (solution-lens.js) -->
         <div class="sl-seg" role="tablist" aria-label="How the Items tab shows them" data-testid="items-views">
             <button type="button" role="tab" data-items-view="tree" aria-selected="true" data-testid="items-view-tree">Projects</button>
@@ -98,6 +101,7 @@
         <button type="button" class="sl-btn sl-arrange" data-arrange aria-pressed="false" aria-label="Arrange the projects and items" title="Arrange -- drag to reorder" data-testid="items-arrange-btn">&#8645;</button>
         </div>
         <button type="button" class="sl-btn primary" id="btnAddItem" data-testid="items-add-btn">+ Item</button>
+        </div>
     </div>
     <!-- Story 5695 (Echo), Release 5: change the chosen items at once, with a reason -->
     <div class="sl-bulkbar" id="itemBulkBar" hidden data-testid="items-bulk-bar">
@@ -1139,7 +1143,7 @@
 <script src="solutions-common.js?v=13"></script>
 <script src="solution.js?v=39"></script>
 <script src="solution-overview.js?v=5"></script>
-<script src="solution-items.js?v=28"></script>
+<script src="solution-items.js?v=29"></script>
 <script src="solution-log.js?v=12"></script>
 <script src="solution-notes.js?v=23"></script>
 <script src="solution-terms.js?v=2"></script>

@@ -368,6 +368,10 @@ called done: projects not closed, items still open, open questions, decisions no
 done, assumptions still marked holding, and threads waiting for an answer. Tap one to go to it. **Mark the
 solution Done** asks first, saying how much is still open. What is open stays as it is.
 
+**Fold the Items tools away.** The Items tab's tools sit under a head row, **Items and tools**. Tap it to
+fold the views, filters and buttons away and give the list the screen, and tap it again to bring them back.
+Echo remembers which you chose, on every device (11/09/2026).
+
 **Reviewed, QA and Automated.** **Checks** on the Items tab's tool row puts three small boxes on every
 item and sub-item: **Rev** (Reviewed), **QA** and **Auto** (Automated). Tap **Checks** again to hide them.
 Echo remembers which you chose. Each box is a three-way tick, saved the moment you tap it:
