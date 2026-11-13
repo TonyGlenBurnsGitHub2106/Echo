@@ -248,7 +248,7 @@ class SolutionItemServiceSpec extends EchoSpockBaseSpec {
         "the item is in another one"    | 200 || false
     }
 
-    @PendingFeature(reason = 'BUG: SolutionItemService.save validates the KEPT assignee code on an update -- an item assigned to a member who was later made inactive can no longer be edited (409), even when the edit does not touch the assignee')
+    // Story 5653: fixed 2026-11-13 by carrying Leonardo Story 5766 (was @PendingFeature: BUG: SolutionItemService.save validates the KEPT assignee code on an update -- an item assigned to a member who was later made inactive can no longer be edited (409), even when the edit does not touch the assignee)
     def "save should still save when the title of an item assigned to an inactive member is edited"() {
 
         given:
@@ -340,7 +340,7 @@ class SolutionItemServiceSpec extends EchoSpockBaseSpec {
         noExceptionThrown()
     }
 
-    @PendingFeature(reason = 'BUG: SolutionItemService.wakeAncestors re-saves a "todo" project through SolutionService.saveProject, which re-validates the project owner; when that owner is inactive the call answers 409 "Nothing was saved." AFTER the item was already saved')
+    // Story 5653: fixed 2026-11-13 by carrying Leonardo Story 5766 (was @PendingFeature: BUG: SolutionItemService.wakeAncestors re-saves a "todo" project through SolutionService.saveProject, which re-validates the project owner; when that owner is inactive the call answers 409 "Nothing was saved." AFTER the item was already saved)
     def "save should never report failure after the item was saved when the project owner is inactive"() {
 
         given:

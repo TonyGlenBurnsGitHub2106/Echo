@@ -11,20 +11,37 @@ import java.time.LocalDateTime;
  * On an UPDATE a null field means "leave it as it is": the services merge a draft
  * over the current record before saving, so a caller sends only what changes and
  * can never blank a field by forgetting it. An empty string clears a text field.
+ *
+ * A date has no empty string of its own, so a draft carries the ask apart: clearTargetDate /
+ * clearDueDate is true when the caller sent the date as "" (Story 5766). Left out, or null,
+ * still means "leave it as it is".
  */
 public final class SolutionDrafts {
 
     private SolutionDrafts() {}
 
     public record SolutionDraft(int id, String name, String description, String statusCode, String ownerCode,
-                                String statusSummary, LocalDateTime targetDate, Boolean archived, int sortOrder, String alias) {}
+                                String statusSummary, LocalDateTime targetDate, Boolean archived, int sortOrder, String alias,
+                                boolean clearTargetDate) {
+        /** Story 5653: the shape before the clear flag; clearTargetDate = false (keep the date). */
+        public SolutionDraft(int id, String name, String description, String statusCode, String ownerCode,
+                             String statusSummary, LocalDateTime targetDate, Boolean archived, int sortOrder, String alias) {
+            this(id, name, description, statusCode, ownerCode, statusSummary, targetDate, archived, sortOrder, alias, false);
+        }
+    }
 
     public record ProjectDraft(int id, int solutionId, String name, String description, String statusCode,
                                String ownerCode, int sortOrder) {}
 
     public record ItemDraft(int id, int projectId, Integer parentItemId, String title, String detail,
                             String statusCode, String assigneeCode, int priority, int sortOrder,
-                            LocalDateTime dueDate) {}
+                            LocalDateTime dueDate, boolean clearDueDate) {
+        /** Story 5653: the shape before the clear flag; clearDueDate = false (keep the date). */
+        public ItemDraft(int id, int projectId, Integer parentItemId, String title, String detail,
+                         String statusCode, String assigneeCode, int priority, int sortOrder, LocalDateTime dueDate) {
+            this(id, projectId, parentItemId, title, detail, statusCode, assigneeCode, priority, sortOrder, dueDate, false);
+        }
+    }
 
     public record LogDraft(int id, int solutionId, Integer projectId, Integer itemId, String typeCode,
                            String text, LocalDateTime logDate) {}

@@ -65,9 +65,11 @@ public class SolutionDecisionService {
     /** Adds or merge-edits a question; a new one is linked to every record in linkTo. */
     public Question saveQuestion(SolutionCaller caller, QuestionDraft draft, List<LinkRef> linkTo) {
         int solutionId;
-        if (draft.id() > 0) solutionId = question(caller, draft.id()).solutionId();
+        String currentOwner = null;
+        if (draft.id() > 0) { Question current = question(caller, draft.id()); solutionId = current.solutionId(); currentOwner = current.ownerCode(); }
         else { access.requireSolution(caller, draft.solutionId()); solutionId = draft.solutionId(); }
-        if (draft.ownerCode() != null) codes.member(caller, draft.ownerCode());
+        // Story 5653 (carrying Story 5766 solutions-3): the question's CURRENT owner is kept even once inactive.
+        if (draft.ownerCode() != null) codes.member(caller, draft.ownerCode(), currentOwner);
         if (draft.id() <= 0) { checkLinks(linkTo); requireTargets(solutionId, linkTo); }
         int id = repo.saveQuestion(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Question");

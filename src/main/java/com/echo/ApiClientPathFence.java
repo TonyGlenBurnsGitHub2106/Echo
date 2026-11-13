@@ -22,7 +22,7 @@ public final class ApiClientPathFence {
      * tokens, service control, client administration, provider webhooks. A typo or a
      * moment of generosity on the admin page cannot open these.
      */
-    private static final String[] NEVER = {
+    static final String[] NEVER = {   // Story 5653: package-visible so ApiClientService refuses them on save (Story 5766)
         "/api/auth/", "/api/system/", "/api/api-clients/", "/api/webhooks/", "/api/step-up/", "/api/version/"
     };
 

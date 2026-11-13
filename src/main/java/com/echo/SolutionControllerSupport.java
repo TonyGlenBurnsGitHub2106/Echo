@@ -84,6 +84,9 @@ abstract class SolutionControllerSupport {
         catch (DateTimeParseException ex) { throw new IllegalArgumentException(what + " must look like 2026-09-17 or 2026-09-17T14:30."); }
     }
 
+    /** A date sent as "" (or only spaces) asks to CLEAR it; left out or null keeps it (Story 5766). */
+    static boolean isClear(String value) { return value != null && value.isBlank(); }
+
     static int orZero(Integer v) { return v == null ? 0 : v; }
 
     static boolean orFalse(Boolean v) { return v != null && v; }

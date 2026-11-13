@@ -458,7 +458,7 @@
         $('iDetail').value = i.detail || '';
         $('iDue').value = SL.date(i.dueDate);
         SL.fillSelect($('iStatus'), Page.statusOptions(), i.statusCode);
-        SL.fillSelect($('iAssignee'), Page.memberOptions('Nobody yet'), i.assigneeCode || '');
+        SL.fillSelect($('iAssignee'), Page.memberOptions('Nobody yet', i.assigneeCode), i.assigneeCode || '');
         SL.setSelect($('iPriority'), i.priority || 3);
         // A top-level item can change project here; a sub-item follows its parent.
         $('iProjectFld').hidden = !!(parent || (id && i.parentItemId));
@@ -474,7 +474,7 @@
         if (due === null) { SL.warn('itemWarn', 'The due date should look like 09/17/2026.'); return; }
         var body = { title: title, detail: $('iDetail').value, statusCode: $('iStatus').value,
                      assigneeCode: $('iAssignee').value, priority: +$('iPriority').value };
-        if (due) body.dueDate = due;
+        body.dueDate = due;                // '' clears the date (Story 5766); left out it would be kept
         var r;
         if (mEditId) {
             r = await SL.put('/api/solutions/items/' + mEditId, body);

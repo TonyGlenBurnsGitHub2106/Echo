@@ -89,7 +89,7 @@ public class SolutionConversationService {
         if (caller.isClient()) {
             awaiting = HUMAN_PARTY;
         } else {
-            awaiting = firstClientOf(solutionId);
+            awaiting = clientToAnswer(solutionId, conversationId);
             repo.clearAwaitingFor(conversationId, HUMAN_PARTY);   // the house has answered
         }
         awaiting = guardAwaiting(caller.memberCode(), awaiting);
@@ -150,6 +150,11 @@ public class SolutionConversationService {
         if (!repo.deleteMessage(conversationId, messageId)) throw new SolutionNotFoundException("Message");
     }
 
+    /**
+     * Takes a thread off a solution. Unlike rename / edit / delete, an agent may do this too: the
+     * published contract (api-spec.md) offers it for a thread opened by mistake, and it destroys
+     * nothing -- the Conversation and its messages stay; only the link row goes (Story 5766 review).
+     */
     public void unlink(SolutionCaller caller, int solutionId, int conversationId) {
         access.requireSolution(caller, solutionId);
         if (!repo.unlink(solutionId, conversationId)) throw new SolutionNotFoundException("Conversation");
@@ -168,8 +173,23 @@ public class SolutionConversationService {
         throw new SolutionNotFoundException("Conversation");
     }
 
-    private String firstClientOf(int solutionId) {
-        return clients.clientsForSolution(solutionId).stream().map(SolutionLink::clientCode)
-            .filter(c -> c != null && !c.isBlank()).findFirst().orElse(null);
+    /**
+     * Who a house reply waits on (Story 5766): the client that wrote the thread's latest client
+     * message, among the clients this solution is shared with. With several clients on one
+     * solution, the first in the share list is not necessarily the one asking. Only a thread no
+     * client has written in yet falls back to the first shared client.
+     */
+    private String clientToAnswer(int solutionId, int conversationId) {
+        List<String> shared = clients.clientsForSolution(solutionId).stream().map(SolutionLink::clientCode)
+            .filter(c -> c != null && !c.isBlank()).toList();
+        if (shared.isEmpty()) return null;
+        List<Message> thread = repo.messagesSince(conversationId, 0);
+        for (int i = thread.size() - 1; i >= 0; i--) {
+            String sender = thread.get(i).sender();
+            if (sender == null) continue;
+            for (String code : shared)
+                if (code.trim().equalsIgnoreCase(sender.trim())) return code;
+        }
+        return shared.get(0);
     }
 }

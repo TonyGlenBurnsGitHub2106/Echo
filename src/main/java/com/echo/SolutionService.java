@@ -36,17 +36,36 @@ public class SolutionService {
     public Solution get(SolutionCaller caller, int id) { return access.requireSolution(caller, id); }
 
     public Solution save(SolutionCaller caller, SolutionDraft draft) {
+        String currentOwner = null;
         if (draft.id() <= 0) {
             access.requireHuman(caller, "Only a person may create a solution.");
             draft = merged(draft, null);
         } else {
-            draft = merged(draft, access.requireSolution(caller, draft.id()));
+            Solution current = access.requireSolution(caller, draft.id());   // visibility first: 404, never 403
+            refuseClientRename(caller, draft, current);
+            currentOwner = current.ownerCode();
+            draft = merged(draft, current);
         }
         codes.status(draft.statusCode());
-        codes.member(caller, draft.ownerCode());
+        codes.member(caller, draft.ownerCode(), currentOwner);
         int id = repo.saveSolution(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Solution");
         return repo.findSolution(id);
+    }
+
+    /**
+     * A solution's name and alias are the owner's, like sharing it (Story 5766). Both are unique
+     * across EVERY solution, so a client allowed to change them could learn, from the refusal,
+     * that a solution it was never given holds a name -- and a hidden solution must answer exactly
+     * like a missing one. So a client's change is refused whatever the value, before any lookup.
+     * Sending the current value unchanged (a full-object PUT) is fine.
+     */
+    private void refuseClientRename(SolutionCaller caller, SolutionDraft d, Solution c) {
+        if (caller == null || !caller.isClient()) return;
+        boolean renames = d.name() != null && !d.name().trim().isEmpty() && !d.name().trim().equals(c.name() == null ? "" : c.name().trim());
+        boolean realias = d.alias() != null && !alias(d.alias()).equals(c.alias() == null ? "" : c.alias());
+        if (renames || realias)
+            access.requireHuman(caller, "Only the owner may rename a solution or change its alias. Nothing was saved.");
     }
 
     public void delete(SolutionCaller caller, int id) {
@@ -78,13 +97,34 @@ public class SolutionService {
     }
 
     public Project saveProject(SolutionCaller caller, ProjectDraft draft) {
-        if (draft.id() > 0) draft = merged(draft, project(caller, draft.id()));
-        else access.requireSolution(caller, draft.solutionId());
+        String currentOwner = null;
+        if (draft.id() > 0) {
+            Project current = project(caller, draft.id());
+            currentOwner = current.ownerCode();
+            draft = merged(draft, current);
+        } else access.requireSolution(caller, draft.solutionId());
         codes.status(draft.statusCode());
-        codes.member(caller, draft.ownerCode());
+        codes.member(caller, draft.ownerCode(), currentOwner);
         int id = repo.saveProject(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Project");
         return repo.findProject(id);
+    }
+
+    /**
+     * Work below woke this project: "not started" becomes "in progress" and nothing else changes
+     * (Story 5766). Only the status moves, so no code check can refuse it after the item that woke
+     * it was already saved -- the item's save must never answer "Nothing was saved" when it was.
+     * A project past "not started" is left alone. A failure is logged, never thrown.
+     */
+    public void wakeProject(SolutionCaller caller, int projectId, String fromStatus, String toStatus) {
+        try {
+            Project p = project(caller, projectId);
+            if (!fromStatus.equals(p.statusCode())) return;
+            repo.saveProject(merged(new ProjectDraft(p.id(), p.solutionId(), null, null, toStatus, null, 0), p), caller.memberCode());
+        } catch (RuntimeException ex) {
+            org.slf4j.LoggerFactory.getLogger(SolutionService.class)
+                .warn("Solutions: project {} was not moved to {} after work below it: {}", projectId, toStatus, ex.getMessage());
+        }
     }
 
     public void deleteProject(SolutionCaller caller, int projectId) {
@@ -96,12 +136,18 @@ public class SolutionService {
 
     private static SolutionDraft merged(SolutionDraft d, Solution c) {
         if (c == null) return new SolutionDraft(0, d.name(), d.description(), d.statusCode(), d.ownerCode(),
-            d.statusSummary(), d.targetDate(), d.archived() != null && d.archived(), d.sortOrder(), alias(d.alias()));
+            d.statusSummary(), d.targetDate(), d.archived() != null && d.archived(), d.sortOrder(), alias(d.alias()), false);
         return new SolutionDraft(d.id(), keep(d.name(), c.name(), true), keep(d.description(), c.description(), false),
             keep(d.statusCode(), c.statusCode(), true), keep(d.ownerCode(), c.ownerCode(), false),
-            keep(d.statusSummary(), c.statusSummary(), false), d.targetDate() == null ? c.targetDate() : d.targetDate(),
+            keep(d.statusSummary(), c.statusSummary(), false), date(d.targetDate(), d.clearTargetDate(), c.targetDate()),
             d.archived() == null ? c.archived() : d.archived(), d.sortOrder() > 0 ? d.sortOrder() : c.sortOrder(),
-            d.alias() == null ? c.alias() : alias(d.alias()));
+            d.alias() == null ? c.alias() : alias(d.alias()), false);
+    }
+
+    /** A date on an update: a value replaces, an explicit clear ("" sent) empties, anything else keeps. */
+    static java.time.LocalDateTime date(java.time.LocalDateTime sent, boolean clear, java.time.LocalDateTime current) {
+        if (sent != null) return sent;
+        return clear ? null : current;
     }
 
     /**

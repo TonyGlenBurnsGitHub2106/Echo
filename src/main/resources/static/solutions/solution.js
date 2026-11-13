@@ -45,9 +45,12 @@
     // ---- option lists every tab needs -----------------------------------------
 
     Page.statusOptions = function () { return Page.lookups.statuses.map(function (s) { return { value: s.code, label: s.name }; }); };
-    Page.memberOptions = function (blankLabel) {
+    // keepCode: the record's CURRENT owner / assignee, offered even once inactive (marked so), so an
+    // edit that leaves the person alone never quietly clears them (Story 5766).
+    Page.memberOptions = function (blankLabel, keepCode) {
         return [{ value: '', label: blankLabel }].concat(Page.lookups.members
-            .filter(function (m) { return m.active; }).map(function (m) { return { value: m.code, label: m.name }; }));
+            .filter(function (m) { return m.active || (keepCode && m.code === keepCode); })
+            .map(function (m) { return { value: m.code, label: m.active ? m.name : m.name + ' (inactive)' }; }));
     };
     Page.projectOptions = function (blankLabel) {
         var head = blankLabel == null ? [] : [{ value: '', label: blankLabel }];
@@ -509,7 +512,7 @@
         $('sDescription').value = s.description || '';
         $('sTarget').value = SL.date(s.targetDate);
         SL.fillSelect($('sStatus'), Page.statusOptions(), s.statusCode);
-        SL.fillSelect($('sOwner'), Page.memberOptions('Nobody yet'), s.ownerCode || '');
+        SL.fillSelect($('sOwner'), Page.memberOptions('Nobody yet', s.ownerCode), s.ownerCode || '');
         SL.open('solutionOverlay');
     }
 
@@ -522,7 +525,7 @@
         if (alias && (!/^[a-z0-9-]+$/.test(alias) || !/[a-z]/.test(alias))) { SL.warn('solutionWarn', 'An alias is letters, digits and hyphens, with at least one letter -- for example: claims'); return; }
         var body = { alias: alias, name: name, statusSummary: $('sSummary').value, description: $('sDescription').value,
                      statusCode: $('sStatus').value, ownerCode: $('sOwner').value };
-        if (target) body.targetDate = target;
+        body.targetDate = target;          // '' clears the date (Story 5766); left out it would be kept
         var r = await SL.put('/api/solutions/' + Page.id, body);
         if (!r || !r.ok) { SL.warn('solutionWarn', SL.failText(r, 'The solution could not be saved.')); return; }
         SL.close('solutionOverlay');
@@ -569,7 +572,7 @@
         $('pName').value = p.name || '';
         $('pDescription').value = p.description || '';
         SL.fillSelect($('pStatus'), Page.statusOptions(), p.statusCode);
-        SL.fillSelect($('pOwner'), Page.memberOptions('Nobody yet'), p.ownerCode || '');
+        SL.fillSelect($('pOwner'), Page.memberOptions('Nobody yet', p.ownerCode), p.ownerCode || '');
         SL.open('projectOverlay');
         $('pName').focus();
     }

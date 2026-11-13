@@ -234,8 +234,38 @@ class ApiClientControllerSpec extends EchoWebSpec {
             .andExpect(status().isNotFound())
             .andExpect(content().json('{"ok":false,"error":"not_found","message":"Client not found."}', true))
 
+        then:  // Story 5766: an update without "enabled" reads the stored client first, so a missing one never saves
+        1 * apiClients.find(99) >> null
+        0 * apiClients.save(*_)
+    }
+
+    @Unroll
+    def "update should keep the stored enabled flag when the body leaves it out and the client is #stored"() {
+
+        // Story 5766 (bug hunt solutions-9): an unrelated edit can never undo the kill switch.
+        when:
+        mvc.perform(json(asUser(put('/api/api-clients/7')), '{"clientCode":"rex","clientName":"Rex 2"}'))
+            .andExpect(status().isOk())
+
         then:
-        1 * apiClients.save(99, *_) >> null
+        1 * apiClients.find(7) >> client(7, 'rex', storedOn)
+        1 * apiClients.save(7, 'rex', 'Rex 2', '/api/solutions/', null, storedOn) >> client(7, 'rex', storedOn)
+
+        where:
+        stored         | storedOn
+        'switched off' | false
+        'switched on'  | true
+    }
+
+    def "create should switch a new client on when the body leaves enabled out"() {
+
+        when:
+        mvc.perform(json(asUser(post('/api/api-clients')), '{"clientCode":"rex","clientName":"Rex"}'))
+            .andExpect(status().isOk())
+
+        then:
+        0 * apiClients.find(*_)
+        1 * apiClients.save(0, 'rex', 'Rex', '/api/solutions/', null, true) >> client(9, 'rex', true)
     }
 
     def "create should answer 409 with the message when a rule refuses"() {

@@ -91,9 +91,17 @@ public class SolutionCodeCheck {
     private static String trim(String s) { return s == null ? "" : s.trim(); }
 
     /** A person: an owner or an assignee. The caller may always name itself. */
-    public void member(SolutionCaller caller, String code) {
+    public void member(SolutionCaller caller, String code) { member(caller, code, null); }
+
+    /**
+     * As {@link #member(SolutionCaller, String)}, on an update: the record's CURRENT owner or
+     * assignee is always accepted, even once that member is inactive (Story 5766) -- an edit that
+     * leaves the person alone must not be refused for it.
+     */
+    public void member(SolutionCaller caller, String code, String currentCode) {
         String wanted = norm(code);
         if (wanted.isEmpty()) return;
+        if (wanted.equals(norm(currentCode))) return;
         List<String> known = repo.lookups().members().stream().filter(m -> m.active()).map(m -> m.code()).collect(Collectors.toList());
         if (contains(known, wanted)) return;
         if (caller != null && caller.isClient() && wanted.equals(norm(caller.memberCode()))) {

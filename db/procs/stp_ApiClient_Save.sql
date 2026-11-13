@@ -28,6 +28,8 @@ Date        Developer    Description
                          does). Every allowed prefix must start with /api/ and end with / so a prefix can never
                          match more than the subtree it names; a blank allowlist is refused rather than read as
                          "everything". A new client starts with no key, so it can reach nothing until one is issued.
+11/13/2026  Felix        Story 5653 (carrying Leonardo Stories 5764 / 5766): refuses the house's own names as a
+                         client code, a code longer than 20 characters, and any allowed path inside the never-list.
 
 */
 
@@ -38,6 +40,13 @@ SET @prmClientName = LTRIM(RTRIM(ISNULL(@prmClientName, '')))
 SET @prmAllowedPathPrefixes = LTRIM(RTRIM(ISNULL(@prmAllowedPathPrefixes, '')))
 IF @prmClientCode = '' BEGIN RAISERROR('A client needs a code.', 16, 1) RETURN END
 IF @prmClientCode LIKE '%[^a-z0-9-]%' BEGIN RAISERROR('A client code may hold only lower-case letters, digits and hyphens.', 16, 1) RETURN END
+-- Story 5653 (carrying Story 5766 solutions-7): SolutionMember.MemberCode and every author / awaiting column is 20 wide.
+IF LEN(@prmClientCode) > 20 BEGIN RAISERROR('A client code may be at most 20 characters. Nothing was saved.', 16, 1) RETURN END
+-- Story 5653 (carrying Story 5764 fence-2): the house's own party names are never a client code.
+-- ApiClientService refuses the same list.
+IF @prmClientCode IN ('claude', 'stewart', 'felix', 'tony', 'service', 'timer', 'demo', 'house', 'admin', 'system') BEGIN
+    RAISERROR('That code is one of the house''s own names. Choose another client code. Nothing was saved.', 16, 1) RETURN
+END
 IF @prmClientName = '' BEGIN RAISERROR('A client needs a name.', 16, 1) RETURN END
 IF @prmAllowedPathPrefixes = '' BEGIN RAISERROR('A client needs at least one allowed path.', 16, 1) RETURN END
 IF EXISTS (SELECT 1 FROM dbo.ApiClient WHERE ClientCode = @prmClientCode AND ApiClientID <> ISNULL(@prmApiClientID, 0)) BEGIN
@@ -53,6 +62,12 @@ WHILE LEN(@rest) > 0 BEGIN
     IF @one = '' CONTINUE
     IF LEFT(@one, 5) <> '/api/' OR RIGHT(@one, 1) <> '/' OR LEN(@one) < 7 OR @one LIKE '%..%' OR @one LIKE '%[*?]%' BEGIN
         RAISERROR('Every allowed path must look like /api/something/ -- starting with /api/ and ending with a slash.', 16, 1) RETURN
+    END
+    -- Story 5653 (carrying Story 5764 fence-3 / 5766 security-5): subtrees no client may ever hold,
+    -- mirroring ApiClientPathFence.NEVER, each with its whole subtree.
+    IF @one LIKE '/api/auth/%' OR @one LIKE '/api/system/%' OR @one LIKE '/api/api-clients/%'
+       OR @one LIKE '/api/webhooks/%' OR @one LIKE '/api/step-up/%' OR @one LIKE '/api/version/%' BEGIN
+        RAISERROR('An outside client may never be given %s -- that part of Echo is for the house only. Nothing was saved.', 16, 1, @one) RETURN
     END
 END
 

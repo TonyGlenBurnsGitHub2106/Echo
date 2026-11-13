@@ -40,10 +40,15 @@ public class SolutionItemService {
 
     public Item save(SolutionCaller caller, ItemDraft draft) {
         Integer oldParentId = null;
-        if (draft.id() > 0) { Item current = get(caller, draft.id()); oldParentId = current.parentItemId(); draft = merged(draft, current); }
-        else solutions.project(caller, draft.projectId());
+        String currentAssignee = null;
+        if (draft.id() > 0) {
+            Item current = get(caller, draft.id());
+            oldParentId = current.parentItemId();
+            currentAssignee = current.assigneeCode();
+            draft = merged(draft, current);
+        } else solutions.project(caller, draft.projectId());
         codes.status(draft.statusCode());
-        codes.member(caller, draft.assigneeCode());
+        codes.member(caller, draft.assigneeCode(), currentAssignee);
         int id = items.save(draft, caller.memberCode());
         if (id <= 0) throw new SolutionNotFoundException("Item");
         Item saved = items.find(id);
@@ -83,9 +88,8 @@ public class SolutionItemService {
             if (TODO.equals(parent.statusCode())) items.setStatus(parent.id(), IN_PROGRESS, caller.memberCode());
             parentId = parent.parentItemId();
         }
-        Project project = solutions.project(caller, item.projectId());
-        if (project != null && TODO.equals(project.statusCode()))
-            solutions.saveProject(caller, new SolutionDrafts.ProjectDraft(project.id(), project.solutionId(), null, null, IN_PROGRESS, null, 0));
+        // Status only, and it never throws: the item is already saved (Story 5766).
+        solutions.wakeProject(caller, item.projectId(), TODO, IN_PROGRESS);
     }
 
     private static final String TODO = "todo";
@@ -96,7 +100,8 @@ public class SolutionItemService {
         return new ItemDraft(d.id(), c.projectId(), d.parentItemId() == null ? c.parentItemId() : d.parentItemId(),
             SolutionService.keep(d.title(), c.title(), true), SolutionService.keep(d.detail(), c.detail(), false),
             SolutionService.keep(d.statusCode(), c.statusCode(), true), SolutionService.keep(d.assigneeCode(), c.assigneeCode(), false),
-            d.priority() > 0 ? d.priority() : c.priority(), d.sortOrder(), d.dueDate() == null ? c.dueDate() : d.dueDate());
+            d.priority() > 0 ? d.priority() : c.priority(), d.sortOrder(),
+            SolutionService.date(d.dueDate(), d.clearDueDate(), c.dueDate()), false);
     }
 
     public Item setStatus(SolutionCaller caller, int itemId, String statusCode) {

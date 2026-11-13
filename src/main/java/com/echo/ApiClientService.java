@@ -55,7 +55,38 @@ public class ApiClientService {
         return repo.list().stream().filter(c -> c.id() == id).findFirst().orElse(null);
     }
 
+    /**
+     * Story 5653, carrying Leonardo's Story 5764 (fence-2): the house's own party names are never a
+     * client code -- a client named "tony" would post as the person and could clear the person's flags.
+     * stp_ApiClient_Save refuses the same list.
+     */
+    static final java.util.Set<String> RESERVED_CODES = java.util.Set.of(
+        "claude", "stewart", "felix", "tony", "service", "timer", "demo", "house", "admin", "system");
+
+    /** SolutionMember.MemberCode and the author / awaiting columns are VARCHAR(20). */
+    static final int MAX_CODE_LENGTH = 20;
+
     public ApiClient save(int id, String code, String name, String prefixes, String notes, boolean enabled) {
+        String normalized = code == null ? "" : code.trim().toLowerCase();
+        if (RESERVED_CODES.contains(normalized))
+            throw new IllegalArgumentException("\"" + normalized + "\" is one of the house's own names. Choose another client code.");
+        // Story 5766 (bug hunt solutions-7): the code becomes the client's member code, author code and
+        // awaiting party, all 20 characters wide. A longer one would be cut short there and stop matching.
+        if (normalized.length() > MAX_CODE_LENGTH)
+            throw new SolutionRuleException("A client code may be at most " + MAX_CODE_LENGTH + " characters. Nothing was saved.");
+        // Story 5766 (bug hunt security-5): no allowed path may sit inside a subtree the fence never
+        // serves to a client. stp_ApiClient_Save refuses the same.
+        if (prefixes != null) {
+            for (String raw : prefixes.split(";")) {
+                String one = raw.trim().toLowerCase();
+                if (one.isEmpty()) continue;
+                for (String never : ApiClientPathFence.NEVER) {
+                    if (one.startsWith(never))
+                        throw new SolutionRuleException("An outside client may never be given " + raw.trim()
+                            + " -- that part of Echo is for the house only. Nothing was saved.");
+                }
+            }
+        }
         int savedId = repo.save(id, code, name, prefixes, notes, enabled);
         return savedId <= 0 ? null : find(savedId);
     }

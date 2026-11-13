@@ -63,9 +63,21 @@ public class ApiClientController {
 
     private ResponseEntity<?> save(int id, ClientRequest b) {
         if (b == null) throw new IllegalArgumentException("A client is required.");
+        // Story 5766 (bug hunt solutions-9): an edit that does not name "enabled" keeps the stored
+        // value, so an unrelated edit can never undo the kill switch. Only a new client defaults to on.
+        boolean enabled;
+        if (b.enabled() != null) {
+            enabled = b.enabled();
+        } else if (id > 0) {
+            ApiClient existing = service.find(id);
+            if (existing == null) return notFound();
+            enabled = existing.enabled();
+        } else {
+            enabled = true;
+        }
         ApiClient saved = service.save(id, b.clientCode(), b.clientName(),
             (b.allowedPathPrefixes() == null || b.allowedPathPrefixes().isBlank()) ? "/api/solutions/" : b.allowedPathPrefixes(),
-            b.clientNotes(), b.enabled() == null || b.enabled());
+            b.clientNotes(), enabled);
         return saved == null ? notFound() : ResponseEntity.ok(saved);
     }
 

@@ -254,7 +254,7 @@ class SolutionServiceSpec extends EchoSpockBaseSpec {
         "the solution is gone"                 | "person"   | 5  || "SolutionNotFoundException"
     }
 
-    @PendingFeature(reason = 'BUG: SolutionService.save validates the KEPT owner code on an update -- a solution whose owner was made inactive can no longer be edited at all (409 "There is no member code"), even when the caller does not mention the owner')
+    // Story 5653: fixed 2026-11-13 by carrying Leonardo Story 5766 (was @PendingFeature: BUG: SolutionService.save validates the KEPT owner code on an update -- a solution whose owner was made inactive can no longer be edited at all (409 "There is no member code"), even when the caller does not mention the owner)
     def "save should still save when a solution whose owner has since been made inactive is renamed"() {
 
         given:

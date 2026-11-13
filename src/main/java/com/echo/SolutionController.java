@@ -135,7 +135,8 @@ public class SolutionController extends SolutionControllerSupport {
     private static SolutionDraft toDraft(int id, SolutionRequest b) {
         if (b == null) throw new IllegalArgumentException("A solution is required.");
         return new SolutionDraft(id, id > 0 ? b.name() : required(b.name(), "A name"), b.description(), b.statusCode(), b.ownerCode(),
-            b.statusSummary(), date(b.targetDate(), "The target date"), b.archived(), orZero(b.sortOrder()), b.alias());
+            b.statusSummary(), date(b.targetDate(), "The target date"), b.archived(), orZero(b.sortOrder()), b.alias(),
+            isClear(b.targetDate()));
     }
 
     private static ProjectDraft toDraft(int id, int solutionId, ProjectRequest b) {

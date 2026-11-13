@@ -274,7 +274,7 @@
 
     // ---- add / edit / replace -------------------------------------------------------------------
 
-    function memberOptions(blank) { return Page.memberOptions(blank); }
+    function memberOptions(blank, keepCode) { return Page.memberOptions(blank, keepCode); }   // Story 5653 (5766: keep an inactive owner)
 
     /** kind 'question' or 'decision'; id 0 = new; opts: { linkTo: [{kind,id}], supersedes: decision, prefill: {} } */
     async function openEditor(kind, id, opts) {
@@ -288,7 +288,7 @@
             $('questionTitleBar').textContent = id ? 'Edit question' : 'New question';
             $('qText').value = rec ? rec.text : (pre.text || '');
             $('qDetail').value = rec ? (rec.detail || '') : (pre.detail || '');
-            SL.fillSelect($('qOwner'), memberOptions('Anyone'), rec ? (rec.ownerCode || '') : '');
+            SL.fillSelect($('qOwner'), memberOptions('Anyone', rec ? rec.ownerCode : null), rec ? (rec.ownerCode || '') : '');
             $('questionContext').textContent = contextLine(opts);
             SL.open('questionOverlay');
             if (window.Picasso.autosizeTextarea) window.Picasso.autosizeTextarea($('qDetail'));

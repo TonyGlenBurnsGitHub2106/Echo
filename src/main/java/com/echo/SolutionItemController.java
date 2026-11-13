@@ -103,6 +103,7 @@ public class SolutionItemController extends SolutionControllerSupport {
     private static ItemDraft toDraft(int id, int projectId, ItemRequest b) {
         if (b == null) throw new IllegalArgumentException("An item is required.");
         return new ItemDraft(id, projectId, b.parentItemId(), id > 0 ? b.title() : required(b.title(), "A title"), b.detail(), b.statusCode(),
-            b.assigneeCode(), orZero(b.priority()), orZero(b.sortOrder()), date(b.dueDate(), "The due date"));
+            b.assigneeCode(), orZero(b.priority()), orZero(b.sortOrder()), date(b.dueDate(), "The due date"),
+            isClear(b.dueDate()));
     }
 }
