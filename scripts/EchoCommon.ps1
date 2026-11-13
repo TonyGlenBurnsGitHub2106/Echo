@@ -15,7 +15,7 @@ function Get-EchoJavaMajor([string]$JavaHome) {
 # Finds the NEWEST Java 21 or later on the machine. -JavaHome, when given, is used as is (or refused).
 # Otherwise it looks at JAVA_HOME, every java.exe on the PATH, the registry keys the JDK installers
 # write, and the usual folders -- including unzipped JDKs in C:\Java, C:\JDK, C:\Tony\Dev\JDK
-# (Story 5653: the first run on RENAISSANCE missed its JDK 21, which is unzipped there, not installed).
+# (Story 5653: the first run on the home computer missed its JDK 21, which is unzipped there, not installed).
 # Every folder BESIDE a Java it finds is looked at too (Story 5653: at work JAVA_HOME named a Zulu 17
 # in C:\dev\SNF\java and the Temurin 25 unzipped next to it was never seen). Echo is built from
 # source, so it must be a JDK (bin\javac.exe), not a JRE.
@@ -551,8 +551,12 @@ function Get-EchoLatestRelease([string]$Repo) {
     $sha = if ($body -match 'sha256:\s*([0-9a-fA-F]{64})') { $Matches[1].ToLower() } else { '' }
     if (-not $sha) { throw "Release $($r.tag_name) does not say the echo.jar hash (sha256), so it cannot be checked. Publish it again with tools\Publish-EchoRelease.ps1." }
     $commit = if ($body -match 'commit:\s*([0-9a-fA-F]{40})') { $Matches[1].ToLower() } else { [string]$r.target_commitish }
+    # Story 5653 / Story 5765 (audit fence-4): the version and the publisher's signature, when the notes carry them.
+    $version = if ($body -match '(?m)^version:\s*(\d+\.\d+\.\d+)\s*$') { $Matches[1] } else { '' }
+    $signature = if ($body -match '(?m)^signature:\s*([A-Za-z0-9+/=]+)\s*$') { $Matches[1] } else { '' }
     return [pscustomobject]@{ Tag = [string]$r.tag_name; Commit = $commit; Sha256 = $sha
-                              Url = [string]$asset.browser_download_url; Size = [long]$asset.size }
+                              Url = [string]$asset.browser_download_url; Size = [long]$asset.size
+                              Version = $version; Signature = $signature }
 }
 
 function Get-EchoFileSha256([string]$Path) {
@@ -569,6 +573,7 @@ function Read-EchoRelease([string]$Root) {
 
 function Write-EchoRelease([string]$Root, $Release) {
     $o = [ordered]@{ tag = [string]$Release.Tag; commit = [string]$Release.Commit; sha256 = [string]$Release.Sha256
+                     version = [string]$Release.Version   # Story 5653 / Story 5765 (audit fence-4)
                      installed = (Get-Date).ToString('yyyy-MM-dd HH:mm') }
     [IO.File]::WriteAllText((Join-Path $Root 'config\echo-release.json'), ($o | ConvertTo-Json))
 }
@@ -591,4 +596,249 @@ function Get-EchoReleaseJar([string]$Root, $Release) {
     if ($got -ne $Release.Sha256) { throw "The downloaded echo.jar does not match the release's hash (got $got). Nothing was changed; the bad download is $path." }
     Write-Host '  download checked (sha256 matches)'
     return $path
+}
+
+# ==== Signed releases (Story 5653 / Story 5765, audit fence-4) ======================================
+# The sha256 in a release's notes only proves the download is not broken: whoever can publish a release
+# writes the hash too. So tools\Publish-EchoRelease.ps1 also SIGNS each release (RSA 3072, SHA-256) with a
+# private key that lives only on the publishing computer, in that Windows user's profile
+# (%USERPROFILE%\.echo-signing\release-signing-key.dat, DPAPI-protected for that user) -- never in this
+# folder, never in the repository. Its public half is scripts\release-public-key.xml (tracked, public).
+# An installed Echo checks releases against ITS OWN copy, config\release-public-key.xml (git-ignored),
+# written once -- at install, or the first time Start-Echo / Update-Echo finds none (trust on first use) --
+# so a later change to the repository's copy does not change what this Echo trusts.
+# update-echo.cmd -TrustNewKey takes the repository's key again (only when the publishing key was really
+# replaced; it says so loudly). Only Windows PowerShell 5.1 and .NET Framework are used.
+
+function Get-EchoSigningEntropy { return [Text.Encoding]::ASCII.GetBytes('Echo.ReleaseSigning.v1') }
+function Get-EchoSigningKeyPath { return (Join-Path $env:USERPROFILE '.echo-signing\release-signing-key.dat') }
+function Get-EchoRepoPublicKeyPath([string]$Root) { return (Join-Path $Root 'scripts\release-public-key.xml') }
+function Get-EchoPinnedPublicKeyPath([string]$Root) { return (Join-Path $Root 'config\release-public-key.xml') }
+
+# The exact text the publisher signs and the updater checks: one field per line, in this order.
+function Get-EchoReleaseMessage($Release) {
+    return ("echo-release-v1`ntag: {0}`nversion: {1}`ncommit: {2}`nsha256: {3}" -f `
+            [string]$Release.Tag, [string]$Release.Version, ([string]$Release.Commit).ToLower(), ([string]$Release.Sha256).ToLower())
+}
+
+function New-EchoRsa([string]$Xml) {
+    $rsa = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+    $rsa.PersistKeyInCsp = $false
+    $rsa.FromXmlString($Xml)
+    return $rsa
+}
+
+# A public key file's text, checked: an RSA public key and nothing else (never a private one). '' when absent.
+function Read-EchoPublicKey([string]$Path) {
+    if (-not (Test-Path $Path)) { return '' }
+    return (Test-EchoPublicKeyText ([IO.File]::ReadAllText($Path)) $Path)
+}
+
+function Test-EchoPublicKeyText([string]$Text, [string]$What) {
+    $xml = $Text.Trim()
+    if ($xml -notmatch '^<RSAKeyValue>' -or $xml -match '<D>') { throw "$What is not an RSA public key." }
+    $rsa = New-EchoRsa $xml
+    try { if ($rsa.KeySize -lt 2048) { throw "$What holds a key shorter than 2048 bits." } } finally { $rsa.Dispose() }
+    return $xml
+}
+
+# A short, readable name for a key (the first 12 bytes of the SHA-256 of its modulus and exponent).
+function Get-EchoKeyFingerprint([string]$Xml) {
+    $rsa = New-EchoRsa $Xml
+    try { $p = $rsa.ExportParameters($false) } finally { $rsa.Dispose() }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $h = $sha.ComputeHash([byte[]]($p.Modulus + $p.Exponent)) } finally { $sha.Dispose() }
+    $hex = ($h[0..11] | ForEach-Object { $_.ToString('X2') }) -join ''
+    return (($hex -split '(.{4})' | Where-Object { $_ }) -join '-')
+}
+
+function Test-EchoReleaseSignature($Release, [string]$PublicKeyXml) {
+    if (-not $Release.Signature -or -not $PublicKeyXml) { return $false }
+    try { $sig = [Convert]::FromBase64String([string]$Release.Signature) } catch { return $false }
+    $msg = [Text.Encoding]::UTF8.GetBytes((Get-EchoReleaseMessage $Release))
+    $rsa = New-EchoRsa $PublicKeyXml
+    try {
+        return [bool]$rsa.VerifyData($msg, $sig, [Security.Cryptography.HashAlgorithmName]::SHA256,
+                                     [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+    } finally { $rsa.Dispose() }
+}
+
+# Writes the key this Echo trusts into config\ and says so. An old one is moved aside, never deleted.
+function Save-EchoPinnedPublicKey([string]$Root, [string]$Xml) {
+    $pinned = Get-EchoPinnedPublicKeyPath $Root
+    New-Item -ItemType Directory -Force (Split-Path $pinned) | Out-Null
+    if (Test-Path $pinned) {
+        $aside = Join-Path (Split-Path $pinned) ('release-public-key-replaced-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.xml')
+        Move-Item -Path $pinned -Destination $aside
+        Write-Host "  the key this Echo trusted before is kept as $aside" -ForegroundColor Yellow
+    }
+    [IO.File]::WriteAllText($pinned, $Xml)
+    Write-Host "  Echo now trusts only updates signed by release key $(Get-EchoKeyFingerprint $Xml) (config\release-public-key.xml)." -ForegroundColor Yellow
+}
+
+# The key this Echo checks releases against. With none pinned yet, the repository's copy is pinned now
+# (trust on first use) and that is said. '' when there is no key anywhere (an Echo older than signing).
+function Initialize-EchoReleaseTrust([string]$Root) {
+    $pinned = Read-EchoPublicKey (Get-EchoPinnedPublicKeyPath $Root)
+    if ($pinned) { return $pinned }
+    $repoKey = Read-EchoPublicKey (Get-EchoRepoPublicKeyPath $Root)
+    if (-not $repoKey) { return '' }
+    Write-Host '  first use of signed updates: pinning the release key that came with this Echo' -ForegroundColor Yellow
+    Save-EchoPinnedPublicKey $Root $repoKey
+    return $repoKey
+}
+
+# The public key on GitHub's copy of this folder's branch (after a fetch) -- what -TrustNewKey takes.
+function Get-EchoUpstreamPublicKey([string]$Root) {
+    $out = & cmd /c "git -C `"$Root`" fetch --quiet origin 2>&1"
+    if ($LASTEXITCODE -ne 0) { throw "git fetch failed: $($out -join ' ')" }
+    $text = & cmd /c "git -C `"$Root`" show @{u}:scripts/release-public-key.xml 2>&1"
+    if ($LASTEXITCODE -ne 0) { throw 'GitHub has no scripts\release-public-key.xml on this branch.' }
+    return (Test-EchoPublicKeyText (($text | ForEach-Object { [string]$_ }) -join "`n") "GitHub's scripts\release-public-key.xml")
+}
+
+# Refuses -- plainly, before anything changes -- a release that is unsigned or signed by another key.
+function Assert-EchoReleaseSigned($Release, [string]$PublicKeyXml) {
+    if (-not $Release.Signature) {
+        throw "Release $($Release.Tag) is not signed, so this Echo will not install it. Nothing was changed."
+    }
+    if ($Release.Commit -notmatch '^[0-9a-f]{40}$' -or $Release.Version -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Release $($Release.Tag) does not name its commit and version properly, so it cannot be checked. Nothing was changed."
+    }
+    if (-not (Test-EchoReleaseSignature $Release $PublicKeyXml)) {
+        throw ("Release $($Release.Tag) is not signed by the key this Echo trusts ($(Get-EchoKeyFingerprint $PublicKeyXml)), " +
+               'so it was refused. Nothing was changed. If the publishing key was really replaced, run update-echo.cmd -TrustNewKey at this computer.')
+    }
+    Write-Host "  signature checked (release key $(Get-EchoKeyFingerprint $PublicKeyXml))"
+}
+
+# The version inside a jar (its manifest's Implementation-Version, which is pom.xml's <version>). '' when unknown.
+function Get-EchoJarVersion([string]$JarPath) {
+    if (-not (Test-Path $JarPath)) { return '' }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $text = ''
+    $zip = [IO.Compression.ZipFile]::OpenRead($JarPath)
+    try {
+        $e = $zip.GetEntry('META-INF/MANIFEST.MF')
+        if ($e) {
+            $r = New-Object IO.StreamReader($e.Open())
+            try { $text = $r.ReadToEnd() } finally { $r.Dispose() }
+        }
+    } finally { $zip.Dispose() }
+    if ($text -match '(?m)^Implementation-Version:\s*(\d+\.\d+\.\d+)') { return $Matches[1] }
+    return ''
+}
+
+# Refuses a release that is not newer than the Echo running here, unless -Force (never a quiet downgrade).
+function Assert-EchoReleaseIsNewer($Release, [string]$RunningVersion, [switch]$Force) {
+    if (-not $RunningVersion) { Write-Host '  the running Echo does not say its version; the release is taken as newer'; return }
+    if ([version]$Release.Version -gt [version]$RunningVersion) { return }
+    if ($Force) {
+        Write-Host "  release $($Release.Tag) is Echo $($Release.Version), not newer than $RunningVersion -- installing it anyway (-Force)" -ForegroundColor Yellow
+        return
+    }
+    throw ("Release $($Release.Tag) is Echo $($Release.Version), which is not newer than the Echo running here ($RunningVersion), " +
+           'so it was refused. Nothing was changed. update-echo.cmd -Force installs it anyway.')
+}
+
+# Moves this clone to the signed release's commit and no further, so the scripts an update runs are the
+# ones that came with a signed release (Story 5653 / Story 5765, audit fence-4) -- never whatever was
+# pushed since. A clone already at or past that commit is left alone. $true when it moved.
+function Move-EchoCloneToCommit([string]$Root, [string]$Commit) {
+    if ($Commit -notmatch '^[0-9a-f]{40}$') { throw "Not a commit id: $Commit" }
+    $out = & cmd /c "git -C `"$Root`" fetch --quiet origin 2>&1"
+    if ($LASTEXITCODE -ne 0) { throw "git fetch failed: $($out -join ' '). Nothing was changed." }
+    $type = ([string](& cmd /c "git -C `"$Root`" cat-file -t $Commit 2>&1")).Trim()
+    if ($LASTEXITCODE -ne 0 -or $type -ne 'commit') { throw "The release's commit $($Commit.Substring(0, 10)) is not on GitHub. Nothing was changed." }
+    $null = & cmd /c "git -C `"$Root`" merge-base --is-ancestor $Commit HEAD 2>&1"
+    if ($LASTEXITCODE -eq 0) { Write-Host '  this folder already has the scripts of that release'; return $false }
+    $out = & cmd /c "git -C `"$Root`" merge --ff-only $Commit 2>&1"
+    $out | ForEach-Object { Write-Host "  $_" }
+    if ($LASTEXITCODE -ne 0) { throw 'git could not fast-forward to the release. Nothing was changed; sort out the local changes first.' }
+    return $true
+}
+
+# Publishing computer only: the private signing key, opened with this Windows user's DPAPI.
+function Get-EchoSigningKeyXml {
+    $p = Get-EchoSigningKeyPath
+    if (-not (Test-Path $p)) {
+        throw "There is no release signing key on this computer ($p). Run tools\New-EchoReleaseKey.ps1 once, commit and push scripts\release-public-key.xml, then publish."
+    }
+    Add-Type -AssemblyName System.Security
+    $bytes = [Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($p), (Get-EchoSigningEntropy), 'CurrentUser')
+    return [Text.Encoding]::UTF8.GetString($bytes)
+}
+
+function New-EchoReleaseSignature($Release, [string]$PrivateKeyXml) {
+    $rsa = New-EchoRsa $PrivateKeyXml
+    try {
+        $sig = $rsa.SignData([Text.Encoding]::UTF8.GetBytes((Get-EchoReleaseMessage $Release)),
+                             [Security.Cryptography.HashAlgorithmName]::SHA256, [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+    } finally { $rsa.Dispose() }
+    return [Convert]::ToBase64String($sig)
+}
+
+# The public half of a private key, as XML.
+function Get-EchoPublicKeyOf([string]$PrivateKeyXml) {
+    $rsa = New-EchoRsa $PrivateKeyXml
+    try { return $rsa.ToXmlString($false) } finally { $rsa.Dispose() }
+}
+
+# ==== The login vault key (Story 5653 / Story 5765, audit fence-5) ==================================
+# Echo stores every login's password encrypted (LoginVault.java, Leonardo's "LV1" cipher) with
+# echo.login.vault.key in config\application-local.properties -- outside the database, so a database
+# backup alone no longer holds a readable work password. A copy of the key is kept DPAPI-protected for
+# this computer in config\login-vault.key.dat, so a settings file written again (install.cmd -Reconfigure)
+# gets the SAME key back: a new key could never open what the old one encrypted. Called by install.cmd and
+# by every start (so the first update after this change, which restarts Echo, makes the key). Returns the
+# key id (16 hex characters, as Settings would name it), never the key.
+function Get-EchoVaultEntropy { return [Text.Encoding]::ASCII.GetBytes('Echo.LoginVault.v1') }
+
+function Get-EchoVaultKeyId([byte[]]$Key) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $h = $sha.ComputeHash($Key) } finally { $sha.Dispose() }
+    return (($h[0..7] | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+function Initialize-EchoLoginVault([string]$Root) {
+    Add-Type -AssemblyName System.Security
+    $local  = Join-Path $Root 'config\application-local.properties'
+    $mirror = Join-Path $Root 'config\login-vault.key.dat'
+    if (-not (Test-Path $local)) { return '' }   # not installed yet: install.cmd writes the settings first
+    $text = [IO.File]::ReadAllText($local)
+    $key = $null
+    if ($text -match '(?m)^[ \t]*echo\.login\.vault\.key[ \t]*=[ \t]*([A-Za-z0-9+/=]+)[ \t]*\r?$') {
+        $key = [Convert]::FromBase64String($Matches[1])
+        if ($key.Length -ne 32) { throw 'echo.login.vault.key in config\application-local.properties is not a 32-byte key.' }
+    }
+    $mirrorKey = $null
+    if (Test-Path $mirror) {
+        try { $mirrorKey = [Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($mirror), (Get-EchoVaultEntropy), 'LocalMachine') }
+        catch { Write-Warning "config\login-vault.key.dat could not be read on this computer ($($_.Exception.Message)); it is left as it is." }
+    }
+    if ($key) {
+        if (-not (Test-Path $mirror)) {
+            [IO.File]::WriteAllBytes($mirror, [Security.Cryptography.ProtectedData]::Protect($key, (Get-EchoVaultEntropy), 'LocalMachine'))
+        } elseif ($mirrorKey -and (Get-EchoVaultKeyId $mirrorKey) -ne (Get-EchoVaultKeyId $key)) {
+            Write-Warning "config\login-vault.key.dat holds a different login vault key ($(Get-EchoVaultKeyId $mirrorKey)) than the settings ($(Get-EchoVaultKeyId $key)). Both are kept; Echo uses the settings' key."
+        }
+        return (Get-EchoVaultKeyId $key)
+    }
+    $made = $false
+    if ($mirrorKey -and $mirrorKey.Length -eq 32) {
+        $key = $mirrorKey
+    } else {
+        if (Test-Path $mirror) { throw 'config\login-vault.key.dat is there but cannot be read, so no new login vault key was made (it could not open the old one''s passwords). Nothing was changed.' }
+        $key = New-Object byte[] 32
+        [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($key)
+        [IO.File]::WriteAllBytes($mirror, [Security.Cryptography.ProtectedData]::Protect($key, (Get-EchoVaultEntropy), 'LocalMachine'))
+        $made = $true
+    }
+    $line = 'echo.login.vault.key=' + [Convert]::ToBase64String($key)
+    $sep = if ($text.Length -gt 0 -and -not $text.EndsWith("`n")) { "`r`n" } else { '' }
+    [IO.File]::AppendAllText($local, $sep + $line + "`r`n")
+    $id = Get-EchoVaultKeyId $key
+    if ($made) { Write-Host "  made the login vault key ($id): passwords saved in Echo are now kept encrypted" -ForegroundColor Yellow }
+    else { Write-Host "  put the login vault key ($id) back into config\application-local.properties" -ForegroundColor Yellow }
+    return $id
 }

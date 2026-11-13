@@ -17,7 +17,7 @@
 
 .EXAMPLE
     # At home, from Leonardo:
-    powershell -ExecutionPolicy Bypass -File scripts\Export-Solution.ps1 -SqlServer RENAISSANCE\SQL2012EXPRESS -Database Leonardo -Alias claims -OutFile C:\temp\claims.echo.json
+    powershell -ExecutionPolicy Bypass -File scripts\Export-Solution.ps1 -SqlServer MYPC\SQLEXPRESS -Database Leonardo -Alias claims -OutFile C:\temp\claims.echo.json
 #>
 [CmdletBinding()]
 param(

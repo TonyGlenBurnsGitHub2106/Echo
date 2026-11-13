@@ -48,4 +48,10 @@ public interface EntityLoginRepository {
      * which refuses while the cipher is the only copy).
      */
     void deleteSecret(int loginSetupId);
+
+    /**
+     * Story 5653 / Story 5765 (audit fence-5): every login whose password is still plain text
+     * (stp_LoginSetup_ListUnencrypted). Keys: {@code LoginSetupID, Pass}. Read by LoginVaultSweep.
+     */
+    List<Map<String, Object>> listUnencrypted();
 }

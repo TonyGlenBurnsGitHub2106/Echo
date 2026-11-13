@@ -16,7 +16,7 @@
     database (Echo), Leonardo and Hearth can never be the target.
 
 .PARAMETER SqlServer
-    The SQL Server instance for the install step (Windows sign-in), e.g. RENAISSANCE\SQL2012EXPRESS.
+    The SQL Server instance for the install step (Windows sign-in), e.g. MYPC\SQLEXPRESS.
 
 .PARAMETER Database
     The test database. Must start with EchoTest_. Default EchoTest_Spec.
@@ -41,7 +41,7 @@
     A Java 21+ JDK. Left out: found the way Install-Echo.ps1 finds it.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File scripts\Test-EchoDatabase.ps1 -SqlServer RENAISSANCE\SQL2012EXPRESS -Port 49993 -SqlUser <login> -SqlPassword <password>
+    powershell -ExecutionPolicy Bypass -File scripts\Test-EchoDatabase.ps1 -SqlServer MYPC\SQLEXPRESS -Port 1433 -SqlUser <login> -SqlPassword <password>
 #>
 [CmdletBinding()]
 param(

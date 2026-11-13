@@ -21,6 +21,13 @@
     named "Echo <version>" and its notes carry "version: <version>".
 
     The GitHub sign-in comes from Git Credential Manager (git credential fill); it is never printed.
+
+    Every release is SIGNED (Story 5653 / Story 5765, audit fence-4): its tag, version, commit and sha256 are
+    signed with the release signing key, whose private half lives only in this Windows user's profile
+    (%USERPROFILE%\.echo-signing\release-signing-key.dat, DPAPI; made once by tools\New-EchoReleaseKey.ps1),
+    and the notes carry "signature: <base64>". An installed Echo refuses a release that is unsigned or signed
+    by any other key, and installs only the scripts of the signed commit. This refuses to publish when the key
+    is missing or does not match the committed scripts\release-public-key.xml.
 #>
 [CmdletBinding()]
 param([string]$JavaHome)
@@ -44,6 +51,15 @@ $remote = ([string](Invoke-Git "rev-parse origin/$branch")).Trim()
 if ($head -ne $remote) { throw "This commit is not on GitHub yet (origin/$branch is elsewhere). Push first." }
 $repo = Get-EchoGitHubRepo $root
 Write-Host "== $repo, $branch at $($head.Substring(0, 10))"
+
+# ---- 1a. the signing key (Story 5653 / Story 5765, audit fence-4) --------------------------------------
+$signingKey = Get-EchoSigningKeyXml
+Invoke-Git 'ls-files --error-unmatch scripts/release-public-key.xml' | Out-Null   # committed, not just on disk
+$repoPublic = Read-EchoPublicKey (Get-EchoRepoPublicKeyPath $root)
+if (-not $repoPublic -or (Get-EchoKeyFingerprint (Get-EchoPublicKeyOf $signingKey)) -ne (Get-EchoKeyFingerprint $repoPublic)) {
+    throw 'The signing key on this computer is not the one in scripts\release-public-key.xml, so installed Echos would refuse this release. Nothing was published.'
+}
+Write-Host "== signing key $(Get-EchoKeyFingerprint $repoPublic)"
 
 # ---- 1b. a version of its own -----------------------------------------------------------------
 [xml]$pom = Get-Content (Join-Path $root 'pom.xml') -Raw
@@ -87,11 +103,13 @@ Set-EchoWebDefaults
 $headers = @{ 'Authorization' = "token $token"; 'User-Agent' = 'Echo-Publish'; 'Accept' = 'application/vnd.github+json' }
 
 $tag = "build-$stamp"
+# Story 5653 / Story 5765 (audit fence-4): sign exactly the fields the updater reads back.
+$signature = New-EchoReleaseSignature ([pscustomobject]@{ Tag = $tag; Version = $version; Commit = $head; Sha256 = $sha }) $signingKey
 $body = @{
     tag_name         = $tag
     target_commitish = $head
     name             = "Echo $version (" + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ')'
-    body             = "version: $version`ncommit: $head`nsha256: $sha"
+    body             = "version: $version`ncommit: $head`nsha256: $sha`nsignature: $signature"   # Story 5653 / Story 5765 (audit fence-4)
     draft            = $true
 } | ConvertTo-Json
 Write-Host "== release $tag"
@@ -105,4 +123,6 @@ $null = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$repo
 # ---- check it the way the updater will see it -------------------------------------------------
 $latest = Get-EchoLatestRelease $repo
 if ($latest.Tag -ne $tag -or $latest.Sha256 -ne $sha) { throw "Published, but the newest release reads back as $($latest.Tag) / $($latest.Sha256)." }
+# Story 5653 / Story 5765 (audit fence-4): and its signature checks out the way an installed Echo will check it.
+if (-not (Test-EchoReleaseSignature $latest $repoPublic)) { throw "Published, but release $tag does not read back with a good signature. Installed Echos will refuse it." }
 Write-Host "Published Echo $version (release $tag). Settings -> Update Echo will now find it." -ForegroundColor Green

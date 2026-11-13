@@ -3,18 +3,28 @@
     Brings Echo up to date: pull, download the newest release, database, restart. Story 5653.
 
 .DESCRIPTION
-      1. git pull --ff-only (skipped with -NoPull, or when this folder is not a git clone).
-         A pull that cannot fast-forward stops here and changes nothing.
-      2. Finds the newest Echo release on GitHub and downloads its echo.jar into target\download,
-         checking its sha256. Nothing is compiled, so this computer needs no JDK or Maven for it.
-         If this Echo already runs that program and the pull brought nothing new, it says
-         "already up to date" and stops (-Force goes on anyway).
-      3. Backs the database up first (scripts\Backup-EchoDatabase.ps1), unless -NoBackup.
-      4. scripts\Install-EchoDatabase.ps1 -- new tables, procedures and triggers. Rows are kept.
-      5. Stops Echo, moves the old target\echo.jar to target\previous\, puts the new one in its
+      1. Finds the newest Echo release on GitHub and checks its SIGNATURE against the release key this
+         Echo trusts (config\release-public-key.xml; Story 5653 / Story 5765, audit fence-4). An unsigned
+         release, or one signed by any other key, is refused and nothing is changed. The first time, the
+         key that came with this Echo (scripts\release-public-key.xml) is pinned there and that is said.
+         A release that is not newer than the running Echo is refused too, unless -Force.
+      2. Moves this folder (a git clone) to the release's own commit and no further, so the scripts this
+         update runs are the ones that came with the signed release -- never whatever was pushed since
+         (skipped with -NoPull, or when this folder is not a git clone). One that cannot fast-forward
+         stops here and changes nothing.
+      3. Downloads the release's echo.jar into target\download and checks its sha256 (the signed one).
+         Nothing is compiled, so this computer needs no JDK or Maven for it. If this Echo already runs
+         that program and step 2 brought nothing new, it says "already up to date" and stops (-Force
+         goes on anyway).
+      4. Backs the database up first (scripts\Backup-EchoDatabase.ps1), unless -NoBackup.
+      5. scripts\Install-EchoDatabase.ps1 -- new tables, procedures and triggers. Rows are kept.
+      6. Stops Echo, moves the old target\echo.jar to target\previous\, puts the new one in its
          place and starts Echo. If the new one does not answer, the old one is put back and started.
 
-    -Build compiles from source instead of downloading (the old way; needs a JDK).
+    -Build compiles from source instead of downloading (the old way; needs a JDK). It does a plain
+    git pull and checks no signature: it is for the development computer, never the work one.
+    -TrustNewKey (at the keyboard only; Settings -> Update Echo never passes it) replaces the key this
+    Echo trusts with the one on GitHub -- only for when the publishing key was really replaced.
     Every run writes logs\update-<date>.log and logs\update-state.json, which Settings -> Update Echo
     reads to show how the update went.
 
@@ -26,6 +36,8 @@ param(
     [switch]$NoBackup,
     [switch]$Build,
     [switch]$Force,
+    # Story 5653 / Story 5765 (audit fence-4): trust the release key now on GitHub instead of the pinned one.
+    [switch]$TrustNewKey,
     [string]$AdminSqlUser,
     [string]$AdminSqlPassword
 )
@@ -96,23 +108,20 @@ Write-UpdateState 'running' 'Updating Echo.'
 $exitCode = 0
 try {
     $isClone = Test-Path (Join-Path $root '.git')
-    $before = if ($isClone) { [string](& git -C $root rev-parse HEAD) } else { '' }
-    if (-not $NoPull -and $isClone) {
-        Write-Host '== git pull'
-        $out = & cmd /c "git -C `"$root`" pull --ff-only 2>&1"
-        $out | ForEach-Object { Write-Host "  $_" }
-        if ($LASTEXITCODE -ne 0) { throw 'git pull could not fast-forward. Nothing was changed; sort out the local changes first.' }
-    }
-    $after = if ($isClone) { [string](& git -C $root rev-parse HEAD) } else { '' }
-    $pulledSomething = $before -ne $after
-    # Story 5653: a shortcut from an older install still runs start-echo.cmd, which now needs administrator.
-    try { Update-EchoStartupShortcut $root } catch { Write-Host "  could not check the Startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
-
     $sql = @{ SqlServer = $info.sqlServer; Database = $info.database }
     if ($AdminSqlUser) { $sql.SqlUser = $AdminSqlUser; $sql.SqlPassword = $AdminSqlPassword }
     $jar = Join-Path $root 'target\echo.jar'
 
     if ($Build) {
+        # Story 5653 / Story 5765 (audit fence-4): the development path keeps the plain pull (no signature).
+        if (-not $NoPull -and $isClone) {
+            Write-Host '== git pull'
+            $out = & cmd /c "git -C `"$root`" pull --ff-only 2>&1"
+            $out | ForEach-Object { Write-Host "  $_" }
+            if ($LASTEXITCODE -ne 0) { throw 'git pull could not fast-forward. Nothing was changed; sort out the local changes first.' }
+        }
+        # Story 5653: a shortcut from an older install still runs start-echo.cmd, which now needs administrator.
+        try { Update-EchoStartupShortcut $root } catch { Write-Host "  could not check the Startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
         if (-not $NoBackup) { Write-Host '== backup'; & (Join-Path $PSScriptRoot 'Backup-EchoDatabase.ps1') @sql }
         Write-Host '== database'
         & (Join-Path $PSScriptRoot 'Install-EchoDatabase.ps1') @sql
@@ -123,15 +132,40 @@ try {
         & (Join-Path $PSScriptRoot 'Start-Echo.ps1')
         Write-UpdateState 'done' 'Echo was built from source and restarted.'
     } else {
+        # ---- Story 5653 / Story 5765 (audit fence-4): only a release signed by the trusted key ----------
+        Write-Host '== release key'
+        if ($TrustNewKey) {
+            if (-not $isClone) { throw '-TrustNewKey reads the key from GitHub, and this folder is not a git clone. Nothing was changed.' }
+            $trusted = Get-EchoUpstreamPublicKey $root
+            Write-Host "  -TrustNewKey: checking this update against GitHub's release key $(Get-EchoKeyFingerprint $trusted)" -ForegroundColor Yellow
+        } else {
+            $trusted = Initialize-EchoReleaseTrust $root
+            if (-not $trusted) { throw 'This Echo has no release key to check updates against (scripts\release-public-key.xml is missing). Nothing was changed.' }
+        }
         Write-Host '== newest release'
         $release = Get-EchoLatestRelease (Get-EchoGitHubRepo $root)
         $releaseTag = $release.Tag
-        Write-Host "  release $($release.Tag)"
-        # Story 5653: no warning when the release's commit differs from the pulled one -- a change to the
-        # scripts alone needs no new release, so that is normal, and the yellow line only alarmed Tony.
+        Write-Host "  release $($release.Tag) (Echo $($release.Version))"
+        Assert-EchoReleaseSigned $release $trusted
+        if ($TrustNewKey) { Save-EchoPinnedPublicKey $root $trusted }   # only once a release has proved it
         $sameProgram = (Get-EchoFileSha256 $jar) -eq $release.Sha256
+        if (-not $sameProgram) {
+            $runningVersion = Get-EchoJarVersion $jar
+            $ran = Read-EchoRelease $root
+            if (-not $runningVersion -and $ran -and $ran.version) { $runningVersion = [string]$ran.version }
+            Assert-EchoReleaseIsNewer $release $runningVersion -Force:$Force
+        }
+        # The clone goes to the signed release's commit, so the scripts below are that release's.
+        $pulledSomething = $false
+        if (-not $NoPull -and $isClone) {
+            Write-Host '== the scripts of that release'
+            $pulledSomething = [bool](Move-EchoCloneToCommit $root $release.Commit)
+        }
+        # Story 5653: a shortcut from an older install still runs start-echo.cmd, which now needs administrator.
+        try { Update-EchoStartupShortcut $root } catch { Write-Host "  could not check the Startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
         if ($sameProgram -and -not $pulledSomething -and -not $Force) {
-            if (-not (Read-EchoRelease $root)) { Write-EchoRelease $root $release }
+            $ran = Read-EchoRelease $root
+            if (-not $ran -or -not $ran.version) { Write-EchoRelease $root $release }
             Write-Host "Echo is already up to date (release $($release.Tag))." -ForegroundColor Green
             Write-UpdateState 'uptodate' "Echo is already up to date (release $($release.Tag)). Nothing was changed."
         } else {

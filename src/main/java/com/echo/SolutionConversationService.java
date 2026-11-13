@@ -93,6 +93,9 @@ public class SolutionConversationService {
             repo.clearAwaitingFor(conversationId, HUMAN_PARTY);   // the house has answered
         }
         awaiting = guardAwaiting(caller.memberCode(), awaiting);
+        // Story 5653 / Story 5765 (audit fence-2): last line of defense -- whatever path chose it, a message
+        // stored from here never waits on the AI. Stewart wakes Claude on any row awaiting 'claude'.
+        if (awaiting != null && AI_PARTY.equalsIgnoreCase(awaiting.trim())) awaiting = null;
         // A new message on a resolved thread opens it again, so nothing waits unseen.
         if (isResolved(solutionId, conversationId)) repo.setStatus(conversationId, STATUS_OPEN, caller.memberCode());
         int id =repo.addMessage(conversationId, caller.memberCode(), body.trim(), awaiting);
@@ -181,7 +184,12 @@ public class SolutionConversationService {
      */
     private String clientToAnswer(int solutionId, int conversationId) {
         List<String> shared = clients.clientsForSolution(solutionId).stream().map(SolutionLink::clientCode)
-            .filter(c -> c != null && !c.isBlank()).toList();
+            .filter(c -> c != null && !c.isBlank())
+            // Story 5653 / Story 5765 (audit fence-2): a share whose client code is one of the house's own
+            // names (claude, tony, stewart ...) -- possible only for a client made before those names were
+            // reserved -- is never the party a house reply waits on.
+            .filter(c -> !ApiClientService.RESERVED_CODES.contains(c.trim().toLowerCase()))
+            .toList();
         if (shared.isEmpty()) return null;
         List<Message> thread = repo.messagesSince(conversationId, 0);
         for (int i = thread.size() - 1; i >= 0; i--) {

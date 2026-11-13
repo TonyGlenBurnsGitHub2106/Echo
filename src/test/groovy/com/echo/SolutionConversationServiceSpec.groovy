@@ -316,7 +316,9 @@ class SolutionConversationServiceSpec extends SolutionServiceSupport {
         service.post(houseProbe, 41, 'pong').awaitingFrom() == 'rex'
     }
 
-    @PendingFeature(reason = 'BUG: SolutionConversationService.post marks a house post as awaiting the first client of the solution with no check on the code -- an API client whose code is "claude" (or "tony") would make a house message wait on the AI, which the repository contract says must never happen')
+    // Story 5653 / Story 5765 (audit fence-2): this was a @PendingFeature (BUG: a house post waited on the first
+    // client with no check on its code). Fixed 2026-11-13 -- post skips shares whose code is a reserved house name
+    // and never stores awaiting 'claude' -- so the annotation is retired.
     def "post should never wait on claude when a client is named claude"() {
 
         given:
@@ -324,6 +326,33 @@ class SolutionConversationServiceSpec extends SolutionServiceSupport {
 
         expect:
         service.post(TONY, 41, 'hello').awaitingFrom() != 'claude'
+    }
+
+    @Unroll
+    def "post should not wait on a share whose client code is a reserved house name when #scenario"() {
+
+        given:
+        sharedWith[1] = [new SolutionLink(9, 1, 'S1', code, 'Impostor')]
+
+        expect:
+        service.post(TONY, 41, 'hello').awaitingFrom() == expected
+
+        where:
+        scenario                    | code      || expected
+        'the client is claude'      | 'claude'  || null
+        'the code is upper case'    | 'CLAUDE'  || null
+        'the client is tony'        | 'tony'    || null
+        'the client is stewart'     | 'stewart' || null
+        'the code is padded'        | ' felix ' || null
+    }
+
+    def "post should wait on the real client when a reserved-name share is listed first"() {
+
+        given:
+        sharedWith[1] = [new SolutionLink(9, 1, 'S1', 'claude', 'Impostor'), new SolutionLink(7, 1, 'S1', 'rex', 'Rex')]
+
+        expect:
+        service.post(TONY, 41, 'hello').awaitingFrom() == 'rex'
     }
 
     def "post should reopen the thread when it was resolved"() {

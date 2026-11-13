@@ -198,6 +198,27 @@ class ApiClientPathFenceSpec extends EchoSpockBaseSpec {
         22  | 'version latest'             | '/api/version/latest'           || false
     }
 
+    // Story 5653 / Story 5765 (audit fence-5): the record Web tab, where every login and its password lives.
+    @Unroll
+    def "allows should refuse the logins and the Web tab when #scenario"() {
+
+        given:
+        String generous = '/api/entities/;/api/web-addresses/;/api/solutions/'
+
+        expect:
+        ApiClientPathFence.allows(generous, uri) == expected
+
+        where:
+        scenario                          | uri                                   || expected
+        'entities root'                   | '/api/entities'                       || false
+        'an entity\'s logins'             | '/api/entities/12/logins'             || false
+        'logins from web addresses'       | '/api/entities/12/logins/from-web-addresses' || false
+        'an entity\'s web addresses'      | '/api/entities/12/web-addresses'      || false
+        'web addresses root'              | '/api/web-addresses'                  || false
+        'a web address\'s logins'         | '/api/web-addresses/3/logins'         || false
+        'solutions still served'          | '/api/solutions/1'                    || true
+    }
+
     def "allows should still serve the Solutions subtree when the allowlist also names never-listed paths"() {
 
         expect:

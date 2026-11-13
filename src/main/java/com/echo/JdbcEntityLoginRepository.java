@@ -73,4 +73,10 @@ public class JdbcEntityLoginRepository implements EntityLoginRepository {
     public void deleteSecret(int loginSetupId) {
         jdbc.update("EXEC dbo.stp_LoginSecret_Delete @prmLoginSetupID=?", loginSetupId);
     }
+
+    // Story 5653 / Story 5765 (audit fence-5): the plain-text logins the startup sweep encrypts.
+    @Override
+    public List<Map<String, Object>> listUnencrypted() {
+        return jdbc.queryForList("EXEC dbo.stp_LoginSetup_ListUnencrypted");
+    }
 }

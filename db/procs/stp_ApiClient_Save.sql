@@ -30,6 +30,8 @@ Date        Developer    Description
                          "everything". A new client starts with no key, so it can reach nothing until one is issued.
 11/13/2026  Felix        Story 5653 (carrying Leonardo Stories 5764 / 5766): refuses the house's own names as a
                          client code, a code longer than 20 characters, and any allowed path inside the never-list.
+11/13/2026  Felix        Story 5653 / Story 5765 (audit fence-5): the never-list gains /api/entities/ and
+                         /api/web-addresses/ -- the record Web tab, where the logins and their passwords live.
 
 */
 
@@ -66,7 +68,9 @@ WHILE LEN(@rest) > 0 BEGIN
     -- Story 5653 (carrying Story 5764 fence-3 / 5766 security-5): subtrees no client may ever hold,
     -- mirroring ApiClientPathFence.NEVER, each with its whole subtree.
     IF @one LIKE '/api/auth/%' OR @one LIKE '/api/system/%' OR @one LIKE '/api/api-clients/%'
-       OR @one LIKE '/api/webhooks/%' OR @one LIKE '/api/step-up/%' OR @one LIKE '/api/version/%' BEGIN
+       OR @one LIKE '/api/webhooks/%' OR @one LIKE '/api/step-up/%' OR @one LIKE '/api/version/%'
+       -- Story 5653 / Story 5765 (audit fence-5): the logins (and their passwords) hang off these two.
+       OR @one LIKE '/api/entities/%' OR @one LIKE '/api/web-addresses/%' BEGIN
         RAISERROR('An outside client may never be given %s -- that part of Echo is for the house only. Nothing was saved.', 16, 1, @one) RETURN
     END
 END

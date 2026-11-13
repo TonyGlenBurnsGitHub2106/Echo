@@ -48,8 +48,11 @@ public class LoginVault {
     private final SecureRandom random = new SecureRandom();
 
     // Story 5653 (Echo): the key is echo.login.vault.key and Echo has no Backup Secrets, so there is no
-    // "backed up" gate. Echo never makes a key either: a login is encrypted only when it already was, which
-    // can only be one copied from Leonardo -- and that cipher opens only where Leonardo's key is set.
+    // "backed up" gate.
+    // Story 5653 / Story 5765 (audit fence-5): Echo now HAS a key -- Initialize-EchoLoginVault
+    // (scripts/EchoCommon.ps1) makes one at install or update, writes it to config/application-local.properties
+    // and keeps a DPAPI-protected copy in config/login-vault.key.dat -- and EntityLoginService and
+    // LoginVaultSweep encrypt every login with it. This class still never makes a key.
     public LoginVault(@Value("${echo.login.vault.key:}") String keyBase64) {
         byte[] k = null;
         if (keyBase64 != null && !keyBase64.isBlank()) {

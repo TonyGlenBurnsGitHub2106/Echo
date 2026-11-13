@@ -16,7 +16,7 @@
     the same way by hand: the class and file names are the same in both repositories.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File tools\Compare-WithLeonardo.ps1 -SqlServer RENAISSANCE\SQL2012EXPRESS
+    powershell -ExecutionPolicy Bypass -File tools\Compare-WithLeonardo.ps1 -SqlServer MYPC\SQLEXPRESS
 #>
 [CmdletBinding()]
 param(

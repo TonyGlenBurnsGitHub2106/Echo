@@ -311,6 +311,9 @@ class SolutionCarriedFixesSpec extends EchoSpockBaseSpec {
         'a code longer than 20 characters'  | 'a-very-long-client-code1' | '/api/solutions/'                   || SolutionRuleException    | 'at most 20'
         'a path inside the sign-in subtree' | 'rex'                      | '/api/solutions/;/api/auth/tokens/' || SolutionRuleException    | '/api/auth/tokens/'
         'the client administration'         | 'rex'                      | '/API/API-CLIENTS/'                 || SolutionRuleException    | 'for the house only'
+        // Story 5653 / Story 5765 (audit fence-5): the logins live under these two
+        'the record logins'                 | 'rex'                      | '/api/entities/'                    || SolutionRuleException    | 'for the house only'
+        'the web address logins'            | 'rex'                   | '/api/solutions/;/api/web-addresses/' || SolutionRuleException  | '/api/web-addresses/'
     }
 
     def "ApiClientService.save should accept a 20-character code on an ordinary path"() {

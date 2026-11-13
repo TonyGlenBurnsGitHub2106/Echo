@@ -1,5 +1,7 @@
 package com.echo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -10,6 +12,8 @@ import java.util.Map;
 
 @Service
 public class EntityLoginService {
+
+    private static final Logger log = LoggerFactory.getLogger(EntityLoginService.class);   // Story 5653 / Story 5765 (audit fence-5)
 
     private final EntityLoginRepository repo;
     private final LoginVault vault;
@@ -65,6 +69,12 @@ public class EntityLoginService {
             if (refusal != null) throw new SaveRefusedException(refusal + " Nothing was saved.");
             cipher = vault.encrypt(password);
         }
+        // Story 5653 / Story 5765 (audit fence-5): Echo encrypts EVERY login once it has a vault key (the
+        // installer / update makes one), not only one that already was -- a new or plain login is stored
+        // encrypted too. An empty password has nothing to protect and stays as it is.
+        boolean encryptNew = !encrypted && !password.isEmpty() && !LoginVault.PLACEHOLDER.equals(password)
+            && vault.encryptRefusal() == null;
+        if (encryptNew) cipher = vault.encrypt(password);
 
         Map<String, Object> row = repo.save(
             xrefId,
@@ -78,10 +88,17 @@ public class EntityLoginService {
             nz(req.effectiveDate),
             nz(req.throughDate));
         if (cipher != null) {
-            int loginSetupId = req.loginSetupId;
+            // Story 5653 / Story 5765 (audit fence-5): a NEW login's id comes back from the save.
+            int loginSetupId = req.loginSetupId > 0 ? req.loginSetupId : idOf(row.get("LoginSetupID"));
             try {
                 repo.saveSecret(loginSetupId, cipher, LoginVault.PLACEHOLDER);
             } catch (RuntimeException ex) {
+                if (encryptNew) {
+                    // Story 5653 / Story 5765 (audit fence-5): it was plain before and is saved plain, exactly as
+                    // before this change; LoginVaultSweep tries again the next time Echo starts.
+                    log.warn("Login {} was saved but could not be encrypted yet: {}", loginSetupId, ex.getMessage());
+                    return saved(row);
+                }
                 // Pass now holds the new password in plain text. Drop the old cipher so
                 // it cannot show (or back up) the OLD password; it stays in LoginSecret_LOG.
                 repo.deleteSecret(loginSetupId);
@@ -90,11 +107,18 @@ public class EntityLoginService {
             }
         }
 
+        return saved(row);
+    }
+
+    // Story 5653 / Story 5765 (audit fence-5): the save's answer, shared by both ways out of save().
+    private static Map<String, Object> saved(Map<String, Object> row) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("loginSetupId",           row.get("LoginSetupID"));
         out.put("entityLoginSetupXRefId", row.get("EntityLoginSetupXRefID"));
         return out;
     }
+
+    private static int idOf(Object v) { return v instanceof Number ? ((Number) v).intValue() : 0; }   // Story 5653 / Story 5765 (audit fence-5)
 
     public void delete(int xrefId) { repo.delete(xrefId); }
 

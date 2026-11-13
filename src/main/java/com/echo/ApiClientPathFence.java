@@ -23,7 +23,11 @@ public final class ApiClientPathFence {
      * moment of generosity on the admin page cannot open these.
      */
     static final String[] NEVER = {   // Story 5653: package-visible so ApiClientService refuses them on save (Story 5766)
-        "/api/auth/", "/api/system/", "/api/api-clients/", "/api/webhooks/", "/api/step-up/", "/api/version/"
+        "/api/auth/", "/api/system/", "/api/api-clients/", "/api/webhooks/", "/api/step-up/", "/api/version/",
+        // Story 5653 / Story 5765 (audit fence-5): the record Web tab -- every login and its password is
+        // reached through /api/entities/{id}/logins or /api/web-addresses/{id}/logins. Agents work in
+        // /api/solutions/ and never need either.
+        "/api/entities/", "/api/web-addresses/"
     };
 
     public static boolean allows(String allowedPathPrefixes, String requestUri) {

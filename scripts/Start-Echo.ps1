@@ -24,6 +24,12 @@ if ($running.Count -gt 0) {
     return
 }
 
+# Story 5653 / Story 5765 (audit fences 4 and 5): before Echo reads its settings, make sure it has a login
+# vault key (so passwords are stored encrypted) and a pinned release key (so updates are checked). Both are
+# made once and kept; neither ever stops Echo from starting.
+try { $null = Initialize-EchoLoginVault $root } catch { Write-Warning "The login vault key could not be checked: $($_.Exception.Message)" }
+try { $null = Initialize-EchoReleaseTrust $root } catch { Write-Warning "The release key could not be checked: $($_.Exception.Message)" }
+
 $javaw = Join-Path $info.javaHome 'bin\javaw.exe'
 if (-not (Test-Path $javaw)) { $javaw = Join-Path $info.javaHome 'bin\java.exe' }
 $jargs = @('-Xmx512m')

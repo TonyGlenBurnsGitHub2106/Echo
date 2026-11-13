@@ -31,7 +31,7 @@ start at sign-in (`-AutoStart`), which Windows never runs as administrator, so i
 | `backup-echo.cmd` | Backs up the Echo database to a dated file. |
 | `uninstall-echo.cmd` | Takes Echo off the computer again: backs up the database, removes it and Echo's SQL login (kept if another Echo database on that SQL Server still uses it), and moves Echo's settings, logs and files to the Recycle Bin. Run it as administrator. It asks twice before it changes anything: type YES, then type the database name (it tells you how many solutions go with it). Run `install.cmd` to put it back. |
 | `set-password.cmd` | Sets a new password (or creates another sign-in). Also how a forgotten password is reset. A password too short or typed differently twice is asked for again; Enter with nothing typed cancels. |
-| `export-solution.cmd` / `import-solution.cmd` | Copy a solution from Leonardo (or another Echo) into this Echo -- see above. |
+| `export-solution.cmd` / `import-solution.cmd` | Copy a solution from Leonardo (or another Echo) into this Echo -- see below. |
 
 ---
 
@@ -46,7 +46,7 @@ the conversations, the files themselves and the Web tab's web addresses. Two ste
    name, or use `-SolutionId`):
 
    ```
-   export-solution.cmd -SqlServer RENAISSANCE\SQL2012EXPRESS -Database Leonardo -Alias claims -OutFile C:\temp\claims.echo.json
+   export-solution.cmd -SqlServer MYPC\SQLEXPRESS -Database Leonardo -Alias claims -OutFile C:\temp\claims.echo.json
    ```
 
 2. **At work**, carry that file over and load it:
@@ -121,9 +121,28 @@ procedures; the Java (`EntityWebAddress*`, `WebType*`, `EntityLogin*`, `LoginVau
 `stp_Solution_GetEntity`) answers a solution's EntityID to the Web tab; `EntityRecordErrors` gives the
 copied controllers Leonardo's error answers; `contacts\entity-detail-echo.js` switches off Pin / Needs
 attention; `reader\reader-echo.css` hides the four Library actions; logins' Owning User is an Echo
-sign-in (`AppUser`); `LoginVault` reads `echo.login.vault.key` (none is made, so a login is stored as
-Leonardo stores an unencrypted one). All of it is house-only: an agent's key is fenced to
-`/api/solutions/`.
+sign-in (`AppUser`); `LoginVault` reads `echo.login.vault.key`. All of it is house-only: an agent's key
+is fenced to `/api/solutions/`, and `/api/entities/` and `/api/web-addresses/` (where the logins live)
+are on the fence's never-list.
+
+**Login passwords (11/13/2026, Story 5765).** `Initialize-EchoLoginVault` (`scripts\EchoCommon.ps1`,
+run by install.cmd and by every start) makes the 32-byte vault key once, writes it to
+`config\application-local.properties` and keeps a copy protected by Windows (DPAPI, this computer) in
+`config\login-vault.key.dat`, so settings written again with `-Reconfigure` get the same key back.
+`EntityLoginService` stores every new or edited login encrypted (Leonardo's "LV1" cipher), and
+`LoginVaultSweep` encrypts any plain login when Echo starts. Unlike Leonardo, Echo's
+`trg_Update_LoginSetup` logs an encrypted login's password as `(encrypted)`, never as plain text.
+Back up `config\` with the database: without that key the encrypted passwords cannot be opened.
+
+**Signed updates (11/13/2026, Story 5765).** `tools\Publish-EchoRelease.ps1` signs each release's tag,
+version, commit and sha256 (RSA 3072, SHA-256) with a private key that lives only in the publishing
+Windows user's profile (`%USERPROFILE%\.echo-signing\`, DPAPI, made once by
+`tools\New-EchoReleaseKey.ps1`). An installed Echo checks every release against its own copy of the
+public key, `config\release-public-key.xml`, pinned once from `scripts\release-public-key.xml` (at install,
+or the first start or update that finds none). `update-echo.cmd` then refuses an unsigned or wrongly
+signed release, or one whose version is not higher than the running jar's (unless `-Force`), and moves
+the git clone only to the signed release's commit, so the scripts it runs came with that release.
+`-TrustNewKey` takes GitHub's key instead, for a real key change. `-Build` keeps the old unsigned pull.
 
 **Files.** `echo.files.path` (default `EchoFiles` beside the jar), `EchoFiles\<solutionId>\<random>-<name>`,
 StorageCode `local`; a removed file moves to `EchoFiles\trash`. Downloads are always attachments; a web
@@ -240,6 +259,11 @@ What is different in Echo:
 
 - **No linked records.** Leonardo can hang a solution on a matter, a person or a vendor; Echo has
   none of those. The Web tab has no **Pin** (pins go to Leonardo's Needs attention).
+- **Every login's password is kept encrypted.** A password you save on a Web tab's Logins is stored
+  encrypted, with a key that lives in Echo's own settings on this computer, not in the database. So a
+  copy of the database, or a backup of it, does not show your work passwords. You see and type them
+  just as before. Logins saved before 11/13/2026 were encrypted the first time Echo started after that
+  update.
 - **Files come from this computer.** **+ Add Files** offers Upload from this device (pick as many
   files as you like), Scan, Paste text and New text note. There is no Reading Nook or Leonardo Files
   library to pick from. While files are added a spinner says which one it is on ("Uploading 2 of 6"),
@@ -431,6 +455,9 @@ Main menu -> Echo -> Settings:
   database, updates it and restarts. Echo is away for a minute or so; the page waits, then says how
   it went (**Show the log** has the details). If Echo was already up to date it says so and changes
   nothing. If the new Echo will not start, the one you had is put back and started.
+  Every update is signed by the person who published it, and Echo checks that signature before it
+  changes anything. An update that is not signed, is signed by anyone else, or is not newer than the
+  Echo you have is refused, and the page says why. Nothing is changed when that happens.
 - **About Echo.** The version, the release it is running, how long it has been running, the
   database it uses, and the folder that holds its files.
 

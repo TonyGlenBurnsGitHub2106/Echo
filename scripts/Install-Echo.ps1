@@ -200,6 +200,13 @@ GRANT EXECUTE TO echo_app
     [IO.File]::WriteAllLines($local, $lines)
     Write-Host "  wrote config\application-local.properties (new token secret and service key)"
 }
+# Story 5653 / Story 5765 (audit fence-5): the login vault key -- made once, or put back from its DPAPI copy
+# (config\login-vault.key.dat) when -Reconfigure just wrote the settings again, so old passwords still open.
+$vaultId = Initialize-EchoLoginVault $root
+Write-Host "  login vault key $vaultId (passwords saved in Echo are kept encrypted)"
+# Story 5653 / Story 5765 (audit fence-4): the release key this Echo will check every update against.
+$releaseKey = Initialize-EchoReleaseTrust $root
+if ($releaseKey) { Write-Host "  updates must be signed by release key $(Get-EchoKeyFingerprint $releaseKey)" }
 if ($Auth -eq 'Windows') {
     # Story 5653: Echo runs as the person signed in to this desktop WITHOUT administrator rights (the
     # start step goes through explorer.exe), so a sign-in that works only through the local
