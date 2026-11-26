@@ -351,3 +351,21 @@ END
 CLOSE solutionsWithoutEntity
 DEALLOCATE solutionsWithoutEntity
 GO
+-- Story 6852 (Daily Work): put Daily Work on Quick Launch ONCE, at the bottom (Tony, 2026-11-26: "make sure to
+-- put it on quick launch"). Quick Launch lives in each Echo's own database, so the tile reaches work through this
+-- seed on the next update. A database mark records that it was done: if Tony removes the tile, an update never
+-- puts it back. A tile he already made for the page is kept, and only the mark is set.
+IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class = 0 AND name = N'Seed_QuickLaunch_DailyWork')
+BEGIN
+    DECLARE @memoIcon NVARCHAR(8) = NCHAR(0xD83D) + NCHAR(0xDCDD)   -- the memo emoji, as a surrogate pair
+    IF NOT EXISTS (SELECT 1 FROM dbo.QuickLaunch WHERE URL LIKE N'/daily-work/daily-work.html%')
+        EXEC dbo.stp_QuickLaunch_Save @prmQuickLaunchID = 0, @prmLabel = N'Daily Work',
+             @prmURL = N'/daily-work/daily-work.html', @prmIconKey = @memoIcon
+    BEGIN TRY
+        EXEC sys.sp_addextendedproperty @name = N'Seed_QuickLaunch_DailyWork', @value = N'Story 6852, 2026-11-26'
+    END TRY
+    BEGIN CATCH
+        PRINT 'Could not mark the Daily Work Quick Launch seed as done: ' + ERROR_MESSAGE()
+    END CATCH
+END
+GO
