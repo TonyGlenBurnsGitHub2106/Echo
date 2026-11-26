@@ -519,3 +519,165 @@ GO
 IF COL_LENGTH('dbo.SolutionProjectItem_LOG', 'ReviewedCode') IS NULL
     ALTER TABLE dbo.SolutionProjectItem_LOG ADD ReviewedCode VARCHAR(10) NULL, QaCode VARCHAR(10) NULL, AutomatedCode VARCHAR(10) NULL;
 GO
+
+-- ---- Story 6852 (2026-11-25): Daily Work -- a quick log of what I did at work ----
+-- Tony: "Super easy to use ... I need to be able to fill in the least number of fields possible and it
+-- still work. I don't want logging work to become a task unto itself." Only WorkDone is required; the
+-- date and time fill themselves. Leonardo's 2008 DailyWork tables are a different shape, so these
+-- carry names of their own (DailyWorkEntry ...) and the drift tool never pairs them.
+--   Team              a team at work (lookup, + Add in place)
+--   Contact           a person at work; TeamID is the team they belong to, learned from the entries
+--   DailyWorkKind     what kind of work (Jira, support call, meeting ...; lookup, + Add in place)
+--   DailyWorkEntry    one thing I did
+--   DailyWorkEntryContact  who it was for (many)
+--   DailyWorkEntryLink     Confluence (or any) links (many)
+IF OBJECT_ID('dbo.Team') IS NULL
+BEGIN
+    CREATE TABLE dbo.Team (
+        TeamID       INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Team PRIMARY KEY CLUSTERED,
+        TeamName     NVARCHAR(100) NOT NULL,
+        IsActive     BIT      NOT NULL CONSTRAINT DF_Team_IsActive DEFAULT (1),
+        CreatedDate  DATETIME NOT NULL CONSTRAINT DF_Team_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate DATETIME NULL
+    );
+    CREATE UNIQUE INDEX UX_Team_TeamName ON dbo.Team (TeamName);
+END;
+GO
+IF OBJECT_ID('dbo.Team_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.Team_LOG (
+        Team_LOGID     INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Team_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_Team_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_Team_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        TeamID INT NULL, TeamName NVARCHAR(100) NULL, IsActive BIT NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF OBJECT_ID('dbo.Contact') IS NULL
+BEGIN
+    CREATE TABLE dbo.Contact (
+        ContactID    INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Contact PRIMARY KEY CLUSTERED,
+        ContactName  NVARCHAR(150) NOT NULL,
+        TeamID       INT      NULL CONSTRAINT FK_Contact_Team REFERENCES dbo.Team (TeamID),
+        IsActive     BIT      NOT NULL CONSTRAINT DF_Contact_IsActive DEFAULT (1),
+        CreatedDate  DATETIME NOT NULL CONSTRAINT DF_Contact_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate DATETIME NULL
+    );
+    CREATE UNIQUE INDEX UX_Contact_ContactName ON dbo.Contact (ContactName);
+END;
+GO
+IF OBJECT_ID('dbo.Contact_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.Contact_LOG (
+        Contact_LOGID  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Contact_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_Contact_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_Contact_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        ContactID INT NULL, ContactName NVARCHAR(150) NULL, TeamID INT NULL, IsActive BIT NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkKind') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkKind (
+        DailyWorkKindID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkKind PRIMARY KEY CLUSTERED,
+        KindName     NVARCHAR(100) NOT NULL,
+        IsActive     BIT      NOT NULL CONSTRAINT DF_DailyWorkKind_IsActive DEFAULT (1),
+        CreatedDate  DATETIME NOT NULL CONSTRAINT DF_DailyWorkKind_CreatedDate DEFAULT (GETDATE()),
+        ModifiedDate DATETIME NULL
+    );
+    CREATE UNIQUE INDEX UX_DailyWorkKind_KindName ON dbo.DailyWorkKind (KindName);
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkKind_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkKind_LOG (
+        DailyWorkKind_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkKind_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_DailyWorkKind_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_DailyWorkKind_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        DailyWorkKindID INT NULL, KindName NVARCHAR(100) NULL, IsActive BIT NULL, CreatedDate DATETIME NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntry') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntry (
+        DailyWorkEntryID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntry PRIMARY KEY CLUSTERED,
+        WorkDate         DATETIME       NOT NULL CONSTRAINT DF_DailyWorkEntry_WorkDate DEFAULT (GETDATE()),
+        WorkDone         NVARCHAR(1000) NOT NULL,
+        StoryRef         NVARCHAR(400)  NULL,
+        TeamID           INT            NULL CONSTRAINT FK_DailyWorkEntry_Team REFERENCES dbo.Team (TeamID),
+        DailyWorkKindID  INT            NULL CONSTRAINT FK_DailyWorkEntry_Kind REFERENCES dbo.DailyWorkKind (DailyWorkKindID),
+        MinutesSpent     INT            NULL,
+        IsFollowUp       BIT            NOT NULL CONSTRAINT DF_DailyWorkEntry_IsFollowUp DEFAULT (0),
+        Notes            NVARCHAR(MAX)  NULL,
+        CreatedBy        NVARCHAR(100)  NULL,
+        CreatedDate      DATETIME       NOT NULL CONSTRAINT DF_DailyWorkEntry_CreatedDate DEFAULT (GETDATE()),
+        ModifiedBy       NVARCHAR(100)  NULL,
+        ModifiedDate     DATETIME       NULL
+    );
+    CREATE INDEX IX_DailyWorkEntry_WorkDate ON dbo.DailyWorkEntry (WorkDate DESC);
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntry_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntry_LOG (
+        DailyWorkEntry_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntry_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_DailyWorkEntry_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_DailyWorkEntry_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        DailyWorkEntryID INT NULL, WorkDate DATETIME NULL, WorkDone NVARCHAR(1000) NULL, StoryRef NVARCHAR(400) NULL,
+        TeamID INT NULL, DailyWorkKindID INT NULL, MinutesSpent INT NULL, IsFollowUp BIT NULL, Notes NVARCHAR(MAX) NULL,
+        CreatedBy NVARCHAR(100) NULL, CreatedDate DATETIME NULL, ModifiedBy NVARCHAR(100) NULL, ModifiedDate DATETIME NULL
+    );
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntryContact') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntryContact (
+        DailyWorkEntryContactID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntryContact PRIMARY KEY CLUSTERED,
+        DailyWorkEntryID INT NOT NULL CONSTRAINT FK_DailyWorkEntryContact_Entry REFERENCES dbo.DailyWorkEntry (DailyWorkEntryID),
+        ContactID        INT NOT NULL CONSTRAINT FK_DailyWorkEntryContact_Contact REFERENCES dbo.Contact (ContactID),
+        SortOrder        INT NOT NULL CONSTRAINT DF_DailyWorkEntryContact_SortOrder DEFAULT (0),
+        CreatedDate      DATETIME NOT NULL CONSTRAINT DF_DailyWorkEntryContact_CreatedDate DEFAULT (GETDATE())
+    );
+    CREATE UNIQUE INDEX UX_DailyWorkEntryContact ON dbo.DailyWorkEntryContact (DailyWorkEntryID, ContactID);
+    CREATE INDEX IX_DailyWorkEntryContact_Contact ON dbo.DailyWorkEntryContact (ContactID);
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntryContact_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntryContact_LOG (
+        DailyWorkEntryContact_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntryContact_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_DailyWorkEntryContact_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_DailyWorkEntryContact_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        DailyWorkEntryContactID INT NULL, DailyWorkEntryID INT NULL, ContactID INT NULL, SortOrder INT NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntryLink') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntryLink (
+        DailyWorkEntryLinkID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntryLink PRIMARY KEY CLUSTERED,
+        DailyWorkEntryID INT NOT NULL CONSTRAINT FK_DailyWorkEntryLink_Entry REFERENCES dbo.DailyWorkEntry (DailyWorkEntryID),
+        LinkUrl          NVARCHAR(1000) NOT NULL,
+        SortOrder        INT NOT NULL CONSTRAINT DF_DailyWorkEntryLink_SortOrder DEFAULT (0),
+        CreatedDate      DATETIME NOT NULL CONSTRAINT DF_DailyWorkEntryLink_CreatedDate DEFAULT (GETDATE())
+    );
+    CREATE INDEX IX_DailyWorkEntryLink_Entry ON dbo.DailyWorkEntryLink (DailyWorkEntryID);
+END;
+GO
+IF OBJECT_ID('dbo.DailyWorkEntryLink_LOG') IS NULL
+BEGIN
+    CREATE TABLE dbo.DailyWorkEntryLink_LOG (
+        DailyWorkEntryLink_LOGID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_DailyWorkEntryLink_LOG PRIMARY KEY CLUSTERED,
+        LogCreatedDate DATETIME NOT NULL CONSTRAINT DF_DailyWorkEntryLink_LOG_LCD DEFAULT (GETDATE()),
+        IsInsertion    BIT      NOT NULL CONSTRAINT DF_DailyWorkEntryLink_LOG_INS DEFAULT (0),
+        DeletedDate    DATETIME NULL,
+        DailyWorkEntryLinkID INT NULL, DailyWorkEntryID INT NULL, LinkUrl NVARCHAR(1000) NULL, SortOrder INT NULL, CreatedDate DATETIME NULL
+    );
+END;
+GO

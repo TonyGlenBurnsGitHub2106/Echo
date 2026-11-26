@@ -1,0 +1,83 @@
+/* Daily Work (Story 6852). The look follows Solutions: a dark head, a scroll area of white cards. */
+
+html, body { margin: 0; height: 100%; background: #F3F4F6; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #1F2937; }
+.dw-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+
+.ct-header { background: #1F2937; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.ct-header h1 { margin: 0; font-size: 15pt; font-weight: 650; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-header button { color: #fff; background: transparent; border: 1px solid #4B5563; border-radius: 4px; padding: 4px 12px; font: inherit; cursor: pointer; }
+
+.dw-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.dw-wrap { max-width: 980px; margin: 0 auto; padding: 12px 12px 40px; }
+.dw-status { flex: 0 0 auto; background: #E5E7EB; border-top: 1px solid #D1D5DB; padding: 4px 12px; font-size: 12px; color: #4B5563; }
+
+.dw-card { background: #fff; border: 1px solid #D9DCE3; border-radius: 6px; margin-bottom: 12px; }
+.dw-card > h2 { margin: 0; padding: 10px 14px; font-size: 13pt; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.dw-card > .dw-fold-body { padding: 0 14px 14px; }
+.dw-sub { font-size: 10pt; font-weight: 400; color: #6B7280; }
+
+/* Every header folds and remembers. */
+.dw-fold-head { cursor: pointer; user-select: none; }
+.dw-chev { margin-left: auto; color: #9CA3AF; font-size: 10pt; transition: transform 150ms ease; }
+.is-folded > .dw-fold-head .dw-chev, .dw-fold-head.is-folded .dw-chev { transform: rotate(-90deg); }
+.is-folded > .dw-fold-body { display: none; }
+
+.dw-fld { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; min-width: 0; }
+.dw-fld label { font-size: 12px; color: #4B5563; font-weight: 600; }
+.dw-fld input[type="text"], .dw-fld input[type="search"], .dw-fld input[type="date"], .dw-fld input[type="time"],
+.dw-fld input[type="number"], .dw-fld textarea {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #C9CDD6; border-radius: 4px;
+    font: inherit; font-size: 14px; background: #fff; color: #111827;
+}
+.dw-fld textarea { resize: vertical; }
+#fldWorkDone { font-size: 15px; min-height: 52px; }
+.dw-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.dw-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 12px; }
+@media (max-width: 620px) { .dw-row2, .dw-row3 { grid-template-columns: 1fr; } }
+
+.dw-hint { font-size: 12px; color: #6B7280; margin: -4px 0 10px; }
+.dw-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; margin-bottom: 10px; cursor: pointer; }
+.dw-warn { display: none; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; }
+.dw-warn.show { display: block; }
+
+.dw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dw-chip { display: inline-flex; align-items: center; gap: 4px; background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; border-radius: 12px; padding: 2px 4px 2px 10px; font-size: 13px; }
+.dw-chip button { border: 0; background: transparent; color: #4338CA; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
+.dw-chip.plain { padding: 2px 10px; background: #F3F4F6; color: #374151; border-color: #E5E7EB; }
+.dw-chip.team { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; padding: 2px 10px; }
+.dw-chip.kind { background: #FFF7ED; color: #9A3412; border-color: #FED7AA; padding: 2px 10px; }
+
+.dw-more { border-top: 1px solid #EEF0F3; padding-top: 6px; margin-bottom: 8px; }
+.dw-more > .dw-fold-body { padding-top: 8px; }
+.dw-link-btn { border: 0; background: transparent; color: #0A66C2; font: inherit; font-size: 13px; padding: 4px 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.dw-link-btn .dw-chev { margin-left: 0; }
+
+.dw-foot { display: flex; align-items: center; gap: 8px; }
+.dw-spacer { flex: 1 1 auto; }
+.dw-btn { border: 1px solid #C9CDD6; background: #fff; color: #1F2937; border-radius: 4px; padding: 7px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+.dw-btn.primary { background: #1F4E8C; border-color: #1F4E8C; color: #fff; }
+.dw-btn.danger { color: #B91C1C; border-color: #FCA5A5; }
+.dw-btn:disabled { opacity: 0.55; cursor: default; }
+
+.dw-tools { display: flex; flex-wrap: wrap; gap: 0 10px; align-items: flex-end; }
+.dw-tools .grow { flex: 1 1 220px; }
+.dw-tools .dw-fld { flex: 0 1 170px; }
+.dw-tools .dw-check, .dw-tools .dw-btn { margin-bottom: 10px; }
+
+.dw-day { border: 1px solid #E5E7EB; border-radius: 5px; margin-bottom: 8px; }
+.dw-day > .dw-fold-head { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #F9FAFB; border-radius: 5px; font-weight: 650; font-size: 13px; }
+.dw-day:not(.is-folded) > .dw-fold-head { border-bottom: 1px solid #E5E7EB; border-radius: 5px 5px 0 0; }
+.dw-entry { display: flex; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #F0F1F4; }
+.dw-entry:last-child { border-bottom: 0; }
+.dw-entry.follow { border-left: 3px solid #D97706; padding-left: 7px; }
+.dw-time { flex: 0 0 64px; font-size: 12px; color: #6B7280; padding-top: 2px; }
+.dw-main { flex: 1 1 auto; min-width: 0; }
+.dw-what { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dw-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; align-items: center; font-size: 12px; }
+.dw-meta a { color: #0A66C2; text-decoration: none; overflow-wrap: anywhere; }
+.dw-notes { font-size: 12px; color: #4B5563; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dw-acts { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 13px; }
+.dw-acts a { color: #0A66C2; text-decoration: none; cursor: pointer; }
+.dw-flag { border: 1px solid #E5E7EB; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 2px 6px; color: #6B7280; }
+.dw-flag.on { background: #FFFBEB; border-color: #F59E0B; color: #92400E; }
+.dw-empty { color: #6B7280; font-size: 14px; padding: 12px 4px; }

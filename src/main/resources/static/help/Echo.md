@@ -4,6 +4,7 @@ Echo is a small app of its own that echoes parts of Leonardo. It has its own sig
 database and its own address, so it can run on a computer that has no Leonardo on it, such as your
 work machine. The first part it echoes is **Solutions**: every feature of Leonardo's Solutions, with
 the same screens, buttons and behavior, minus the record links that only make sense inside Leonardo.
+It also has **Daily Work**, a quick log of what you did at work (11/26/2026).
 It looks and works like LeonardoWeb: the same icon band, Quick Launch, menu and Print menu. (An
 Email Client was added on 10/26/2026 and taken out on 10/28/2026: the company's security policy does
 not allow a program like Echo to read work mail.)
@@ -196,6 +197,17 @@ address, both types by name, notes, Important, order) are made again with Echo's
 same transaction -- an address Echo already has is linked, not duplicated. A failed import moves the
 files it had written to `EchoFiles\trash`.
 
+**Daily Work (11/26/2026, Story 6852).** Echo's own tables (in `db\tables-app.sql`, each with its
+`_LOG` mirror and three triggers): `Team`, `Contact` (with the `TeamID` it learns), `DailyWorkKind`,
+`DailyWorkEntry`, `DailyWorkEntryContact`, `DailyWorkEntryLink`. Leonardo's 2008 `DailyWork` tables
+are a different shape, so these are named apart and the drift tool never pairs them. The view
+`vw_DailyWorkEntry` folds contacts and links into one column each. Procedures: `stp_Team_List` /
+`_Save`, `stp_Contact_List` / `_Save`, `stp_DailyWorkKind_List` / `_Save` (find or create by name),
+`stp_DailyWorkEntry_Save` (one transaction; refuses a blank entry, a link that is not http(s), a
+missing team / kind / contact, and the same words saved twice within two minutes), `_Search` (never
+returns or searches the notes), `_Get`, `_SetFollowUp`, `_Delete`. API `/api/daily-work/**`
+(`DailyWorkController`), signed-in users only: an agent cannot reach it.
+
 **Execution policy.** The `.cmd` files start PowerShell with `-ExecutionPolicy Bypass`, so the
 scripts run on a machine whose policy is AllSigned or Restricted. A Group Policy that forbids
 Bypass would still stop them.
@@ -229,8 +241,8 @@ Every page has the icon band across the top, exactly as in LeonardoWeb:
 | Print | The Print menu for the page you are on |
 | Logout (right) | Sign out |
 
-The main menu has the **Quick Launch** row, a **Solutions** section, and an **Echo** section for
-housekeeping (Manage Quick Launch, API Clients, Settings, Help). Tap a section's heading to fold or
+The main menu has the **Quick Launch** row, a **Solutions** section, a **Work** section (Daily Work),
+and an **Echo** section for housekeeping (Manage Quick Launch, API Clients, Settings, Help). Tap a section's heading to fold or
 open it; **Fold all** / **Open all** works them all at once. Echo remembers which sections you
 folded, in its database, so every browser you use sees the same menu.
 
@@ -437,6 +449,37 @@ An outside agent -- Rex, say -- can work inside a solution you share with it, an
 
 The agent can read and change everything inside the shared solution. It cannot see any other
 solution, cannot delete or share the solution, and cannot reach any other page or setting of Echo.
+
+### Daily Work
+
+Main menu -> Work -> Daily Work. A log of what you did, kept so it takes seconds, not minutes.
+
+**Log something.** Type what you did (or the issue) in **What did you do?** and tap **Save**, or press
+**Ctrl+Enter**. That is a whole entry: the date and time are the moment you save. Everything else is
+optional:
+
+- **Who for**: pick a contact, as many as you like; each one shows as a chip (tap its x to take it off).
+  Someone new? Type the name in the dropdown's box and tap **+ Add contact**.
+- **Team**: fills itself from the first contact you pick who has a team, unless you already chose one.
+  Pick a team once with a contact and Echo remembers that contact's team. **+ Add team** makes a new one.
+- **More** holds the rest, folded until you want it: the **Story** (a key such as ABC-123, or its link),
+  **Kind of work** (Jira, support call, meeting ... with **+ Add kind**), **Confluence links** (paste one
+  per line), the **Date** and **Time** (change them to log something from earlier), **Minutes spent**,
+  **Needs a follow-up**, and **Notes**. Folded, More says what it holds.
+
+**The list.** Entries show newest first, a band per day (Today, Yesterday, then the date), with the
+day's count and minutes. Each row shows who it was for, the team, the kind, the story, and the
+Confluence links by their page names (they open in a new tab).
+
+- **Search** finds words in what you did, the story, a person, a team, a kind or a link (every word
+  must match; notes are not searched). **When** picks the span: this week, the last two weeks, this
+  month, the last 90 days, this year, or everything. **Follow-ups only** shows just the flagged ones.
+- **Follow up** on a row flags it (an amber edge); tap it again when it is dealt with.
+- **View** shows the whole entry, notes and all, with **Edit** and **Print**. **Edit** opens it in the
+  form at the top: change it and **Save**, **Cancel edit**, or **Delete** (asks first).
+- **Clear** empties the form (it asks first when you have typed something).
+- Every heading folds, and Echo remembers what you folded; **Fold all** folds or opens every day.
+- **Print** prints what the list shows now: the span, search and filter, the count, then a table per day.
 
 ### The Print menu
 

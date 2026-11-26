@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <title>Daily Work &mdash; Echo</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1F2937">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Echo">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <!-- Story 6852 (Daily Work): a quick log of what I did at work. -->
+    <link rel="stylesheet" href="/picasso-base.css?v=6">
+    <link rel="stylesheet" href="/picasso-select.css?v=5">
+    <link rel="stylesheet" href="/contacts/entity-detail.css?v=23">
+    <link rel="stylesheet" href="daily-work.css?v=1">
+</head>
+<body>
+<div class="dw-shell" data-testid="daily-work-page">
+
+    <div class="ct-header" data-testid="daily-work-header">
+        <h1 data-testid="page-title">Daily Work</h1>
+        <button type="button" id="btnPrint" data-testid="daily-work-print">Print</button>
+    </div>
+
+    <div class="dw-body" id="dwBody" data-testid="daily-work-body">
+        <div class="dw-wrap">
+
+            <!-- The entry form: only "What did you do?" is required. The date and time fill themselves. -->
+            <section class="dw-card" id="dwFormCard" data-testid="dw-form-card">
+                <h2 class="dw-fold-head" data-fold="form" data-testid="dw-form-head">
+                    <span id="dwFormTitle">Log work</span>
+                    <span class="dw-sub" id="dwFormSub"></span>
+                    <span class="dw-chev" aria-hidden="true">&#9662;</span>
+                </h2>
+                <div class="dw-fold-body">
+                    <div class="dw-warn" id="dwWarn" data-testid="dw-warn" role="alert"></div>
+                    <div class="dw-fld">
+                        <label for="fldWorkDone">What did you do?</label>
+                        <textarea id="fldWorkDone" rows="2" maxlength="1000" data-testid="dw-work-done"
+                                  placeholder="What you did, or the issue (Ctrl+Enter saves)"></textarea>
+                    </div>
+                    <div class="dw-row2">
+                        <div class="dw-fld">
+                            <label for="fldContact">Who for</label>
+                            <select id="fldContact" data-testid="dw-contact" data-ps-add="Add contact" data-ps-placeholder="Pick a contact"></select>
+                            <div class="dw-chips" id="dwContactChips" data-testid="dw-contact-chips"></div>
+                        </div>
+                        <div class="dw-fld">
+                            <label for="fldTeam">Team</label>
+                            <select id="fldTeam" data-testid="dw-team" data-ps-add="Add team" data-ps-placeholder="No team"></select>
+                        </div>
+                    </div>
+
+                    <div class="dw-more">
+                        <button type="button" class="dw-link-btn dw-fold-head" data-fold="more" data-testid="dw-more-toggle">
+                            <span class="dw-chev" aria-hidden="true">&#9662;</span> More
+                            <span class="dw-sub" id="dwMoreSummary"></span>
+                        </button>
+                        <div class="dw-fold-body" data-testid="dw-more">
+                            <div class="dw-row2">
+                                <div class="dw-fld">
+                                    <label for="fldStory">Story</label>
+                                    <input type="text" id="fldStory" maxlength="400" autocomplete="off" data-testid="dw-story"
+                                           placeholder="A key such as ABC-123, or its link">
+                                </div>
+                                <div class="dw-fld">
+                                    <label for="fldKind">Kind of work</label>
+                                    <select id="fldKind" data-testid="dw-kind" data-ps-add="Add kind" data-ps-placeholder="Any"></select>
+                                </div>
+                            </div>
+                            <div class="dw-fld">
+                                <label for="fldLinks">Confluence links</label>
+                                <textarea id="fldLinks" rows="2" data-testid="dw-links"
+                                          placeholder="Paste a link per line"></textarea>
+                            </div>
+                            <div class="dw-row3">
+                                <div class="dw-fld">
+                                    <label for="fldDate">Date</label>
+                                    <input type="date" id="fldDate" data-testid="dw-date">
+                                </div>
+                                <div class="dw-fld">
+                                    <label for="fldTime">Time</label>
+                                    <input type="time" id="fldTime" data-testid="dw-time">
+                                </div>
+                                <div class="dw-fld">
+                                    <label for="fldMinutes">Minutes spent</label>
+                                    <input type="number" id="fldMinutes" min="0" max="1440" step="5" inputmode="numeric" data-testid="dw-minutes" placeholder="Optional">
+                                </div>
+                            </div>
+                            <div class="dw-hint" id="dwWhenHint" data-testid="dw-when-hint">Leave the date and time alone and they are the moment you save.</div>
+                            <label class="dw-check"><input type="checkbox" id="fldFollowUp" data-testid="dw-follow-up"> Needs a follow-up</label>
+                            <div class="dw-fld">
+                                <label for="fldNotes">Notes</label>
+                                <textarea id="fldNotes" rows="4" data-testid="dw-notes"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dw-foot">
+                        <button type="button" class="dw-btn danger" id="btnDelete" data-testid="dw-delete" hidden>Delete</button>
+                        <span class="dw-spacer"></span>
+                        <button type="button" class="dw-btn" id="btnClear" data-testid="dw-clear">Clear</button>
+                        <button type="button" class="dw-btn primary" id="btnSave" data-testid="dw-save">Save</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- The log, newest first, a band per day. -->
+            <section class="dw-card" id="dwListCard" data-testid="dw-list-card">
+                <h2 class="dw-fold-head" data-fold="list" data-testid="dw-list-head">
+                    <span>Entries</span>
+                    <span class="dw-sub" id="dwCount" data-testid="dw-count"></span>
+                    <span class="dw-chev" aria-hidden="true">&#9662;</span>
+                </h2>
+                <div class="dw-fold-body">
+                    <div class="dw-tools" data-testid="dw-tools">
+                        <div class="dw-fld grow">
+                            <label for="fldSearch">Search</label>
+                            <input type="search" id="fldSearch" autocomplete="off" data-testid="dw-search"
+                                   placeholder="Words in what you did, a story, a person, a team">
+                        </div>
+                        <div class="dw-fld">
+                            <label for="fldRange">When</label>
+                            <select id="fldRange" data-testid="dw-range">
+                                <option value="week">This week</option>
+                                <option value="2weeks">Last two weeks</option>
+                                <option value="month">This month</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="year">This year</option>
+                                <option value="all">Everything</option>
+                            </select>
+                        </div>
+                        <label class="dw-check"><input type="checkbox" id="chkFollowUp" data-testid="dw-follow-up-only"> Follow-ups only</label>
+                        <button type="button" class="dw-btn" id="btnFoldAll" data-testid="dw-fold-all" title="Fold every day">Fold all</button>
+                    </div>
+                    <div id="dwList" data-testid="dw-list"><div class="dw-empty">Loading&hellip;</div></div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+    <div class="dw-status" id="statusBar" data-testid="dw-status">Echo | Daily Work</div>
+</div>
+
+<!-- What Print prints: a clean report of what the list shows now, drawn at print time. -->
+<div id="dwReport" hidden data-testid="dw-report"></div>
+
+<script src="/picasso-utils.js?v=63"></script>
+<script src="/auth.js?v=36"></script>
+<script src="/picasso-view-state.js?v=4"></script>
+<script src="/picasso-select.js?v=5"></script>
+<script src="/contacts/entity-detail.js?v=126"></script>
+<script src="/contacts/entity-detail-echo.js?v=2"></script>
+<script src="daily-work.js?v=1"></script>
+</body>
+</html>
